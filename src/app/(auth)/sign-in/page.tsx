@@ -8,13 +8,15 @@ import { UserAuthForm } from "@/components/auth/sign-in/components/user-auth-for
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Sign In",
+  title: "Quantum CRM",
   description: "Sign in to your account",
 };
 
 export default async function SignInPage() {
   const supabase = createServerComponentClient({ cookies });
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
   if (session) {
     redirect("/dashboard");
@@ -57,4 +59,4 @@ export default async function SignInPage() {
       </Card>
     </AuthLayout>
   );
-} 
+}

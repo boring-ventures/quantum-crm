@@ -8,13 +8,15 @@ import { SignUpForm } from "@/components/auth/sign-up/components/sign-up-form";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Sign Up",
+  title: "Quantum CRM",
   description: "Create a new account",
 };
 
 export default async function SignUpPage() {
   const supabase = createServerComponentClient({ cookies });
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
   if (session) {
     redirect("/dashboard");
@@ -59,4 +61,4 @@ export default async function SignUpPage() {
       </Card>
     </AuthLayout>
   );
-} 
+}
