@@ -16,6 +16,7 @@ interface BaseNavItem {
   title: string;
   icon?: LucideIcon;
   badge?: string;
+  subtitle?: string;
 }
 
 export interface NavLink extends BaseNavItem {
