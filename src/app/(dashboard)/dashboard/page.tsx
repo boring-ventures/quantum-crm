@@ -14,7 +14,7 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6 p-6 text-gray-100 min-h-screen">
+    <div className="space-y-6 p-6 min-h-screen">
       <DashboardContent />
     </div>
   );

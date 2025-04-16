@@ -20,7 +20,7 @@ export function DashboardMetrics() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-100">Métricas Clave</h2>
+        <h2 className="text-lg font-semibold">Métricas Clave</h2>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
@@ -115,23 +115,27 @@ function MetricCard({
   chart,
   onClick,
 }: MetricCardProps) {
-  // Map color to Tailwind classes
+  // Map colors for both dark and light modes
   const colorMap = {
-    amber: "border-l-amber-500 bg-amber-900/30 text-amber-200",
-    red: "border-l-red-500 bg-red-900/30 text-red-200",
-    rose: "border-l-rose-500 bg-rose-900/30 text-rose-200",
-    blue: "border-l-blue-500 bg-blue-900/30 text-blue-200",
-    gray: "border-l-gray-500 bg-gray-900/30 text-gray-200",
-    green: "border-l-green-500 bg-green-900/30 text-green-200",
+    amber:
+      "border-l-amber-500 dark:bg-amber-900/30 dark:text-amber-200 bg-amber-100 text-amber-900",
+    red: "border-l-red-500 dark:bg-red-900/30 dark:text-red-200 bg-red-100 text-red-900",
+    rose: "border-l-rose-500 dark:bg-rose-900/30 dark:text-rose-200 bg-rose-100 text-rose-900",
+    blue: "border-l-blue-500 dark:bg-blue-900/30 dark:text-blue-200 bg-blue-100 text-blue-900",
+    gray: "border-l-gray-500 dark:bg-gray-900/30 dark:text-gray-200 bg-gray-100 text-gray-900",
+    green:
+      "border-l-green-500 dark:bg-green-900/30 dark:text-green-200 bg-green-100 text-green-900",
   };
 
   const iconColorMap = {
-    amber: "bg-amber-900/50 text-amber-200",
-    red: "bg-red-900/50 text-red-200",
-    rose: "bg-rose-900/50 text-rose-200",
-    blue: "bg-blue-900/50 text-blue-200",
-    gray: "bg-gray-900/50 text-gray-200",
-    green: "bg-green-900/50 text-green-200",
+    amber:
+      "dark:bg-amber-900/50 dark:text-amber-200 bg-amber-200 text-amber-900",
+    red: "dark:bg-red-900/50 dark:text-red-200 bg-red-200 text-red-900",
+    rose: "dark:bg-rose-900/50 dark:text-rose-200 bg-rose-200 text-rose-900",
+    blue: "dark:bg-blue-900/50 dark:text-blue-200 bg-blue-200 text-blue-900",
+    gray: "dark:bg-gray-900/50 dark:text-gray-200 bg-gray-200 text-gray-900",
+    green:
+      "dark:bg-green-900/50 dark:text-green-200 bg-green-200 text-green-900",
   };
 
   return (
@@ -157,10 +161,10 @@ function MetricCard({
                 className={cn(
                   "text-xs font-medium px-2 py-1 rounded-full flex items-center gap-1",
                   trendType === "negative"
-                    ? "bg-red-900/50 text-red-200"
+                    ? "dark:bg-red-900/50 dark:text-red-200 bg-red-200 text-red-900"
                     : trendType === "positive"
-                      ? "bg-green-900/50 text-green-200"
-                      : "bg-gray-900/50 text-gray-200"
+                      ? "dark:bg-green-900/50 dark:text-green-200 bg-green-200 text-green-900"
+                      : "dark:bg-gray-900/50 dark:text-gray-200 bg-gray-200 text-gray-900"
                 )}
               >
                 {trendIcon}
@@ -176,12 +180,12 @@ function MetricCard({
             )}
             <div className="text-xs font-medium opacity-80">{label}</div>
           </div>
-          <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-700/50">
+          <div className="flex justify-between items-center mt-3 pt-3 border-t dark:border-gray-700/50 border-gray-300/50">
             <span className="text-xs font-medium opacity-80">Ver Detalles</span>
             <Button
               variant="ghost"
               size="icon"
-              className="h-5 w-5 rounded-full hover:bg-gray-700/50 transition-colors"
+              className="h-5 w-5 rounded-full dark:hover:bg-gray-700/50 hover:bg-gray-200/70 transition-colors"
             >
               <ArrowRight className="h-3 w-3" />
             </Button>
@@ -209,8 +213,9 @@ function SalesChart() {
             delay: i * 0.05,
           }}
           className={cn(
-            "bg-gray-700 hover:bg-gray-600 w-1.5 rounded-t transition-colors",
-            i === data.length - 1 && "bg-green-600 hover:bg-green-500"
+            "dark:bg-gray-700 dark:hover:bg-gray-600 bg-gray-300 hover:bg-gray-400 w-1.5 rounded-t transition-colors",
+            i === data.length - 1 &&
+              "dark:bg-green-600 dark:hover:bg-green-500 bg-green-500 hover:bg-green-600"
           )}
         />
       ))}

@@ -28,17 +28,17 @@ export function DashboardFilters({
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="bg-gray-900/60 rounded-lg border border-gray-800 p-4">
+    <div className="dark:bg-gray-900/60 bg-white/90 rounded-lg border dark:border-gray-800 border-gray-200 p-4 shadow-sm overflow-hidden">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-gray-400" />
-          <h2 className="text-sm text-gray-300">Filtros</h2>
+          <Filter className="h-4 w-4 dark:text-gray-400 text-gray-500" />
+          <h2 className="text-sm dark:text-gray-300 text-gray-700">Filtros</h2>
         </div>
         <Button
           variant="ghost"
           size="sm"
           onClick={() => setExpanded(!expanded)}
-          className="h-7 text-gray-400 hover:text-gray-200"
+          className="h-7 dark:text-gray-400 text-gray-500 dark:hover:text-gray-200 hover:text-gray-900"
         >
           {expanded ? (
             <>
@@ -61,10 +61,10 @@ export function DashboardFilters({
               value={activeFilters.company}
               onValueChange={(value) => onFilterChange("company", value)}
             >
-              <SelectTrigger className="bg-gray-800 border-gray-700 hover:border-gray-600 shadow-sm transition-colors h-8 text-xs text-gray-300">
+              <SelectTrigger className="dark:bg-gray-800 bg-white dark:border-gray-700 border-gray-300 dark:hover:border-gray-600 hover:border-gray-400 shadow-sm transition-colors h-8 text-xs dark:text-gray-300 text-gray-700">
                 <SelectValue placeholder="Todas las Empresas" />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-700 text-gray-300">
+              <SelectContent className="dark:bg-gray-800 bg-white dark:border-gray-700 border-gray-200 dark:text-gray-300 text-gray-700">
                 <SelectItem value="all-companies">
                   Todas las Empresas
                 </SelectItem>
@@ -81,10 +81,10 @@ export function DashboardFilters({
               value={activeFilters.brand}
               onValueChange={(value) => onFilterChange("brand", value)}
             >
-              <SelectTrigger className="bg-gray-800 border-gray-700 hover:border-gray-600 shadow-sm transition-colors h-8 text-xs text-gray-300">
+              <SelectTrigger className="dark:bg-gray-800 bg-white dark:border-gray-700 border-gray-300 dark:hover:border-gray-600 hover:border-gray-400 shadow-sm transition-colors h-8 text-xs dark:text-gray-300 text-gray-700">
                 <SelectValue placeholder="Todas las Marcas" />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-700 text-gray-300">
+              <SelectContent className="dark:bg-gray-800 bg-white dark:border-gray-700 border-gray-200 dark:text-gray-300 text-gray-700">
                 <SelectItem value="all-brands">Todas las Marcas</SelectItem>
                 <SelectItem value="quantum">Quantum</SelectItem>
                 <SelectItem value="super-soco">Super Soco</SelectItem>
@@ -98,10 +98,10 @@ export function DashboardFilters({
               value={activeFilters.branch}
               onValueChange={(value) => onFilterChange("branch", value)}
             >
-              <SelectTrigger className="bg-gray-800 border-gray-700 hover:border-gray-600 shadow-sm transition-colors h-8 text-xs text-gray-300">
+              <SelectTrigger className="dark:bg-gray-800 bg-white dark:border-gray-700 border-gray-300 dark:hover:border-gray-600 hover:border-gray-400 shadow-sm transition-colors h-8 text-xs dark:text-gray-300 text-gray-700">
                 <SelectValue placeholder="Todas las sucursales" />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-700 text-gray-300">
+              <SelectContent className="dark:bg-gray-800 bg-white dark:border-gray-700 border-gray-200 dark:text-gray-300 text-gray-700">
                 <SelectItem value="all-branches">
                   Todas las sucursales
                 </SelectItem>
@@ -117,10 +117,10 @@ export function DashboardFilters({
               value={activeFilters.business}
               onValueChange={(value) => onFilterChange("business", value)}
             >
-              <SelectTrigger className="bg-gray-800 border-gray-700 hover:border-gray-600 shadow-sm transition-colors h-8 text-xs text-gray-300">
+              <SelectTrigger className="dark:bg-gray-800 bg-white dark:border-gray-700 border-gray-300 dark:hover:border-gray-600 hover:border-gray-400 shadow-sm transition-colors h-8 text-xs dark:text-gray-300 text-gray-700">
                 <SelectValue placeholder="Todos los negocios" />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-700 text-gray-300">
+              <SelectContent className="dark:bg-gray-800 bg-white dark:border-gray-700 border-gray-200 dark:text-gray-300 text-gray-700">
                 <SelectItem value="all-businesses">
                   Todos los negocios
                 </SelectItem>
