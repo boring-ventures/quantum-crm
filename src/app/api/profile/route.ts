@@ -82,21 +82,16 @@ export async function PUT(request: NextRequest) {
 // POST: Create a new profile for the current authenticated user
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
-
-    // Get the current user's session
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
-
-    if (sessionError || !session) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-    }
-
-    const userId = session.user.id;
     const data = await request.json();
-    const { firstName, lastName, avatarUrl } = data;
+    const { userId, firstName, lastName, avatarUrl } = data;
+
+    // Skip authentication check for profile creation during sign-up
+    if (!userId) {
+      return NextResponse.json(
+        { error: "User ID is required" },
+        { status: 400 }
+      );
+    }
 
     // Check if profile already exists
     const existingProfile = await prisma.profile.findUnique({
