@@ -1,20 +1,22 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-import { prisma } from "@/lib/prisma";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import prisma from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
   try {
     const requestUrl = new URL(request.url);
-    const code = requestUrl.searchParams.get('code');
+    const code = requestUrl.searchParams.get("code");
 
     if (code) {
       const supabase = createRouteHandlerClient({ cookies });
       await supabase.auth.exchangeCodeForSession(code);
-      
+
       // Get the current session
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
       if (session?.user) {
         try {
@@ -28,7 +30,7 @@ export async function GET(request: NextRequest) {
             },
           });
         } catch (error) {
-          console.error('Error creating profile:', error);
+          console.error("Error creating profile:", error);
         }
       }
 
@@ -39,7 +41,7 @@ export async function GET(request: NextRequest) {
     // If no code, redirect to home page
     return NextResponse.redirect(`${requestUrl.origin}`);
   } catch (error) {
-    console.error('Auth callback error:', error);
-    return NextResponse.redirect(new URL('/sign-in', request.url));
+    console.error("Auth callback error:", error);
+    return NextResponse.redirect(new URL("/sign-in", request.url));
   }
-} 
+}

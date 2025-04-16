@@ -56,7 +56,21 @@ const mockLeadsData = [
   // Más datos de ejemplo...
 ];
 
-const exportLeadsToExcel = async (leads: any[]) => {
+interface Lead {
+  id: string;
+  nombre: string;
+  apellido: string;
+  apellidoMaterno?: string;
+  celular: string;
+  tipoContacto: string;
+  origen: string;
+  tipoNegocio: string;
+  fechaCreacion: string;
+  estado: string;
+  gradoInteres: string;
+}
+
+const exportLeadsToExcel = async (leads: Lead[]) => {
   // Simulación de exportación
   return new Promise((resolve) => {
     setTimeout(() => {
@@ -81,7 +95,8 @@ export default function LeadsPage() {
         title: "Exportación exitosa",
         description: `Se han exportado ${mockLeadsData.length} leads a Excel.`,
       });
-    } catch (error) {
+    } catch (err) {
+      console.error("Error exporting leads:", err);
       toast({
         title: "Error en la exportación",
         description: "Ha ocurrido un error al exportar los leads.",

@@ -5,11 +5,11 @@ import prisma from "@/lib/prisma";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const supabase = createRouteHandlerClient({ cookies });
-    const { userId } = params;
+    const { userId } = await params;
 
     // Get the current user's session
     const {
@@ -54,11 +54,11 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const supabase = createRouteHandlerClient({ cookies });
-    const { userId } = params;
+    const { userId } = await params;
 
     // Get the current user's session
     const {

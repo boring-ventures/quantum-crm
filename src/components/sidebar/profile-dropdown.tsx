@@ -15,7 +15,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { Badge } from "@/components/ui/badge";
-import { UserRole } from "@prisma/client";
 
 export function ProfileDropdown() {
   const { profile, user, isLoading } = useCurrentUser();
@@ -46,11 +45,8 @@ export function ProfileDropdown() {
   };
 
   // Get role display name
-  const getRoleDisplay = (role: UserRole) => {
-    return role
-      .toString()
-      .replace("_", " ")
-      .replace(/\b\w/g, (l) => l.toUpperCase());
+  const getRoleDisplay = (role: string) => {
+    return role.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase());
   };
 
   return (
@@ -98,7 +94,7 @@ export function ProfileDropdown() {
               Settings
             </Link>
           </DropdownMenuItem>
-          {profile.role === UserRole.SUPERADMIN && (
+          {profile.role && profile.role.toString() === "SUPERADMIN" && (
             <DropdownMenuItem asChild>
               <Link href="/admin">
                 <BadgeCheck className="mr-2 h-4 w-4" />

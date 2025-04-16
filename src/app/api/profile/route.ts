@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import prisma from "@/lib/prisma";
-import type { UserRole, Prisma } from "@prisma/client";
 
 // GET: Fetch profile for the current authenticated user
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const supabase = createRouteHandlerClient({ cookies });
 
@@ -128,34 +127,6 @@ export async function POST(request: NextRequest) {
     console.error("Error creating profile:", error);
     return NextResponse.json(
       { error: "Failed to create profile" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function GETAll(req: Request) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const role = searchParams.get("role");
-    const active = searchParams.get("active");
-
-    const whereClause: Prisma.ProfileWhereInput = {};
-
-    if (role) whereClause.role = role as UserRole;
-    if (active !== null) whereClause.active = active === "true";
-
-    const profiles = await prisma.profile.findMany({
-      where: whereClause,
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
-
-    return NextResponse.json({ profiles });
-  } catch (error) {
-    console.error("Error fetching profiles:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
       { status: 500 }
     );
   }

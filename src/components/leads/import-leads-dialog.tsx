@@ -59,7 +59,7 @@ export function ImportLeadsDialog({
         setFile(selectedFile);
         setUploadStatus("idle");
         // Simular validación
-        simulateValidation(selectedFile);
+        simulateValidation();
       } else {
         alert(
           "Por favor, selecciona un archivo Excel (.xlsx, .xls) o CSV (.csv)"
@@ -69,7 +69,7 @@ export function ImportLeadsDialog({
     }
   };
 
-  const simulateValidation = (file: File) => {
+  const simulateValidation = () => {
     // Simulación de validación del archivo
     setTimeout(() => {
       // Ejemplo de resultados de validación
@@ -357,8 +357,8 @@ export function ImportLeadsDialog({
                   4. Sube el archivo
                 </h4>
                 <p className="text-sm text-gray-400">
-                  Sube el archivo en la pestaña "Cargar Archivo" y haz clic en
-                  "Importar".
+                  Sube el archivo en la pestaña &quot;Cargar Archivo&quot; y haz
+                  clic en &quot;Importar&quot;.
                 </p>
               </div>
 

@@ -98,16 +98,16 @@ export function PasswordForm() {
       // Reset form
       form.reset();
       setPassword("");
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error("Error updating password:", error);
 
       let errorMessage =
         "No se pudo actualizar la contraseña. Por favor, intenta de nuevo.";
 
       // Handle specific errors
-      if (error.message.includes("incorrect")) {
+      if (error instanceof Error && error.message.includes("incorrect")) {
         errorMessage = "La contraseña actual es incorrecta.";
-      } else if (error.message.includes("weak")) {
+      } else if (error instanceof Error && error.message.includes("weak")) {
         errorMessage = "La nueva contraseña es demasiado débil.";
       }
 

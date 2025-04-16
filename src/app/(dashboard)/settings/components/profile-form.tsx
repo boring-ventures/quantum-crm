@@ -85,7 +85,7 @@ export function ProfileForm() {
           {profile && (
             <AvatarUpload
               userId={profile.userId}
-              currentAvatarUrl={profile.avatarUrl}
+              currentAvatarUrl={profile.avatarUrl || null}
               onUploadComplete={(url) => setNewAvatarUrl(url)}
               onUploadError={(error) => {
                 toast({
@@ -161,4 +161,4 @@ export function ProfileForm() {
       />
     </>
   );
-} 
+}
