@@ -1,0 +1,405 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Project Structure
+
+This project is a CRM (Customer Relationship Management) developed with Next.js 14. The main structure is:
+
+- [src/app](mdc:src/app): Contains application routes using App Router
+- [src/components](mdc:src/components): Reusable React components
+- [src/lib](mdc:src/lib): Common utilities and functions
+- [prisma/schema.prisma](mdc:prisma/schema.prisma): Defines the data model
+- [src/types](mdc:src/types): TypeScript types and interfaces definitions
+
+## Authentication System
+The authentication is implemented with Supabase Auth and configured in [src/lib/auth.ts](mdc:src/lib/auth.ts).
+
+## Main Routes
+- [src/app/auth](mdc:src/app/auth): Authentication routes
+- [src/app/(dashboard)](mdc:src/app/(dashboard)): Protected dashboard routes
+
+## Main Components
+- [src/components/ui](mdc:src/components/ui): UI components based on shadcn/ui
+- [src/components/dashboard](mdc:src/components/dashboard): Main dashboard components
+
+## Database
+The project uses Prisma ORM with PostgreSQL. The connection is configured in [src/lib/prisma.ts](mdc:src/lib/prisma.ts).
+
+## File Management with Supabase Storage
+
+### Bucket Structure
+- **avatars**: For user profile images
+- **documents**: For documents related to leads and other records
+- **imports**: For temporary import files
+
+### Reference Storage
+- Only the relative path to the file is stored in the database, not complete URLs
+- Recommended format: `{folder}/{id}/{filename}.{extension}`
+- Example for avatarUrl: `avatars/user123/profile.jpg`
+- Example for documents: `documents/lead456/contract.pdf`
+
+### File Upload
+- Use the Supabase client to upload files
+- Generate unique filenames (using UUIDs or timestamps)
+- Basic example:
+  ```typescript
+  const uploadAvatar = async (file, userId) => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${userId}/avatar.${fileExt}`;
+    
+    const { error } = await supabase.storage
+      .from('avatars')
+      .upload(fileName, file, { upsert: true });
+      
+    return error ? null : `avatars/${fileName}`;
+  };
+  ```
+
+### File Retrieval
+- For public access, use Supabase public URLs
+- For restricted access, generate signed URLs:
+  ```typescript
+  const getImageUrl = async (path) => {
+    if (!path) return null;
+    
+    const { data } = await supabase.storage
+      .from(path.split('/')[0])
+      .createSignedUrl(path.replace(`${path.split('/')[0]}/`, ''), 3600);
+      
+    return data?.signedUrl;
+  };
+  ```
+
+## Types and Type Definitions
+- Types should be created in the [src/types](mdc:src/types) folder
+- Create separate files by domain (e.g. `lead.ts`, `task.ts`, `user.ts`)
+- Types should accurately reflect the structure of the corresponding Prisma model
+- Always check [prisma/schema.prisma](mdc:prisma/schema.prisma) when creating or modifying types
+- Include types for API responses and form data when necessary
+- Example of type structure:
+  ```typescript
+  // For main entities
+  export interface Lead {
+    id: string;
+    firstName: string;
+    lastName: string;
+    // ... other fields according to schema.prisma
+  }
+  
+  // For API payloads
+  export type CreateLeadPayload = Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>;
+  
+  // For API responses
+  export interface LeadResponse extends Lead {
+    status: LeadStatus;
+  }
+  ```
+
+## Frontend Development Practices
+
+### Component Architecture
+- Use functional components with TypeScript
+- Extract reusable logic into custom hooks
+- Implement component composition
+- Use Server Components by default and `'use client'` only when necessary
+
+### Component Reuse
+- Before creating a new component, check if there is a similar one in:
+  - [src/components/ui](mdc:src/components/ui): Basic components (buttons, inputs, etc.)
+  - [src/components/common](mdc:src/components/common): Shared components between modules
+  - The specific module directory (e.g. [src/components/leads](mdc:src/components/leads))
+- Analyze if an existing component can be extended or composed instead of duplicating code
+- For common functionalities (modals, tables, forms), review existing implementations
+- Follow consistent implementation patterns with already created components
+
+### Naming Conventions
+- **PascalCase**: Components, types, and interfaces
+- **kebab-case**: Directory and file names
+- **camelCase**: Variables, functions, methods, hooks, and props
+- `handle` prefix for event handlers: `handleClick`, `handleSubmit`
+- `is/has/can` prefix for boolean variables: `isLoading`, `hasError`
+- `use` prefix for custom hooks: `useAuth`, `useForm`
+
+### Styles and UI
+- Use Tailwind CSS for styles, avoiding pure CSS
+- Design with mobile-first approach
+- Implement dark mode using Tailwind features
+- Maintain color contrast ratios for accessibility
+- Designs from v0.dev (Vercel AI) will be used as reference
+
+### Asset Organization
+- Create folder `/src/assets/` for static resources
+- Subdirectory `/src/assets/images/` for images
+- Subdirectory `/src/assets/icons/` for icons
+
+### TanStack Query (React Query)
+- Use TanStack Query for all CRUD operations
+- Create custom hooks per entity
+- Implement appropriate cache invalidations after mutations
+- Use consistent query key structure: `[entity, id?, filters?]`
+- Integrate with existing API endpoints
+
+## Backend Development Practices
+
+### API Routes
+- Implement API routes in [src/app/api](mdc:src/app/api)
+- Use Zod for incoming request validation
+- Implement consistent error handling
+- Follow RESTful principles
+- Structure API routes with [HTTP Method]/route.ts according to App Router
+- Implement standard methods (GET, POST, PUT, DELETE) per entity
+- Follow the existing pattern in src/app/api/profile/route.ts
+
+### Database
+- Define clear models in Prisma
+- Use transactions for operations that affect multiple tables
+- Implement migrations for schema changes
+- Modify [prisma/schema.prisma](mdc:prisma/schema.prisma) when new entities or relationships are required
+- Run `npx prisma migrate dev` to generate migrations after schema changes
+- Run `npx prisma generate` to update the client after changes
+
+### Security
+- Implement input sanitization to prevent XSS attacks
+- Protect sensitive routes with middleware
+- Validate and sanitize query parameters and request bodies
+
+## General Best Practices
+
+### Code Style
+- Use tabs for indentation
+- Single quotes for strings
+- Always use strict equality (`===`)
+- Eliminate unused variables
+- Limit line length to 80 characters
+
+### Performance Optimization
+- Use `useCallback` to memoize callback functions
+- Implement `useMemo` for expensive calculations
+- Avoid inline function definitions in JSX
+- Implement code-splitting through dynamic imports
+- Use `key` correctly in lists (avoid using index as key)
+
+### Accessibility (a11y)
+- Use semantic HTML for meaningful structure
+- Apply ARIA attributes when necessary
+- Ensure full keyboard navigation support
+- Maintain accessible color contrast ratios
+- Follow logical heading hierarchy
+
+# Implementación de Leads
+
+Este documento detalla la implementación del módulo de Leads en el CRM.
+
+## Componentes UI
+Los componentes de UI para leads están en [src/components/leads](mdc:src/components/leads):
+- **leads-list.tsx**: Tabla para visualizar y gestionar leads
+- **new-lead-dialog.tsx**: Formulario para crear nuevos leads
+- **lead-metrics.tsx**: Visualización de métricas clave
+- **lead-calendar.tsx**: Vista de calendario para seguimiento
+- **import-leads-dialog.tsx**: Importación masiva de leads
+- **pending-tasks.tsx**: Tareas pendientes relacionadas con leads
+
+## Modelo de Datos
+El modelo de datos para leads y entidades relacionadas está definido en [prisma/schema.prisma](mdc:prisma/schema.prisma) e incluye:
+- `Lead`: Información del cliente potencial
+- `LeadStatus`: Estados del pipeline de ventas
+- `LeadSource`: Orígenes de los leads
+- `Tag`: Etiquetas para categorización
+- `Communication`: Registro de interacciones
+- `Note`: Notas sobre los leads
+- `Task`: Tareas pendientes relacionadas
+- `Document`: Archivos adjuntos
+
+## Gestión de Documentos de Leads
+
+### Estructura de Almacenamiento en Supabase
+- Bucket: `documents`
+- Estructura de ruta: `documents/leads/{leadId}/{filename}`
+
+### Implementación de Carga de Documentos
+```typescript
+// Función para subir un documento relacionado con un lead
+const uploadLeadDocument = async (file, leadId) => {
+  const fileExt = file.name.split('.').pop();
+  const uniqueName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+  const filePath = `leads/${leadId}/${uniqueName}.${fileExt}`;
+  
+  const { error } = await supabase.storage
+    .from('documents')
+    .upload(filePath, file);
+    
+  if (error) throw new Error(`Error uploading document: ${error.message}`);
+  
+  return `documents/${filePath}`;
+};
+```
+
+### Acceso a Documentos
+```typescript
+// Función para obtener una URL firmada para acceso temporal a un documento
+const getDocumentUrl = async (path) => {
+  if (!path) return null;
+  
+  const bucket = path.split('/')[0];
+  const filePath = path.replace(`${bucket}/`, '');
+  
+  const { data, error } = await supabase.storage
+    .from(bucket)
+    .createSignedUrl(filePath, 3600); // 1 hora de validez
+  
+  if (error) throw new Error(`Error getting document URL: ${error.message}`);
+  
+  return data.signedUrl;
+};
+```
+
+## Types y Interfaces
+Los tipos para el módulo de leads deben definirse en [src/types/lead.ts](mdc:src/types/lead.ts) siguiendo esta estructura:
+
+```typescript
+// Tipos principales basados en el schema de Prisma
+export interface Lead {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email?: string;
+  phone?: string;
+  company?: string;
+  // ...resto de campos según schema.prisma
+}
+
+export interface LeadStatus {
+  id: string;
+  name: string;
+  color: string;
+  displayOrder: number;
+}
+
+// Tipos para operaciones CRUD
+export type CreateLeadPayload = Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>;
+export type UpdateLeadPayload = Partial<CreateLeadPayload>;
+
+// Interfaces para respuestas API con relaciones
+export interface LeadWithRelations extends Lead {
+  status: LeadStatus;
+  source: LeadSource;
+  assignedTo?: User;
+}
+
+// Tipos para documentos
+export interface Document {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  url: string;  // Solo almacena la ruta relativa, no la URL completa
+  leadId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface DocumentWithUrl extends Document {
+  signedUrl?: string;  // URL firmada temporal para acceso
+}
+```
+
+## API Routes (Pendiente)
+Se necesitan implementar API routes para leads en src/app/api/leads/ siguiendo el patrón de profile:
+- GET: Listar todos los leads o uno específico
+- POST: Crear nuevo lead
+- PUT: Actualizar lead existente
+- DELETE: Eliminar lead
+
+## TanStack Query Hooks
+Para interactuar con la API de leads, se implementarán los siguientes hooks:
+
+```tsx
+// Consulta de leads con filtros
+const useLeadsQuery = (filters) => {
+  return useQuery({
+    queryKey: ['leads', filters],
+    queryFn: () => fetch(`/api/leads?${new URLSearchParams(filters)}`).then(res => res.json())
+  })
+}
+
+// Obtener un lead específico
+const useLeadQuery = (id) => {
+  return useQuery({
+    queryKey: ['leads', id],
+    queryFn: () => fetch(`/api/leads/${id}`).then(res => res.json()),
+    enabled: !!id
+  })
+}
+
+// Crear nuevo lead
+const useCreateLeadMutation = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data) => fetch('/api/leads', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).then(res => res.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] })
+    }
+  })
+}
+
+// Actualizar lead existente
+const useUpdateLeadMutation = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({id, data}) => fetch(`/api/leads/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).then(res => res.json()),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['leads', variables.id] })
+      queryClient.invalidateQueries({ queryKey: ['leads'] })
+    }
+  })
+}
+
+// Eliminar lead
+const useDeleteLeadMutation = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id) => fetch(`/api/leads/${id}`, {
+      method: 'DELETE'
+    }).then(res => res.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] })
+    }
+  })
+}
+```
+
+## Funcionalidades Principales
+
+### Gestión Básica de Leads
+- Visualización de leads en formato tabla con opciones de filtrado y búsqueda
+- Creación de nuevos leads mediante formulario modal
+- Edición de información de leads existentes
+- Cambio de estado de leads (nuevo, contactado, en proceso, convertido, etc.)
+- Eliminación de leads
+
+### Importación y Exportación
+- Importación masiva de leads desde archivos CSV o Excel
+- Exportación de leads a formatos comunes
+
+### Métricas y Visualización
+- Dashboard con métricas clave de leads (total, por estado, conversión)
+- Visualización de leads en formato calendario para seguimiento
+
+### Tareas y Seguimiento
+- Asignación de tareas relacionadas con leads
+- Seguimiento de actividades pendientes
+
+
+
+
+

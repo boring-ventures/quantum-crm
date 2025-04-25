@@ -1,0 +1,418 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Leads Implementation
+
+This document details the implementation of the Leads module in the CRM.
+
+## UI Components
+The UI components for leads are in [src/components/leads](mdc:src/components/leads):
+- **leads-list.tsx**: Table to visualize and manage leads ✅
+- **new-lead-dialog.tsx**: Form to create new leads ✅
+- **lead-metrics.tsx**: Visualization of key metrics ✅
+- **lead-calendar.tsx**: Calendar view for tracking ✅
+- **import-leads-dialog.tsx**: Mass import of leads ✅
+- **pending-tasks.tsx**: Pending tasks related to leads ✅
+- **lead-detail.tsx**: Detailed view of a lead with tabs for related items ✅
+- **lead-status-badge.tsx**: Visual indicator of lead status ✅
+- **lead-notes.tsx**: Component to manage lead notes ✅
+- **lead-tasks.tsx**: Component to manage lead tasks ✅
+
+## Data Model
+The data model for leads and related entities is defined in [prisma/schema.prisma](mdc:prisma/schema.prisma) and includes:
+- `Lead`: Potential customer information ✅
+- `LeadStatus`: Sales pipeline statuses ✅
+- `LeadSource`: Lead origins ✅
+- `Tag`: Categorization tags ✅
+- `Communication`: Interaction records ✅
+- `Note`: Notes about leads ✅
+- `Task`: Related pending tasks ✅
+- `Document`: Attached files ✅
+
+## Lead Document Management
+
+### Storage Structure in Supabase
+- Bucket: `documents`
+- Path structure: `documents/leads/{leadId}/{filename}`
+
+### Document Upload Implementation (Pending ⬜)
+```typescript
+// Function to upload a document related to a lead
+const uploadLeadDocument = async (file, leadId) => {
+  const fileExt = file.name.split('.').pop();
+  const uniqueName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+  const filePath = `leads/${leadId}/${uniqueName}.${fileExt}`;
+  
+  const { error } = await supabase.storage
+    .from('documents')
+    .upload(filePath, file);
+    
+  if (error) throw new Error(`Error uploading document: ${error.message}`);
+  
+  return `documents/${filePath}`;
+};
+```
+
+### Document Access (Pending ⬜)
+```typescript
+// Function to get a signed URL for temporary access to a document
+const getDocumentUrl = async (path) => {
+  if (!path) return null;
+  
+  const bucket = path.split('/')[0];
+  const filePath = path.replace(`${bucket}/`, '');
+  
+  const { data, error } = await supabase.storage
+    .from(bucket)
+    .createSignedUrl(filePath, 3600); // 1 hour validity
+  
+  if (error) throw new Error(`Error getting document URL: ${error.message}`);
+  
+  return data.signedUrl;
+};
+```
+
+## Types and Interfaces
+The types for the leads module are defined in [src/types/lead.ts](mdc:src/types/lead.ts) following this structure:
+
+```typescript
+// Main types based on Prisma schema
+export interface Lead {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email?: string;
+  phone?: string;
+  company?: string;
+  statusId: string;
+  sourceId: string;
+  assignedToId?: string;
+  interest?: string;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface LeadStatus {
+  id: string;
+  name: string;
+  color: string;
+  displayOrder: number;
+}
+
+export interface LeadSource {
+  id: string;
+  name: string;
+  displayOrder: number;
+}
+
+export interface Tag {
+  id: string;
+  name: string;
+  color: string;
+}
+
+// Define User locally to avoid import issues
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role?: string;
+  isActive?: boolean;
+}
+
+// Types for CRUD operations
+export type CreateLeadPayload = Omit<Lead, "id" | "createdAt" | "updatedAt">;
+export type UpdateLeadPayload = Partial<CreateLeadPayload>;
+
+// Interfaces for API responses with relations
+export interface LeadWithRelations extends Lead {
+  status: LeadStatus;
+  source: LeadSource;
+  assignedTo?: User;
+  tags?: Tag[];
+}
+
+// Types for paginated API responses
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface LeadsResponse extends PaginatedResponse<LeadWithRelations> {}
+```
+
+## API Routes
+The following API routes have been implemented for leads:
+- **GET /api/leads**: List all leads with filters and pagination ✅
+- **POST /api/leads**: Create new lead ✅
+- **GET /api/leads/[id]**: Get details of a specific lead ✅
+- **PUT /api/leads/[id]**: Update existing lead ✅
+- **DELETE /api/leads/[id]**: Delete lead ✅
+- **POST /api/leads/[id]/status**: Update lead status ✅
+
+Additional routes:
+- **GET /api/lead-statuses**: Get lead statuses ✅
+- **POST /api/lead-statuses**: Create new status ✅
+- **GET /api/lead-sources**: Get lead sources ✅
+- **POST /api/lead-sources**: Create new source ✅
+- **GET/POST /api/leads/[id]/notes**: Manage notes ✅
+- **GET/POST /api/leads/[id]/tasks**: Manage tasks ✅
+- **PUT /api/tasks/[id]**: Update task ✅
+
+Pending routes:
+- **POST /api/leads/[id]/assign**: Assign lead to user ⬜
+- Endpoints for tags, communications and documents ⬜
+
+## TanStack Query Hooks
+The following hooks have been implemented to interact with the leads API:
+
+```tsx
+// Basic lead management hooks
+const useLeadsQuery = (filters) => {
+  return useQuery({
+    queryKey: ["leads", filters],
+    queryFn: () =>
+      fetch(`/api/leads?${new URLSearchParams(filters)}`).then((res) =>
+        res.json()
+      ),
+  });
+};
+
+const useLeadQuery = (id) => {
+  return useQuery({
+    queryKey: ["leads", id],
+    queryFn: () => fetch(`/api/leads/${id}`).then((res) => res.json()),
+    enabled: !!id,
+  });
+};
+
+const useCreateLeadMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data) =>
+      fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((res) => res.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+    },
+  });
+};
+
+const useUpdateLeadMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }) =>
+      fetch(`/api/leads/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((res) => res.json()),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["leads", variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+    },
+  });
+};
+
+const useDeleteLeadMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id) =>
+      fetch(`/api/leads/${id}`, {
+        method: "DELETE",
+      }).then((res) => res.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+    },
+  });
+};
+
+// Lead detail related hooks
+const useLeadNotes = (leadId) => {
+  return useQuery({
+    queryKey: ["leadNotes", leadId],
+    queryFn: async () => {
+      const response = await fetch(`/api/leads/${leadId}/notes`);
+      if (!response.ok) {
+        throw new Error("Error fetching lead notes");
+      }
+      return response.json();
+    },
+    enabled: !!leadId
+  });
+};
+
+const useCreateNoteMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ leadId, content, isPinned = false }) => {
+      const response = await fetch(`/api/leads/${leadId}/notes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content, isPinned })
+      });
+      
+      if (!response.ok) {
+        throw new Error("Error creating note");
+      }
+      
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["leadNotes", variables.leadId] });
+    }
+  });
+};
+
+const useLeadTasks = (leadId) => {
+  return useQuery({
+    queryKey: ["leadTasks", leadId],
+    queryFn: async () => {
+      const response = await fetch(`/api/leads/${leadId}/tasks`);
+      if (!response.ok) {
+        throw new Error("Error fetching lead tasks");
+      }
+      return response.json();
+    },
+    enabled: !!leadId
+  });
+};
+
+const useCreateTaskMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ leadId, title, description, dueDate, priority, assignedToId }) => {
+      const response = await fetch(`/api/leads/${leadId}/tasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, description, dueDate, priority, assignedToId })
+      });
+      
+      if (!response.ok) {
+        throw new Error("Error creating task");
+      }
+      
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["leadTasks", variables.leadId] });
+    }
+  });
+};
+
+const useUpdateTaskStatusMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ taskId, status }) => {
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status, completedAt: status === "COMPLETED" ? new Date() : null })
+      });
+      
+      if (!response.ok) {
+        throw new Error("Error updating task status");
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["leadTasks", data.leadId] });
+    }
+  });
+};
+
+const useUpdateLeadStatusMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ leadId, statusId }) => {
+      const response = await fetch(`/api/leads/${leadId}/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ statusId })
+      });
+      
+      if (!response.ok) {
+        throw new Error("Error updating lead status");
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["leads", data.id] });
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+    }
+  });
+};
+
+// Metadata hooks
+export const useLeadStatuses = () => {
+  return useQuery({
+    queryKey: ["leadStatuses"],
+    queryFn: async () => {
+      const response = await fetch("/api/lead-statuses");
+      if (!response.ok) {
+        throw new Error("Error fetching lead statuses");
+      }
+      return response.json();
+    },
+  });
+};
+
+export const useLeadSources = () => {
+  return useQuery({
+    queryKey: ["leadSources"],
+    queryFn: async () => {
+      const response = await fetch("/api/lead-sources");
+      if (!response.ok) {
+        throw new Error("Error fetching lead sources");
+      }
+      return response.json();
+    },
+  });
+};
+```
+
+## Implemented and Pending Features
+
+### Basic Lead Management
+- Visualization of leads in table format with filtering and search options ✅
+- Creation of new leads through modal form ✅
+- Editing of existing lead information ✅
+- Changing lead status (new, contacted, in process, converted, etc.) ✅
+- Lead deletion ✅
+
+### Import and Export
+- Mass import of leads from CSV or Excel files ⬜
+- Export of leads to common formats ⬜
+
+### Metrics and Visualization
+- Dashboard with key lead metrics (total, by status, conversion) ⬜
+- Visualization of leads in calendar format for tracking ✅
+
+### Tasks and Follow-up
+- Assignment of tasks related to leads ✅
+- Tracking of pending activities ✅
+- Task status management ✅
+- Notes management ✅
+
+## Next Steps
+1. Implement tag management functionality
+2. Develop communications functionality
+3. Implement document upload and management
+4. Create analytics dashboards
+5. Add bulk operations for leads
+
+
+
+
+

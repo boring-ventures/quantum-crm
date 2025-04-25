@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import { LeadsList } from "@/components/leads/leads-list";
 import { PendingTasks } from "@/components/leads/pending-tasks";
 import { NewLeadDialog } from "@/components/leads/new-lead-dialog";
@@ -26,59 +25,6 @@ import {
 import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 
-// Datos de ejemplo para la exportación
-const mockLeadsData = [
-  {
-    id: "1",
-    nombre: "Carlos",
-    apellido: "Mendoza",
-    celular: "+591 75757575",
-    tipoContacto: "Electrónico",
-    origen: "Facebook",
-    tipoNegocio: "Autos",
-    fechaCreacion: "2023-04-15",
-    estado: "Nuevo",
-    gradoInteres: "Alto",
-  },
-  {
-    id: "2",
-    nombre: "María",
-    apellido: "López",
-    apellidoMaterno: "García",
-    celular: "+591 76767676",
-    tipoContacto: "Mensaje directo",
-    origen: "WhatsApp",
-    tipoNegocio: "Motos",
-    fechaCreacion: "2023-04-14",
-    estado: "En seguimiento",
-    gradoInteres: "Medio",
-  },
-  // Más datos de ejemplo...
-];
-
-interface Lead {
-  id: string;
-  nombre: string;
-  apellido: string;
-  apellidoMaterno?: string;
-  celular: string;
-  tipoContacto: string;
-  origen: string;
-  tipoNegocio: string;
-  fechaCreacion: string;
-  estado: string;
-  gradoInteres: string;
-}
-
-const exportLeadsToExcel = async (leads: Lead[]) => {
-  // Simulación de exportación
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(leads);
-    }, 1000);
-  });
-};
-
 export default function LeadsPage() {
   const [newLeadOpen, setNewLeadOpen] = useState(false);
   const [importLeadsOpen, setImportLeadsOpen] = useState(false);
@@ -89,11 +35,10 @@ export default function LeadsPage() {
     setIsExporting(true);
 
     try {
-      await exportLeadsToExcel(mockLeadsData);
-
+      // La exportación se implementará más adelante
       toast({
-        title: "Exportación exitosa",
-        description: `Se han exportado ${mockLeadsData.length} leads a Excel.`,
+        title: "Exportación pendiente",
+        description: "Esta funcionalidad será implementada próximamente.",
       });
     } catch (err) {
       console.error("Error exporting leads:", err);
@@ -193,50 +138,18 @@ export default function LeadsPage() {
                   className="flex gap-2 data-[state=active]:bg-gray-700"
                 >
                   Todos
-                  <Badge variant="secondary" className="bg-gray-700">
-                    125
-                  </Badge>
                 </TabsTrigger>
                 <TabsTrigger
                   value="no-management"
                   className="flex gap-2 data-[state=active]:bg-gray-700"
                 >
                   Sin Gestión
-                  <Badge variant="secondary" className="bg-gray-700">
-                    45
-                  </Badge>
-                </TabsTrigger>
-                <TabsTrigger
-                  value="no-tasks"
-                  className="flex gap-2 data-[state=active]:bg-gray-700"
-                >
-                  Sin Tareas
-                  <Badge variant="secondary" className="bg-gray-700">
-                    12
-                  </Badge>
-                </TabsTrigger>
-                <TabsTrigger
-                  value="expired-tasks"
-                  className="flex gap-2 data-[state=active]:bg-gray-700"
-                >
-                  Tareas Vencidas
-                  <Badge variant="destructive">8</Badge>
-                </TabsTrigger>
-                <TabsTrigger
-                  value="today-tasks"
-                  className="flex gap-2 data-[state=active]:bg-gray-700"
-                >
-                  Tareas Hoy
-                  <Badge className="bg-blue-500 text-white">15</Badge>
                 </TabsTrigger>
                 <TabsTrigger
                   value="favorites"
                   className="flex gap-2 data-[state=active]:bg-gray-700"
                 >
                   Favoritos
-                  <Badge variant="secondary" className="bg-gray-700">
-                    5
-                  </Badge>
                 </TabsTrigger>
               </TabsList>
 
@@ -261,6 +174,7 @@ export default function LeadsPage() {
         </div>
       </div>
 
+      {/* Dialogs */}
       <NewLeadDialog open={newLeadOpen} onOpenChange={setNewLeadOpen} />
       <ImportLeadsDialog
         open={importLeadsOpen}

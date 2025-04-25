@@ -4,71 +4,44 @@ import { useState } from "react";
 import { Star } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useLeadsQuery } from "@/lib/hooks";
+import type { LeadWithRelations } from "@/types/lead";
 
-type Lead = {
+// Tipo para lead basado en el modelo de Prisma
+export type Lead = {
   id: string;
-  nombre: string;
-  apellido: string;
-  origen?: string;
-  campaña?: string;
-  tags?: string[];
-  gradoInteres?: string;
-  lastContact?: string;
-  nextTask?: {
-    type: string;
-    date: string;
+  firstName: string;
+  lastName: string;
+  email?: string;
+  phone?: string;
+  company?: string;
+  source?: {
+    id: string;
+    name: string;
   };
+  status?: {
+    id: string;
+    name: string;
+    color: string;
+  };
+  tags?: {
+    id: string;
+    name: string;
+  }[];
+  interest?: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
-// Datos de ejemplo
-const mockLeads: Lead[] = [
-  {
-    id: "1",
-    nombre: "Carlos",
-    apellido: "Mendoza",
-    origen: "Facebook",
-    campaña: "Campaña Q4",
-    gradoInteres: "Alto",
-    lastContact: "2 horas",
-    nextTask: {
-      type: "Llamada de seguimiento",
-      date: "15:00",
-    },
-  },
-  {
-    id: "2",
-    nombre: "María",
-    apellido: "López",
-    origen: "WhatsApp",
-    campaña: "Mensaje directo",
-    gradoInteres: "Medio",
-    lastContact: "Ayer",
-    nextTask: {
-      type: "Enviar cotización",
-      date: "10:00",
-    },
-  },
-  {
-    id: "3",
-    nombre: "Jorge",
-    apellido: "Céspedes",
-    gradoInteres: "Bajo",
-    lastContact: "3 días",
-    nextTask: {
-      type: "Actualizar datos",
-      date: "14:30",
-    },
-  },
-];
-
 interface LeadCardProps {
-  lead: Lead;
+  lead: LeadWithRelations;
 }
 
 function LeadCard({ lead }: LeadCardProps) {
   const [isFavorite, setIsFavorite] = useState(false);
 
-  // Color del badge según el grado de interés
+  // Color del badge según el interés
   const getInterestColor = (interest?: string) => {
     switch (interest) {
       case "Alto":
@@ -88,25 +61,25 @@ function LeadCard({ lead }: LeadCardProps) {
         <div className="flex items-center space-x-3">
           <Avatar className="h-10 w-10 bg-gray-700">
             <AvatarFallback className="bg-gray-700 text-gray-300">
-              {lead.nombre.charAt(0)}
-              {lead.apellido.charAt(0)}
+              {lead.firstName.charAt(0)}
+              {lead.lastName.charAt(0)}
             </AvatarFallback>
           </Avatar>
           <div>
             <div className="flex items-center">
               <h3 className="font-medium text-gray-100">
-                {lead.nombre} {lead.apellido}
+                {lead.firstName} {lead.lastName}
               </h3>
-              {lead.gradoInteres && (
+              {lead.interest && (
                 <Badge
-                  className={`ml-2 text-xs ${getInterestColor(lead.gradoInteres)}`}
+                  className={`ml-2 text-xs ${getInterestColor(lead.interest)}`}
                 >
-                  {lead.gradoInteres}
+                  {lead.interest}
                 </Badge>
               )}
             </div>
             <p className="text-sm text-gray-400">
-              {lead.origen} {lead.campaña && `- ${lead.campaña}`}
+              {lead.source?.name} {lead.company && `- ${lead.company}`}
             </p>
           </div>
         </div>
@@ -120,25 +93,89 @@ function LeadCard({ lead }: LeadCardProps) {
         </button>
       </div>
 
-      {lead.nextTask && (
+      {lead.status && (
         <div className="mt-4 flex items-center justify-between border-t border-gray-700 pt-3">
           <div className="flex flex-col">
-            <span className="text-xs text-gray-400">Próxima tarea:</span>
-            <span className="text-sm font-medium text-gray-200">
-              {lead.nextTask.type}
+            <span className="text-xs text-gray-400">Estado:</span>
+            <span
+              className="text-sm font-medium text-gray-200"
+              style={{ color: lead.status.color }}
+            >
+              {lead.status.name}
             </span>
           </div>
-          <span className="text-xs text-gray-400">{lead.nextTask.date}</span>
+          <span className="text-xs text-gray-400">
+            {new Date(lead.updatedAt).toLocaleDateString()}
+          </span>
         </div>
       )}
     </div>
   );
 }
 
+function LeadCardSkeleton() {
+  return (
+    <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-4">
+      <div className="flex justify-between">
+        <div className="flex items-center space-x-3">
+          <Skeleton className="h-10 w-10 rounded-full" />
+          <div>
+            <Skeleton className="h-5 w-40 mb-2" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+        </div>
+        <Skeleton className="h-5 w-5 rounded-full" />
+      </div>
+      <div className="mt-4 border-t border-gray-700 pt-3">
+        <div className="flex justify-between">
+          <Skeleton className="h-5 w-24" />
+          <Skeleton className="h-4 w-20" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function LeadsList() {
+  const { data, isLoading, isError } = useLeadsQuery();
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        {Array(3)
+          .fill(0)
+          .map((_, i) => (
+            <LeadCardSkeleton key={i} />
+          ))}
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="text-center py-10">
+        <p className="text-red-400">Error al cargar los leads.</p>
+        <p className="text-gray-500 text-sm mt-1">
+          Intenta recargar la página.
+        </p>
+      </div>
+    );
+  }
+
+  if (!data?.items || data.items.length === 0) {
+    return (
+      <div className="text-center py-10">
+        <p className="text-gray-400">No se encontraron leads.</p>
+        <p className="text-gray-500 text-sm mt-1">
+          Crea un nuevo lead para comenzar.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      {mockLeads.map((lead) => (
+      {data.items.map((lead) => (
         <LeadCard key={lead.id} lead={lead} />
       ))}
     </div>
