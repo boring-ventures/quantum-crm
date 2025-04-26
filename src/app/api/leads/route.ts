@@ -114,6 +114,23 @@ export async function POST(request: NextRequest) {
     try {
       const validatedData = createLeadSchema.parse(body);
 
+      // Verificar si el email ya existe (si se proporciona)
+      if (validatedData.email) {
+        const existingLead = await prisma.lead.findUnique({
+          where: { email: validatedData.email },
+        });
+
+        if (existingLead) {
+          return NextResponse.json(
+            {
+              error: "El email ya existe",
+              message: "Ya existe un lead con este email.",
+            },
+            { status: 400 }
+          );
+        }
+      }
+
       console.log("Datos validados:", validatedData);
 
       // Verificar existencia de las relaciones

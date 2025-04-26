@@ -1,0 +1,197 @@
+# QUANTUM CRM - ESTRUCTURA Y FUNCIONALIDADES
+
+## RESUMEN DEL PROYECTO
+
+Quantum CRM es una plataforma de gestión de relaciones con clientes (Customer Relationship Management) desarrollada con Next.js 14, utilizando el App Router para las rutas de la aplicación. El sistema está diseñado para gestionar leads, contactos, empresas, productos y actividades relacionadas con el proceso de ventas.
+
+## ARQUITECTURA TÉCNICA
+
+### Stack Tecnológico
+- **Frontend**: Next.js 14, React, TypeScript, Tailwind CSS
+- **Backend**: Next.js API Routes (serverless)
+- **Base de datos**: PostgreSQL (a través de Prisma ORM)
+- **Autenticación**: Supabase Auth
+- **Almacenamiento**: Supabase Storage
+- **Estilizado**: Tailwind CSS con componentes de shadcn/ui
+
+### Estructura de Directorios Principal
+- **src/app**: Contiene las rutas de la aplicación utilizando App Router
+- **src/components**: Componentes React reutilizables
+- **src/lib**: Utilidades comunes y funciones
+- **src/types**: Definiciones de tipos e interfaces TypeScript
+- **prisma**: Definición del modelo de datos y configuración de Prisma
+
+## MODELO DE DATOS
+
+### Entidades Principales
+
+#### Lead (Cliente Potencial)
+- Información básica del cliente potencial (nombre, correo, teléfono)
+- Estado en el pipeline de ventas
+- Fuente de adquisición
+- Calificación y puntuación
+- Asignación a usuario/vendedor
+- Relación con productos de interés
+
+#### Company (Empresa)
+- Datos de la empresa (nombre, sitio web, logo)
+- Relación con leads y marcas
+
+#### Product (Producto)
+- Información del producto (código, nombre, descripción, precio)
+- Categorización (tipo de negocio, marca, modelo)
+- Imágenes asociadas
+
+#### User (Usuario/Vendedor)
+- Información básica del usuario
+- Rol en el sistema
+- Métricas de rendimiento (tasa de conversión, tiempo de respuesta)
+
+#### Task (Tarea)
+- Actividades relacionadas con leads
+- Seguimiento de acciones pendientes
+- Prioridad y estado de la tarea
+
+#### Communication (Comunicación)
+- Registro de interacciones con leads
+- Diferentes tipos (email, teléfono, reunión, etc.)
+- Dirección (entrante/saliente)
+- Métricas de interacción (estado de entrega, apertura, clics)
+
+### Taxonomías y Categorización
+- **LeadStatus**: Estados en el pipeline de ventas
+- **LeadSource**: Fuentes de adquisición de leads
+- **SourceCategory**: Categorías de fuentes
+- **Tag**: Etiquetas para clasificación flexible
+- **BusinessType**: Tipos de negocio para productos
+- **Brand**: Marcas de productos
+- **Model**: Modelos específicos dentro de cada marca
+
+## FUNCIONALIDADES PRINCIPALES
+
+### Gestión de Leads
+- Captura y registro de leads desde múltiples fuentes
+- Pipeline de ventas visual con estados personalizables
+- Asignación de leads a vendedores
+- Calificación y puntuación de leads
+- Seguimiento de actividades e interacciones
+- Etiquetado y categorización
+- Importación masiva de leads desde archivos CSV/Excel
+
+### Seguimiento de Actividades
+- Creación y asignación de tareas
+- Registro de comunicaciones (emails, llamadas, reuniones)
+- Notas y comentarios
+- Calendario de seguimiento de actividades
+- Recordatorios y notificaciones
+
+### Gestión Documental
+- Almacenamiento de documentos relacionados con leads
+- Estructura organizada por entidad (ej. documentos/leads/{leadId}/{filename})
+- Generación de URLs firmadas para acceso seguro
+- Control de versiones de documentos
+
+### Dashboard y Análisis
+- Métricas clave de rendimiento de ventas
+- Visualización de leads por estado, fuente, vendedor
+- Configuración personalizada de dashboard por usuario
+- Exportación de reportes
+
+### Catálogo de Productos
+- Gestión de productos, marcas y modelos
+- Categorización por tipo de negocio
+- Gestión de imágenes de productos
+- Asociación de productos con leads (interés)
+
+### Administración del Sistema
+- Gestión de usuarios y permisos
+- Configuración de estados del pipeline
+- Gestión de fuentes de leads
+- Plantillas de email para comunicaciones
+
+## INTERFACES DE USUARIO
+
+### Dashboards
+- Vista general con métricas clave
+- Gráficos y visualizaciones de datos
+- Accesos rápidos a funciones principales
+
+### Gestión de Leads
+- Tabla de leads con filtros y búsqueda
+- Formularios para creación y edición
+- Vista detallada de lead individual
+- Vista de calendario para seguimiento
+
+### Tareas y Actividades
+- Lista de tareas pendientes
+- Calendario de actividades
+- Historial de comunicaciones
+
+### Configuración y Perfil
+- Ajustes de perfil de usuario
+- Configuración de preferencias de dashboard
+- Administración de entidades del sistema
+
+## INTEGRACIÓN CON SUPABASE
+
+### Autenticación
+- Inicio de sesión con email/contraseña
+- Gestión de sesiones
+- Protección de rutas privadas
+
+### Almacenamiento
+- Estructura de buckets:
+  - **avatars**: Imágenes de perfil de usuarios
+  - **documents**: Documentos relacionados con leads y otros registros
+  - **imports**: Archivos temporales de importación
+
+### Patrones de Almacenamiento
+- Solo se almacenan rutas relativas en la base de datos
+- Formato recomendado: `{carpeta}/{id}/{nombre}.{extensión}`
+- Generación de URLs firmadas para acceso temporal
+
+## PATRONES DE DESARROLLO
+
+### Componentes Frontend
+- Componentes funcionales con TypeScript
+- Server Components por defecto, con 'use client' solo cuando es necesario
+- Extracción de lógica reutilizable en hooks personalizados
+- Implementación de composición de componentes
+
+### API Backend
+- Rutas API en src/app/api
+- Validación de solicitudes con Zod
+- Manejo consistente de errores
+- Adherencia a principios RESTful
+
+### Gestión de Estado
+- TanStack Query para operaciones CRUD
+- Hooks personalizados por entidad
+- Estructura consistente de claves de consulta
+- Invalidación de caché apropiada después de mutaciones
+
+### Convenciones de Nomenclatura
+- **PascalCase**: Componentes, tipos e interfaces
+- **kebab-case**: Directorios y nombres de archivos
+- **camelCase**: Variables, funciones, métodos, hooks y props
+- Prefijos consistentes (handle, is/has/can, use)
+
+## CONSIDERACIONES PARA MODIFICACIONES ESTRUCTURALES
+
+Al realizar cambios estructurales en el proyecto, se deben considerar:
+
+1. **Impacto en el modelo de datos**: Cualquier cambio en prisma/schema.prisma requiere migración de datos y actualización del cliente Prisma.
+
+2. **Consistencia de tipos**: Los tipos en src/types deben reflejar exactamente la estructura del modelo Prisma correspondiente.
+
+3. **API Routes**: Las modificaciones en la estructura de datos pueden requerir actualizar las rutas API para mantener compatibilidad.
+
+4. **Componentes existentes**: Los cambios estructurales deben considerar el impacto en componentes y vistas existentes.
+
+5. **Patrones de almacenamiento**: Cambios en la estructura de almacenamiento de archivos deben mantener consistencia con los patrones establecidos.
+
+6. **Relaciones entre entidades**: Evaluar cómo los cambios afectan las relaciones entre diferentes modelos de datos.
+
+7. **Rendimiento de consultas**: Considerar el impacto en el rendimiento de las consultas al modificar la estructura de datos.
+
+8. **Migraciones suaves**: Planificar migraciones que permitan compatibilidad con datos existentes. 

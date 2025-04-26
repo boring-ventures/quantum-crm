@@ -1,0 +1,4 @@
+[2025-05-21] [Feature] - Re-añadidos los selects de Producto y Empresa en el formulario de creación de Leads - [XX] 
+[2025-05-21] [Fix] - Corregido error de Radix UI con valores vacíos en selects de Producto y Empresa - [XX] 
+[2025-05-21] [Fix] - Mejorada validación en API de leads para verificar email único y eliminar campo notas innecesario - [XX]
+[2025-05-21] [Fix] - Añadido campo de teléfono móvil y autenticación de usuario en formulario de leads - [XX] 

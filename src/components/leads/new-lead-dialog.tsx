@@ -28,7 +28,24 @@ import {
   useLeadSources,
   useCreateLeadMutation,
 } from "@/lib/hooks";
+import { useCompanies } from "@/lib/hooks/use-companies";
+import { useProducts } from "@/lib/hooks/use-products";
+import { useAuth } from "@/providers/auth-provider";
 import type { CreateLeadPayload } from "@/types/lead";
+
+// Tipos básicos para Company y Product
+interface Company {
+  id: string;
+  name: string;
+  isActive?: boolean;
+}
+
+interface Product {
+  id: string;
+  name: string;
+  code?: string;
+  isActive?: boolean;
+}
 
 // Esquema de validación para el formulario
 const newLeadSchema = z.object({
@@ -36,11 +53,12 @@ const newLeadSchema = z.object({
   lastName: z.string().min(1, "El apellido es requerido"),
   email: z.string().email("Email inválido").optional().nullable(),
   phone: z.string().optional().nullable(),
-  company: z.string().optional().nullable(),
+  cellphone: z.string().optional().nullable(),
+  companyId: z.string().optional().nullable(),
+  productId: z.string().optional().nullable(),
   statusId: z.string().min(1, "El estado es requerido"),
   sourceId: z.string().min(1, "La fuente es requerida"),
   interest: z.string().optional().nullable(),
-  notes: z.string().optional().nullable(),
 });
 
 type FormData = z.infer<typeof newLeadSchema>;
@@ -52,12 +70,29 @@ interface NewLeadDialogProps {
 
 export function NewLeadDialog({ open, onOpenChange }: NewLeadDialogProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isPending, setIsPending] = useState(false);
 
   // Obtener datos necesarios para el formulario
   const { data: statuses, isLoading: isLoadingStatuses } = useLeadStatuses();
   const { data: sources, isLoading: isLoadingSources } = useLeadSources();
+  const { data: companies, isLoading: isLoadingCompanies } = useCompanies();
+  const { data: products, isLoading: isLoadingProducts } = useProducts();
   const createLeadMutation = useCreateLeadMutation();
+
+  // Valores por defecto del formulario
+  const formDefaultValues = {
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    cellphone: "",
+    companyId: "",
+    productId: "",
+    interest: "",
+    statusId: "",
+    sourceId: "",
+  };
 
   // Configurar el formulario con react-hook-form
   const {
@@ -69,27 +104,52 @@ export function NewLeadDialog({ open, onOpenChange }: NewLeadDialogProps) {
     watch,
   } = useForm<FormData>({
     resolver: zodResolver(newLeadSchema),
-    defaultValues: {
-      firstName: "",
-      lastName: "",
-      email: "",
-      phone: "",
-      company: "",
-      interest: "",
-      notes: "",
-    },
+    defaultValues: formDefaultValues,
   });
 
   // Valores del formulario
   const watchedStatusId = watch("statusId");
   const watchedSourceId = watch("sourceId");
+  const watchedCompanyId = watch("companyId");
+  const watchedProductId = watch("productId");
+
+  // Validación adicional para garantizar datos válidos
+  const validCompanies = companies?.filter(
+    (company: Company) =>
+      company &&
+      company.id &&
+      typeof company.id === "string" &&
+      company.id.trim() !== ""
+  );
+
+  const validProducts = products?.filter(
+    (product: Product) =>
+      product &&
+      product.id &&
+      typeof product.id === "string" &&
+      product.id.trim() !== ""
+  );
+
+  // Logging para debug
+  // console.log("Companies:", companies);
+  // console.log("Products:", products);
 
   // Manejar el envío del formulario
   const onSubmit = async (data: FormData) => {
     setIsPending(true);
 
     try {
-      await createLeadMutation.mutateAsync(data as CreateLeadPayload);
+      // Limpiar valores "none" por vacíos antes de enviar
+      const cleanedData = {
+        ...data,
+        companyId: data.companyId === "none" ? "" : data.companyId,
+        productId: data.productId === "none" ? "" : data.productId,
+        assignedToId: user?.id || "",
+        qualityScore: 1,
+        isArchived: false,
+      };
+
+      await createLeadMutation.mutateAsync(cleanedData as CreateLeadPayload);
 
       toast({
         title: "Lead creado",
@@ -98,11 +158,12 @@ export function NewLeadDialog({ open, onOpenChange }: NewLeadDialogProps) {
 
       reset(); // Limpiar el formulario
       onOpenChange(false); // Cerrar el diálogo
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating lead:", error);
       toast({
         title: "Error al crear el lead",
         description:
+          error.message ||
           "Ha ocurrido un error al crear el lead. Intenta nuevamente.",
         variant: "destructive",
       });
@@ -173,7 +234,7 @@ export function NewLeadDialog({ open, onOpenChange }: NewLeadDialogProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">Teléfono</Label>
+              <Label htmlFor="phone">Teléfono fijo</Label>
               <Input
                 id="phone"
                 placeholder="+591 12345678"
@@ -184,13 +245,43 @@ export function NewLeadDialog({ open, onOpenChange }: NewLeadDialogProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="company">Empresa</Label>
+            <Label htmlFor="cellphone">Teléfono móvil</Label>
             <Input
-              id="company"
-              placeholder="Nombre de la empresa"
+              id="cellphone"
+              placeholder="+591 71234567"
               className="bg-gray-800 border-gray-700"
-              {...register("company")}
+              {...register("cellphone")}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="companyId">Empresa</Label>
+            <Select
+              value={watchedCompanyId || "none"}
+              onValueChange={(value) =>
+                setValue("companyId", value === "none" ? "" : value)
+              }
+            >
+              <SelectTrigger className="bg-gray-800 border-gray-700">
+                <SelectValue placeholder="Seleccionar empresa" />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-800 border-gray-700">
+                {isLoadingCompanies ? (
+                  <SelectItem value="loading" disabled>
+                    Cargando...
+                  </SelectItem>
+                ) : (
+                  <>
+                    <SelectItem value="none">Sin empresa</SelectItem>
+                    {validCompanies?.map((company: Company) => (
+                      <SelectItem key={company.id} value={company.id}>
+                        {company.name}
+                      </SelectItem>
+                    ))}
+                  </>
+                )}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -280,6 +371,36 @@ export function NewLeadDialog({ open, onOpenChange }: NewLeadDialogProps) {
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="productId">Producto</Label>
+            <Select
+              value={watchedProductId || "none"}
+              onValueChange={(value) =>
+                setValue("productId", value === "none" ? "" : value)
+              }
+            >
+              <SelectTrigger className="bg-gray-800 border-gray-700">
+                <SelectValue placeholder="Seleccionar producto" />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-800 border-gray-700">
+                {isLoadingProducts ? (
+                  <SelectItem value="loading" disabled>
+                    Cargando...
+                  </SelectItem>
+                ) : (
+                  <>
+                    <SelectItem value="none">Sin producto</SelectItem>
+                    {validProducts?.map((product: Product) => (
+                      <SelectItem key={product.id} value={product.id}>
+                        {product.name}
+                      </SelectItem>
+                    ))}
+                  </>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="interest">Grado de interés</Label>
             <Select
               value={watch("interest") || ""}
@@ -294,16 +415,6 @@ export function NewLeadDialog({ open, onOpenChange }: NewLeadDialogProps) {
                 <SelectItem value="Bajo">Bajo</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notas</Label>
-            <Textarea
-              id="notes"
-              placeholder="Información adicional sobre este lead..."
-              className="bg-gray-800 border-gray-700 min-h-20"
-              {...register("notes")}
-            />
           </div>
 
           <DialogFooter className="mt-6">

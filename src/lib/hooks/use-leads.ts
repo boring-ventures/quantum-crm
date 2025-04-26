@@ -70,7 +70,9 @@ export const useCreateLeadMutation = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || "Error creating lead");
+        throw new Error(
+          errorData.message || errorData.error || "Error al crear lead"
+        );
       }
 
       return response.json();
