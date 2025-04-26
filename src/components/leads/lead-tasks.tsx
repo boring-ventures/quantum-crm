@@ -53,7 +53,7 @@ export function LeadTasks({ leadId }: LeadTasksProps) {
         leadId,
         title: title.trim(),
         description: description.trim() || undefined,
-        dueDate,
+        dueDate: dueDate.toISOString(),
         priority: "MEDIUM",
       });
 
@@ -70,6 +70,7 @@ export function LeadTasks({ leadId }: LeadTasksProps) {
     try {
       await updateTaskStatusMutation.mutateAsync({
         taskId,
+        leadId,
         status,
       });
     } catch (error) {

@@ -137,3 +137,184 @@ export const useDeleteLeadMutation = () => {
     },
   });
 };
+
+// Obtener las notas de un lead
+export const useLeadNotes = (leadId?: string) => {
+  return useQuery({
+    queryKey: ["leadNotes", leadId],
+    queryFn: async () => {
+      const response = await fetch(`/api/leads/${leadId}/notes`);
+      if (!response.ok) {
+        throw new Error("Error fetching lead notes");
+      }
+      return response.json();
+    },
+    enabled: !!leadId,
+  });
+};
+
+// Crear una nueva nota para un lead
+export const useCreateNoteMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: {
+      leadId: string;
+      content: string;
+      isPinned?: boolean;
+    }) => {
+      const response = await fetch(`/api/leads/${data.leadId}/notes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: data.content,
+          isPinned: data.isPinned || false,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || errorData.error || "Error al crear nota"
+        );
+      }
+
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["leadNotes", variables.leadId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["leads", variables.leadId] });
+    },
+  });
+};
+
+// Obtener las tareas de un lead
+export const useLeadTasks = (leadId?: string) => {
+  return useQuery({
+    queryKey: ["leadTasks", leadId],
+    queryFn: async () => {
+      const response = await fetch(`/api/leads/${leadId}/tasks`);
+      if (!response.ok) {
+        throw new Error("Error fetching lead tasks");
+      }
+      return response.json();
+    },
+    enabled: !!leadId,
+  });
+};
+
+// Crear una nueva tarea para un lead
+export const useCreateTaskMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: {
+      leadId: string;
+      title: string;
+      description?: string;
+      dueDate?: string;
+      priority?: string;
+    }) => {
+      const response = await fetch(`/api/leads/${data.leadId}/tasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: data.title,
+          description: data.description || "",
+          dueDate: data.dueDate,
+          priority: data.priority || "medium",
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || errorData.error || "Error al crear tarea"
+        );
+      }
+
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["leadTasks", variables.leadId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["leads", variables.leadId] });
+    },
+  });
+};
+
+// Actualizar el estado de una tarea
+export const useUpdateTaskStatusMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      taskId,
+      leadId,
+      status,
+    }: {
+      taskId: string;
+      leadId: string;
+      status: string;
+    }) => {
+      const response = await fetch(`/api/tasks/${taskId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || errorData.error || "Error al actualizar tarea"
+        );
+      }
+
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["leadTasks", variables.leadId],
+      });
+    },
+  });
+};
+
+// Actualizar el estado de un lead
+export const useUpdateLeadStatusMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      leadId,
+      statusId,
+    }: {
+      leadId: string;
+      statusId: string;
+    }) => {
+      const response = await fetch(`/api/leads/${leadId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ statusId }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message ||
+            errorData.error ||
+            "Error al actualizar estado del lead"
+        );
+      }
+
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["leads", variables.leadId] });
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+    },
+  });
+};

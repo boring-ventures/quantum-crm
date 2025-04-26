@@ -25,10 +25,7 @@ async function leadExists(id: string) {
   return count > 0;
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(req: Request, { params }: any) {
   try {
     // Verificar autenticación
     const session = await auth();
@@ -82,10 +79,7 @@ export async function GET(
   }
 }
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(req: Request, { params }: any) {
   try {
     // Verificar autenticación
     const session = await auth();
@@ -104,15 +98,36 @@ export async function PUT(
     }
 
     // Obtener y validar el cuerpo de la solicitud
-    const body = await request.json();
+    const body = await req.json();
 
     try {
       const validatedData = updateLeadSchema.parse(body);
 
-      // Actualizar el lead
+      // Actualizar el lead - asegurándonos de que los tipos sean compatibles con Prisma
+      const data: Record<string, any> = {};
+
+      // Solo agregar los campos que están definidos en validatedData
+      if (validatedData.firstName !== undefined)
+        data.firstName = validatedData.firstName;
+      if (validatedData.lastName !== undefined)
+        data.lastName = validatedData.lastName;
+      if (validatedData.email !== undefined) data.email = validatedData.email;
+      if (validatedData.phone !== undefined) data.phone = validatedData.phone;
+      if (validatedData.company !== undefined)
+        data.company = validatedData.company;
+      if (validatedData.statusId !== undefined)
+        data.statusId = validatedData.statusId;
+      if (validatedData.sourceId !== undefined)
+        data.sourceId = validatedData.sourceId;
+      if (validatedData.assignedToId !== undefined)
+        data.assignedToId = validatedData.assignedToId;
+      if (validatedData.interest !== undefined)
+        data.interest = validatedData.interest;
+      if (validatedData.notes !== undefined) data.notes = validatedData.notes;
+
       const updatedLead = await prisma.lead.update({
         where: { id },
-        data: validatedData,
+        data,
         include: {
           status: true,
           source: true,
@@ -139,10 +154,7 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(req: Request, { params }: any) {
   try {
     // Verificar autenticación
     const session = await auth();

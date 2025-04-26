@@ -19,10 +19,7 @@ async function categoryExists(id: string) {
   return count > 0;
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(req: Request, { params }: any) {
   try {
     // Verificar autenticación
     const session = await auth();
@@ -57,10 +54,7 @@ export async function GET(
   }
 }
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(req: Request, { params }: any) {
   try {
     // Verificar autenticación
     const session = await auth();
@@ -79,7 +73,7 @@ export async function PUT(
     }
 
     // Obtener y validar el cuerpo de la solicitud
-    const body = await request.json();
+    const body = await req.json();
 
     try {
       const validatedData = updateSourceCategorySchema.parse(body);
@@ -109,10 +103,7 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(req: Request, { params }: any) {
   try {
     // Verificar autenticación
     const session = await auth();

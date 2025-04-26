@@ -8,7 +8,7 @@ const createLeadStatusSchema = z.object({
   name: z.string().min(1, "El nombre es requerido"),
   description: z.string().optional().nullable(),
   color: z.string().min(1, "El color es requerido"),
-  displayOrder: z.number().int().nonnegative().optional(),
+  displayOrder: z.number().int().nonnegative(),
 });
 
 export async function GET() {
@@ -46,18 +46,21 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     try {
-      const validatedData = createLeadStatusSchema.parse(body);
+      // Procesar los datos antes de validar si el displayOrder no existe
+      const dataToValidate = { ...body };
 
       // Si no se proporciona displayOrder, obtener el máximo actual y sumar 1
-      if (validatedData.displayOrder === undefined) {
+      if (dataToValidate.displayOrder === undefined) {
         const maxOrderStatus = await prisma.leadStatus.findFirst({
           orderBy: { displayOrder: "desc" },
         });
 
-        validatedData.displayOrder = maxOrderStatus
+        dataToValidate.displayOrder = maxOrderStatus
           ? maxOrderStatus.displayOrder + 1
           : 0;
       }
+
+      const validatedData = createLeadStatusSchema.parse(dataToValidate);
 
       // Comprobar si ya existe un estado con el mismo nombre
       const existingStatus = await prisma.leadStatus.findUnique({
