@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLeadsQuery } from "@/lib/hooks";
 import type { LeadWithRelations } from "@/types/lead";
+import { formatDistanceToNow, format } from "date-fns";
+import { es } from "date-fns/locale";
 
 // Tipo para lead basado en el modelo de Prisma
 export type Lead = {
@@ -56,57 +58,139 @@ function LeadCard({ lead }: LeadCardProps) {
   };
 
   return (
-    <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-4">
-      <div className="flex justify-between">
-        <div className="flex items-center space-x-3">
-          <Avatar className="h-10 w-10 bg-gray-700">
-            <AvatarFallback className="bg-gray-700 text-gray-300">
+    <div className="bg-gray-800 border border-gray-700 rounded-md p-4 mb-4 transition-all hover:-translate-y-1 hover:shadow-md cursor-pointer">
+      <div className="flex justify-between items-center mb-2">
+        <div className="flex space-x-3">
+          <Avatar className="h-14 w-14 bg-gray-700">
+            <AvatarFallback className="bg-gray-700 text-gray-300 text-lg">
               {lead.firstName.charAt(0)}
               {lead.lastName.charAt(0)}
             </AvatarFallback>
           </Avatar>
           <div>
             <div className="flex items-center">
-              <h3 className="font-medium text-gray-100">
+              <h3 className="text-lg font-semibold text-gray-100">
                 {lead.firstName} {lead.lastName}
               </h3>
-              {lead.interest && (
+              <Star
+                className={`h-5 w-5 ml-2 ${
+                  isFavorite
+                    ? "fill-yellow-400 text-yellow-400"
+                    : "text-gray-400"
+                }`}
+                onClick={() => setIsFavorite(!isFavorite)}
+              />
+            </div>
+            <p className="text-sm text-gray-400 mt-1">
+              {lead.source?.name} {lead.company ? `- ${lead.company}` : ""}
+            </p>
+            <div className="flex items-center mt-2">
+              {lead.interest === "Alto" && (
                 <Badge
-                  className={`ml-2 text-xs ${getInterestColor(lead.interest)}`}
+                  className={`bg-green-100 text-green-800 border-green-200`}
                 >
-                  {lead.interest}
+                  Alto interés
                 </Badge>
               )}
             </div>
-            <p className="text-sm text-gray-400">
-              {lead.source?.name} {lead.company && `- ${lead.company}`}
-            </p>
           </div>
         </div>
-        <button
-          onClick={() => setIsFavorite(!isFavorite)}
-          className="text-gray-400 hover:text-yellow-400 transition-colors"
-        >
-          <Star
-            className={`h-5 w-5 ${isFavorite ? "fill-yellow-400 text-yellow-400" : ""}`}
-          />
-        </button>
+        <div className="text-right">
+          <button className="text-gray-400 hover:text-gray-300">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="lucide lucide-more-vertical"
+            >
+              <circle cx="12" cy="12" r="1" />
+              <circle cx="12" cy="5" r="1" />
+              <circle cx="12" cy="19" r="1" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div className="flex items-center mt-3 text-sm text-gray-400">
+        <div className="flex items-center mr-4">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="mr-2"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
+          {formatDistanceToNow(new Date(lead.createdAt), { locale: es })}
+        </div>
+        {lead.phone && (
+          <div className="flex items-center">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="mr-2"
+            >
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+            </svg>
+            {lead.phone}
+          </div>
+        )}
       </div>
 
       {lead.status && (
-        <div className="mt-4 flex items-center justify-between border-t border-gray-700 pt-3">
-          <div className="flex flex-col">
-            <span className="text-xs text-gray-400">Estado:</span>
-            <span
-              className="text-sm font-medium text-gray-200"
-              style={{ color: lead.status.color }}
+        <div className="mt-4 pt-3 border-t border-gray-700 flex justify-between items-center">
+          <div className="flex items-center">
+            <Avatar className="h-8 w-8 bg-gray-700 mr-2">
+              <AvatarFallback className="bg-gray-700 text-gray-300 text-xs">
+                JC
+              </AvatarFallback>
+            </Avatar>
+            <span className="text-sm text-gray-400">Jorge Céspedes</span>
+          </div>
+          <div className="flex items-center">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="mr-2"
             >
-              {lead.status.name}
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+            <span className="text-sm text-gray-400">
+              Próxima tarea:{" "}
+              <span className="text-gray-300">Llamada de seguimiento</span> ·
+              15:00
             </span>
           </div>
-          <span className="text-xs text-gray-400">
-            {new Date(lead.updatedAt).toLocaleDateString()}
-          </span>
         </div>
       )}
     </div>
@@ -115,21 +199,28 @@ function LeadCard({ lead }: LeadCardProps) {
 
 function LeadCardSkeleton() {
   return (
-    <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-4">
+    <div className="bg-gray-800 border border-gray-700 rounded-md p-4 mb-4">
       <div className="flex justify-between">
         <div className="flex items-center space-x-3">
-          <Skeleton className="h-10 w-10 rounded-full" />
+          <Skeleton className="h-14 w-14 rounded-full" />
           <div>
             <Skeleton className="h-5 w-40 mb-2" />
-            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-4 w-32 mb-2" />
+            <Skeleton className="h-6 w-24" />
           </div>
         </div>
-        <Skeleton className="h-5 w-5 rounded-full" />
+        <Skeleton className="h-8 w-8 rounded" />
       </div>
-      <div className="mt-4 border-t border-gray-700 pt-3">
+      <div className="mt-3">
+        <div className="flex">
+          <Skeleton className="h-4 w-32 mr-4" />
+          <Skeleton className="h-4 w-28" />
+        </div>
+      </div>
+      <div className="mt-4 pt-3 border-t border-gray-700">
         <div className="flex justify-between">
-          <Skeleton className="h-5 w-24" />
-          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-8 w-32" />
+          <Skeleton className="h-4 w-48" />
         </div>
       </div>
     </div>
