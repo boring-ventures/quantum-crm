@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useEffect } from "react";
 import {
   Star,
   Phone,
@@ -31,7 +32,7 @@ import { LeadTimeline } from "@/components/leads/lead-timeline";
 import { QuotationDialog } from "@/components/leads/sales/quotation-dialog";
 import { ReservationDialog } from "@/components/leads/sales/reservation-dialog";
 import { SaleDialog } from "@/components/leads/sales/sale-dialog";
-import { useUpdateLeadMutation } from "@/lib/hooks";
+import { useUpdateLeadMutation, useLeadQuotation } from "@/lib/hooks";
 import { useToast } from "@/components/ui/use-toast";
 
 interface LeadDetailPageProps {
@@ -56,6 +57,21 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
   const [openModal, setOpenModal] = useState<string | null>(null);
   const updateLeadMutation = useUpdateLeadMutation();
   const { toast } = useToast();
+
+  // Reflejar el estado de la cotización en el proceso de venta
+  const { data: leadQuotation, isLoading: quotationLoading } = useLeadQuotation(
+    lead.id
+  );
+
+  // Actualizar el estado del proceso si ya hay una cotización
+  useEffect(() => {
+    if (leadQuotation) {
+      setSalesProcess((prev) => ({
+        ...prev,
+        quotation: true,
+      }));
+    }
+  }, [leadQuotation]);
 
   // Obtener iniciales del nombre para el avatar
   const getInitials = (firstName: string, lastName: string) => {
