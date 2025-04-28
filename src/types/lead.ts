@@ -35,6 +35,21 @@ export interface Tag {
   color: string;
 }
 
+// Definición del tipo Task
+export interface Task {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  title: string;
+  description?: string | null;
+  dueDate: string;
+  priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+  status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+  leadId: string;
+  assignedToId: string;
+  completedAt?: string | null;
+}
+
 // Definir User localmente para evitar problemas de importación
 export interface User {
   id: string;

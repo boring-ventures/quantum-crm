@@ -219,7 +219,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Error creating lead:", error);
     return NextResponse.json(
-      { error: "Error al crear el lead" },
+      { error: "Error al crear el lead", details: error },
       { status: 500 }
     );
   }

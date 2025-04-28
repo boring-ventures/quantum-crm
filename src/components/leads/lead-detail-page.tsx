@@ -10,6 +10,7 @@ import {
   MoreHorizontal,
   Loader2,
   X,
+  Plus,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import { LeadWithRelations } from "@/types/lead";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { LeadDocuments } from "@/components/leads/sections/lead-documents";
+import { TaskList } from "@/components/leads/task-list";
 import { useUpdateLeadMutation } from "@/lib/hooks";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -351,9 +353,7 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
               </TabsContent>
 
               <TabsContent value="tareas" className="p-6">
-                <div className="text-center py-10 text-gray-500 dark:text-gray-400">
-                  No hay tareas pendientes para este lead.
-                </div>
+                <TaskList leadId={lead.id} />
               </TabsContent>
 
               <TabsContent value="lineaTiempo" className="p-6">
