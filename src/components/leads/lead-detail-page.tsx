@@ -36,6 +36,7 @@ import {
   useUpdateLeadMutation,
   useLeadQuotation,
   useLeadReservation,
+  useLeadSale,
 } from "@/lib/hooks";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -62,7 +63,7 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
   const updateLeadMutation = useUpdateLeadMutation();
   const { toast } = useToast();
 
-  // Reflejar el estado de la cotización en el proceso de venta
+  // Reflejar el estado de la cotización y reserva en el proceso de venta
   const { data: leadQuotation, isLoading: quotationLoading } = useLeadQuotation(
     lead.id
   );
@@ -71,7 +72,10 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
   const { data: leadReservation, isLoading: reservationLoading } =
     useLeadReservation(lead.id);
 
-  // Actualizar el estado del proceso si ya hay una cotización o reserva
+  // Reflejar el estado de la venta en el proceso de venta
+  const { data: leadSale, isLoading: saleLoading } = useLeadSale(lead.id);
+
+  // Actualizar el estado del proceso si ya hay una cotización, reserva o venta
   useEffect(() => {
     if (leadQuotation) {
       setSalesProcess((prev) => ({
@@ -86,7 +90,14 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
         reservation: true,
       }));
     }
-  }, [leadQuotation, leadReservation]);
+
+    if (leadSale) {
+      setSalesProcess((prev) => ({
+        ...prev,
+        sale: true,
+      }));
+    }
+  }, [leadQuotation, leadReservation, leadSale]);
 
   // Obtener iniciales del nombre para el avatar
   const getInitials = (firstName: string, lastName: string) => {

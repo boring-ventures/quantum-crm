@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Upload } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Upload, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useToast } from "@/components/ui/use-toast";
+import {
+  useCreateSaleMutation,
+  useLeadSale,
+  useLeadReservation,
+  useCreateDocumentMutation,
+} from "@/lib/hooks";
+import { uploadDocument } from "@/lib/supabase/upload-document";
 
 interface SaleDialogProps {
   open: boolean;
@@ -36,6 +44,12 @@ export function SaleDialog({
   leadId,
   onComplete,
 }: SaleDialogProps) {
+  const { toast } = useToast();
+  const { data: existingSale, isLoading: saleLoading } = useLeadSale(leadId);
+  const { data: existingReservation } = useLeadReservation(leadId);
+  const createSaleMutation = useCreateSaleMutation();
+  const createDocumentMutation = useCreateDocumentMutation();
+
   // Estado para datos de venta
   const [totalAmount, setTotalAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
@@ -48,6 +62,29 @@ export function SaleDialog({
 
   const [notes, setNotes] = useState("");
 
+  // Estado para carga
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Inicializar con datos de la reserva si existe
+  useEffect(() => {
+    if (existingReservation) {
+      setTotalAmount(existingReservation.amount.toString());
+      setPaymentMethod(existingReservation.paymentMethod);
+    }
+  }, [existingReservation]);
+
+  // Comprobar si ya hay una venta existente para saltar este paso
+  useEffect(() => {
+    if (existingSale && open && onComplete) {
+      toast({
+        title: "Venta existente",
+        description: "Ya existe una venta para este lead",
+      });
+      onComplete();
+      onClose();
+    }
+  }, [existingSale, open, onComplete, onClose, toast]);
+
   // Manejador para subir archivo
   const handleContractUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -57,18 +94,76 @@ export function SaleDialog({
     }
   };
 
+  // Validar el formulario
+  const isFormValid =
+    parseFloat(totalAmount) > 0 && paymentMethod && saleContract;
+
   // Manejar envío del formulario
   const handleSubmit = async () => {
-    // Aquí iría la lógica para guardar la venta
-    // Por ahora solo simulamos completar el proceso
-    if (onComplete) {
-      onComplete();
-    }
-    onClose();
-  };
+    if (!isFormValid) return;
 
-  // Validar el formulario
-  const isFormValid = totalAmount && paymentMethod && saleContract;
+    setIsUploading(true);
+
+    try {
+      // 1. Subir el contrato de venta (requerido)
+      let saleContractUrl: string | undefined;
+
+      if (saleContract) {
+        const documentData = await uploadDocument(
+          saleContract,
+          leadId,
+          "sale-contract"
+        );
+
+        saleContractUrl = documentData.url;
+
+        // 2. Crear el registro del documento
+        await createDocumentMutation.mutateAsync({
+          leadId,
+          name: saleContract.name,
+          type: saleContract.type,
+          size: saleContract.size,
+          url: documentData.url,
+        });
+      }
+
+      // 3. Crear la venta
+      await createSaleMutation.mutateAsync({
+        leadId,
+        reservationId: existingReservation?.id,
+        amount: parseFloat(totalAmount),
+        paymentMethod,
+        saleContractUrl,
+        additionalNotes: notes,
+      });
+
+      // 4. Mostrar mensaje de éxito
+      toast({
+        title: "Venta registrada",
+        description: "La venta se ha registrado correctamente",
+        variant: "default",
+      });
+
+      // 5. Completar el proceso
+      if (onComplete) {
+        onComplete();
+      }
+
+      // 6. Cerrar el diálogo
+      onClose();
+    } catch (error) {
+      console.error("Error al crear venta:", error);
+
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error ? error.message : "Error al crear la venta",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -82,91 +177,114 @@ export function SaleDialog({
           </p>
         </DialogHeader>
 
-        <div className="space-y-6 mt-4">
-          {/* Monto total */}
-          <div>
-            <Label>
-              Monto total <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              type="text"
-              value={totalAmount}
-              onChange={(e) => setTotalAmount(e.target.value)}
-              placeholder="$ 0.00"
-            />
+        {saleLoading ? (
+          <div className="flex flex-col items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-gray-400 mb-2" />
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Cargando...
+            </p>
           </div>
+        ) : (
+          <div className="space-y-6 mt-4">
+            {/* Monto total */}
+            <div>
+              <Label>
+                Monto total <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                type="number"
+                min={0}
+                value={totalAmount}
+                onChange={(e) => setTotalAmount(e.target.value)}
+                placeholder="$ 0.00"
+              />
+            </div>
 
-          {/* Método de pago */}
-          <div>
-            <Label>
-              Método de pago <span className="text-red-500">*</span>
-            </Label>
-            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-              <SelectTrigger>
-                <SelectValue placeholder="Seleccionar método de pago" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="efectivo">Efectivo</SelectItem>
-                <SelectItem value="tarjeta">
-                  Tarjeta de crédito/débito
-                </SelectItem>
-                <SelectItem value="transferencia">
-                  Transferencia bancaria
-                </SelectItem>
-                <SelectItem value="financiamiento">Financiamiento</SelectItem>
-                <SelectItem value="cheque">Cheque</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+            {/* Método de pago */}
+            <div>
+              <Label>
+                Método de pago <span className="text-red-500">*</span>
+              </Label>
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar método de pago" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CASH">Efectivo</SelectItem>
+                  <SelectItem value="CARD">
+                    Tarjeta de crédito/débito
+                  </SelectItem>
+                  <SelectItem value="TRANSFER">
+                    Transferencia bancaria
+                  </SelectItem>
+                  <SelectItem value="FINANCING">Financiamiento</SelectItem>
+                  <SelectItem value="CHECK">Cheque</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-          {/* Contrato de venta */}
-          <div>
-            <Label className="block mb-2">
-              Contrato de venta <span className="text-red-500">*</span>
-            </Label>
-            <div className="flex items-center gap-2">
-              <div className="border rounded-md p-3 flex-1 text-sm text-gray-500 dark:text-gray-400">
-                {saleContractName}
+            {/* Contrato de venta */}
+            <div>
+              <Label className="block mb-2">
+                Contrato de venta <span className="text-red-500">*</span>
+              </Label>
+              <div className="flex items-center gap-2">
+                <div className="border rounded-md p-3 flex-1 text-sm text-gray-500 dark:text-gray-400">
+                  {saleContractName}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0"
+                  onClick={() =>
+                    document.getElementById("contract-upload")?.click()
+                  }
+                  disabled={isUploading}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Subir
+                </Button>
+                <input
+                  id="contract-upload"
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.doc,.docx"
+                  onChange={handleContractUpload}
+                  disabled={isUploading}
+                />
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                className="shrink-0"
-                onClick={() =>
-                  document.getElementById("contract-upload")?.click()
-                }
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Subir
-              </Button>
-              <input
-                id="contract-upload"
-                type="file"
-                className="hidden"
-                accept=".pdf,.doc,.docx"
-                onChange={handleContractUpload}
+            </div>
+
+            {/* Notas adicionales */}
+            <div>
+              <Label>Notas adicionales</Label>
+              <Textarea
+                placeholder="Detalles adicionales sobre la venta..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="min-h-[100px]"
               />
             </div>
           </div>
-
-          {/* Notas adicionales */}
-          <div>
-            <Label>Notas adicionales</Label>
-            <Textarea
-              placeholder="Detalles adicionales sobre la venta..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="min-h-[100px]"
-            />
-          </div>
-        </div>
+        )}
 
         <DialogFooter className="mt-6">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} disabled={isUploading}>
             Cancelar
           </Button>
-          <Button onClick={handleSubmit} disabled={!isFormValid}>
-            Registrar venta
+          <Button
+            onClick={handleSubmit}
+            disabled={!isFormValid || isUploading}
+            className="relative"
+          >
+            {isUploading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Procesando...
+              </>
+            ) : (
+              "Registrar venta"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
