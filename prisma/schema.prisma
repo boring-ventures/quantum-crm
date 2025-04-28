@@ -159,9 +159,10 @@ model Lead {
   company   Company? @relation(fields: [companyId], references: [id])
 
   // Lead qualification and scoring
-  qualityScore Int?     @map("quality_score")
-  productId    String?  @map("product_id")
-  product      Product? @relation(fields: [productId], references: [id])
+  qualityScore  Int?     @map("quality_score")
+  productId     String?  @map("product_id")
+  product       Product? @relation(fields: [productId], references: [id])
+  extraComments String?  @map("extra_comments") // Comentarios adicionales del lead
 
   // Relationships
   statusId String     @map("status_id")

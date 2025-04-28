@@ -10,7 +10,8 @@ export interface Lead {
   sourceId: string;
   assignedToId?: string;
   interest?: string;
-  notes?: string;
+  extraComments?: string;
+  qualityScore?: number;
   createdAt: Date;
   updatedAt: Date;
 }

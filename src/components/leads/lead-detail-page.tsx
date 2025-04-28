@@ -8,6 +8,8 @@ import {
   CalendarClock,
   PenLine,
   MoreHorizontal,
+  Loader2,
+  X,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -19,6 +21,8 @@ import { LeadWithRelations } from "@/types/lead";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { LeadDocuments } from "@/components/leads/sections/lead-documents";
+import { useUpdateLeadMutation } from "@/lib/hooks";
+import { useToast } from "@/components/ui/use-toast";
 
 interface LeadDetailPageProps {
   lead: LeadWithRelations;
@@ -28,11 +32,98 @@ interface LeadDetailPageProps {
 export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
   const [activeTab, setActiveTab] = useState("informacion");
   const [isFavorite, setIsFavorite] = useState(true);
-  const [comments, setComments] = useState("");
+  const [comments, setComments] = useState(lead.extraComments || "");
+  const [isEditing, setIsEditing] = useState(false);
+  const [originalComments, setOriginalComments] = useState(
+    lead.extraComments || ""
+  );
+  const [hasChanges, setHasChanges] = useState(false);
+  const updateLeadMutation = useUpdateLeadMutation();
+  const { toast } = useToast();
 
   // Obtener iniciales del nombre para el avatar
   const getInitials = (firstName: string, lastName: string) => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  };
+
+  // Manejar la edición de comentarios
+  const handleEditComments = () => {
+    setIsEditing(true);
+    setOriginalComments(comments);
+  };
+
+  // Manejar cambios en el textarea
+  const handleCommentsChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setComments(e.target.value);
+    setHasChanges(e.target.value !== originalComments);
+  };
+
+  // Cancelar edición
+  const handleCancelEdit = () => {
+    setComments(originalComments);
+    setIsEditing(false);
+    setHasChanges(false);
+  };
+
+  // Guardar comentarios
+  const handleSaveComments = async () => {
+    try {
+      await updateLeadMutation.mutateAsync({
+        id: lead.id,
+        data: {
+          extraComments: comments,
+        },
+      });
+
+      setOriginalComments(comments);
+      setIsEditing(false);
+      setHasChanges(false);
+
+      toast({
+        title: "Comentarios guardados",
+        description: "Los comentarios se han guardado correctamente",
+        variant: "default",
+      });
+    } catch (error) {
+      toast({
+        title: "Error al guardar",
+        description: "No se pudieron guardar los comentarios",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Obtener color del badge para interés según qualityScore
+  const getInterestBadgeStyle = (score?: number) => {
+    if (!score)
+      return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300";
+
+    switch (score) {
+      case 3:
+        return "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-900/50";
+      case 2:
+        return "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-900/50";
+      case 1:
+        return "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-900/50";
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300";
+    }
+  };
+
+  // Obtener texto del interés según qualityScore
+  const getInterestText = (score?: number) => {
+    if (!score) return "Sin determinar";
+
+    switch (score) {
+      case 3:
+        return "Alto";
+      case 2:
+        return "Medio";
+      case 1:
+        return "Bajo";
+      default:
+        return "Sin determinar";
+    }
   };
 
   return (
@@ -55,7 +146,7 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
               onClick={() => setIsFavorite(!isFavorite)}
             />
             <Badge className="ml-2 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-              Lead #{lead.id}
+              Lead #{lead.id.substring(0, 8)}
             </Badge>
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -104,7 +195,10 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
                 Calificado
               </Badge>
               <div className="text-sm text-gray-600 dark:text-gray-400">
-                Asignado a: <span className="font-medium">Jorge Céspedes</span>
+                Asignado a:{" "}
+                <span className="font-medium">
+                  {lead.assignedTo?.name || "Jorge Céspedes"}
+                </span>
               </div>
             </div>
 
@@ -112,9 +206,9 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
               Interés:
               <Badge
                 variant="outline"
-                className="ml-2 font-normal bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-900/50"
+                className={`ml-2 font-normal ${getInterestBadgeStyle(lead.qualityScore)}`}
               >
-                Por determinar
+                {getInterestText(lead.qualityScore)}
               </Badge>
             </div>
           </div>
@@ -149,27 +243,27 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="informacion" className="p-6 space-y-6">
+              <TabsContent value="informacion" className="p-6 space-y-8">
                 {/* Información Personal */}
                 <div>
-                  <h3 className="text-lg font-medium mb-4">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-5">
                     Información Personal
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-6">
                     <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                      <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">
                         Teléfono
                       </p>
-                      <p className="font-medium">
-                        {lead.phone || "+591 75757575"}
+                      <p className="text-base text-gray-800 dark:text-gray-200">
+                        {lead.phone || "Sin registro"}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                      <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">
                         Email
                       </p>
-                      <p className="font-medium">
-                        {lead.email || "carlos@example.com"}
+                      <p className="text-base text-gray-800 dark:text-gray-200">
+                        {lead.email || "Sin registro"}
                       </p>
                     </div>
                   </div>
@@ -177,28 +271,30 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
 
                 {/* Origen del Lead */}
                 <div>
-                  <h3 className="text-lg font-medium mb-4">Origen del Lead</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-6">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-5">
+                    Origen del Lead
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-6">
                     <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                      <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">
                         Fuente
                       </p>
-                      <p className="font-medium">
-                        {lead.source?.name || "Facebook - Campaña Q4"}
+                      <p className="text-base text-gray-800 dark:text-gray-200">
+                        {lead.source?.name || "Sin registro"}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                      <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">
                         Fecha de creación
                       </p>
-                      <p className="font-medium">
+                      <p className="text-base text-gray-800 dark:text-gray-200">
                         {lead.createdAt
                           ? format(
                               new Date(lead.createdAt),
                               "dd/MM/yyyy, HH:mm:ss",
                               { locale: es }
                             )
-                          : "13/3/2024, 13:47:00"}
+                          : "Sin registro"}
                       </p>
                     </div>
                   </div>
@@ -206,27 +302,51 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
 
                 {/* Comentarios Extras */}
                 <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-medium">Comentarios Extras</h3>
-                    <Button size="sm" variant="ghost">
-                      <PenLine className="h-4 w-4 mr-2" />
-                      Editar
-                    </Button>
+                  <div className="flex items-center justify-between mb-5">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                      Comentarios Extras
+                    </h3>
+                    {!isEditing && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={handleEditComments}
+                      >
+                        <PenLine className="h-4 w-4 mr-2" />
+                        Editar
+                      </Button>
+                    )}
                   </div>
                   <Textarea
                     placeholder="Añadir comentarios adicionales sobre este lead..."
-                    className="min-h-[120px] resize-none"
+                    className="min-h-[120px] resize-none text-gray-800 dark:text-gray-200"
                     value={comments}
-                    onChange={(e) => setComments(e.target.value)}
+                    onChange={handleCommentsChange}
+                    disabled={!isEditing}
                   />
-                  <div className="flex justify-end mt-2">
-                    <Button
-                      size="sm"
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
-                    >
-                      Guardar comentarios
-                    </Button>
-                  </div>
+                  {isEditing && (
+                    <div className="flex justify-end mt-3 gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleCancelEdit}
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        Cancelar
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                        onClick={handleSaveComments}
+                        disabled={!hasChanges || updateLeadMutation.isPending}
+                      >
+                        {updateLeadMutation.isPending && (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        )}
+                        Guardar comentarios
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </TabsContent>
 
@@ -333,8 +453,24 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
           <Card className="border-gray-200 dark:border-gray-700">
             <CardContent className="p-6">
               <h3 className="text-lg font-medium mb-4">Estado actual</h3>
-              <Badge className="font-normal bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-900/50">
-                Lead calificado
+              <Badge
+                className={`font-normal px-3 py-1 ${
+                  lead.status?.color === "blue"
+                    ? "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-900/50"
+                    : lead.status?.color === "green"
+                      ? "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-900/50"
+                      : lead.status?.color === "yellow"
+                        ? "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-900/50"
+                        : lead.status?.color === "red"
+                          ? "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-900/50"
+                          : lead.status?.color === "purple"
+                            ? "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-900/50"
+                            : lead.status?.color === "pink"
+                              ? "bg-pink-100 text-pink-800 border-pink-200 dark:bg-pink-900/30 dark:text-pink-400 dark:border-pink-900/50"
+                              : "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-900/50"
+                }`}
+              >
+                {lead.status?.name || "Lead calificado"}
               </Badge>
             </CardContent>
           </Card>
