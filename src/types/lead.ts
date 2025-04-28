@@ -41,9 +41,6 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
   title: string;
-  description?: string | null;
-  dueDate: string;
-  priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
   status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
   leadId: string;
   assignedToId: string;
@@ -69,6 +66,7 @@ export interface LeadWithRelations extends Lead {
   source: LeadSource;
   assignedTo?: User;
   tags?: Tag[];
+  tasks?: Task[];
 }
 
 // Tipos para respuestas de API paginadas

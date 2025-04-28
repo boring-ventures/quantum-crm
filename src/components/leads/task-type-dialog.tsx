@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -17,7 +17,12 @@ import {
   Store,
   MessageSquare,
   MessageCircle,
+  Loader2,
 } from "lucide-react";
+import { useCreateTaskMutation } from "@/lib/hooks";
+import { useToast } from "@/components/ui/use-toast";
+import { auth } from "@/lib/auth";
+import { useAuth } from "@/hooks/use-auth";
 
 interface TaskType {
   id: string;
@@ -75,27 +80,52 @@ interface TaskTypeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   leadId: string;
-  onSelectTaskType?: (taskType: TaskType) => void;
 }
 
 export function TaskTypeDialog({
   open,
   onOpenChange,
   leadId,
-  onSelectTaskType,
 }: TaskTypeDialogProps) {
   const [selectedTaskType, setSelectedTaskType] = useState<string | null>(null);
+  const { user } = useAuth();
+  const createTaskMutation = useCreateTaskMutation();
+  const { toast } = useToast();
 
   const handleTaskTypeSelect = (taskType: TaskType) => {
     setSelectedTaskType(taskType.id);
-    if (onSelectTaskType) {
-      onSelectTaskType(taskType);
-    }
   };
 
-  const handleContinue = () => {
-    // Esta función se implementará en la próxima etapa
-    onOpenChange(false);
+  const handleCreateTask = async () => {
+    if (!selectedTaskType) return;
+
+    const selectedType = taskTypes.find((type) => type.id === selectedTaskType);
+    if (!selectedType) return;
+
+    console.log("selectedType", selectedType);
+
+    try {
+      await createTaskMutation.mutateAsync({
+        leadId,
+        title: selectedType.title,
+        assignedToId: user?.id || "",
+      });
+
+      toast({
+        title: "Tarea creada",
+        description: "La tarea se ha creado correctamente",
+      });
+
+      // Cerrar el diálogo y resetear la selección
+      onOpenChange(false);
+      setSelectedTaskType(null);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo crear la tarea. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -136,8 +166,15 @@ export function TaskTypeDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button disabled={!selectedTaskType} onClick={handleContinue}>
-            Continuar
+          <Button
+            disabled={!selectedTaskType || createTaskMutation.isPending}
+            onClick={handleCreateTask}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            {createTaskMutation.isPending && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            )}
+            Crear tarea
           </Button>
         </DialogFooter>
       </DialogContent>

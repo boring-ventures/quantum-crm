@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { CalendarClock, Check, Plus, ClipboardList } from "lucide-react";
+import { Check, Plus, ClipboardList, Clock, X, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Task } from "@/types/lead";
 import { TaskTypeDialog } from "@/components/leads/task-type-dialog";
-import { useLeadTasks } from "@/lib/hooks/use-tasks";
+import { useLeadTasks, useUpdateTaskStatusMutation } from "@/lib/hooks";
+import { useToast } from "@/components/ui/use-toast";
 
 interface TaskListProps {
   leadId: string;
@@ -17,6 +18,8 @@ interface TaskListProps {
 export function TaskList({ leadId }: TaskListProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { data: tasks, isLoading } = useLeadTasks(leadId);
+  const updateTaskStatusMutation = useUpdateTaskStatusMutation();
+  const { toast } = useToast();
 
   const getStatusBadgeStyle = (status: string) => {
     switch (status) {
@@ -48,6 +51,30 @@ export function TaskList({ leadId }: TaskListProps) {
     }
   };
 
+  const handleUpdateStatus = async (
+    taskId: string,
+    newStatus: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
+  ) => {
+    try {
+      await updateTaskStatusMutation.mutateAsync({
+        taskId,
+        leadId,
+        status: newStatus,
+      });
+
+      toast({
+        title: "Estado actualizado",
+        description: `Tarea marcada como ${getStatusText(newStatus).toLowerCase()}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el estado de la tarea",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Agrupar tareas por estatus
   const groupedTasks =
     tasks?.reduce(
@@ -60,11 +87,12 @@ export function TaskList({ leadId }: TaskListProps) {
       {} as Record<string, Task[]>
     ) || {};
 
-  // Ordenar las tareas por fecha de vencimiento
+  // Ordenar las tareas por fecha de creación (más recientes primero)
   const sortedTasks = Object.keys(groupedTasks).reduce(
     (sorted, status) => {
       sorted[status] = [...groupedTasks[status]].sort(
-        (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
       return sorted;
     },
@@ -101,7 +129,7 @@ export function TaskList({ leadId }: TaskListProps) {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-medium">Tareas pendientes</h3>
+        <h3 className="text-xl font-semibold">Tareas</h3>
         <Button
           size="sm"
           onClick={() => setIsDialogOpen(true)}
@@ -113,8 +141,8 @@ export function TaskList({ leadId }: TaskListProps) {
       </div>
 
       {isLoading ? (
-        <div className="text-center py-10 text-gray-500 dark:text-gray-400">
-          Cargando tareas...
+        <div className="flex justify-center py-10">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
         </div>
       ) : !tasks || tasks.length === 0 ? (
         <NoTasksPlaceholder />
@@ -125,30 +153,50 @@ export function TaskList({ leadId }: TaskListProps) {
               sortedTasks[status]?.length > 0 && (
                 <div key={status} className="space-y-3">
                   {status === "PENDING" && (
-                    <h4 className="text-md font-medium text-gray-700 dark:text-gray-300">
+                    <h4 className="text-base font-medium text-gray-700 dark:text-gray-300">
                       Pendientes
                     </h4>
                   )}
+                  {status === "IN_PROGRESS" && (
+                    <h4 className="text-base font-medium text-gray-700 dark:text-gray-300">
+                      En progreso
+                    </h4>
+                  )}
                   {status === "COMPLETED" && (
-                    <h4 className="text-md font-medium text-gray-700 dark:text-gray-300 mt-6">
+                    <h4 className="text-base font-medium text-gray-700 dark:text-gray-300 mt-6">
                       Completadas
+                    </h4>
+                  )}
+                  {status === "CANCELLED" && (
+                    <h4 className="text-base font-medium text-gray-700 dark:text-gray-300 mt-6">
+                      Canceladas
                     </h4>
                   )}
                   {sortedTasks[status].map((task) => (
                     <div
                       key={task.id}
-                      className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
+                      className={`p-4 border rounded-lg ${
+                        status === "COMPLETED" || status === "CANCELLED"
+                          ? "bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700/50"
+                          : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+                      }`}
                     >
                       <div className="flex justify-between">
                         <div>
-                          <h5 className="font-medium text-gray-900 dark:text-gray-100">
+                          <h5
+                            className={`text-lg font-medium ${
+                              status === "COMPLETED" || status === "CANCELLED"
+                                ? "text-gray-600 dark:text-gray-400"
+                                : "text-gray-900 dark:text-gray-100"
+                            }`}
+                          >
                             {task.title}
                           </h5>
-                          <div className="flex items-center mt-2 text-sm text-gray-600 dark:text-gray-400">
-                            <CalendarClock className="h-4 w-4 mr-1" />
+                          <div className="flex items-center mt-2 text-sm text-gray-500 dark:text-gray-400">
+                            <Clock className="h-4 w-4 mr-1" />
                             {format(
-                              new Date(task.dueDate),
-                              "d 'de' MMMM, yyyy - HH:mm",
+                              new Date(task.createdAt),
+                              "d 'de' MMMM, yyyy",
                               { locale: es }
                             )}
                           </div>
@@ -163,24 +211,54 @@ export function TaskList({ leadId }: TaskListProps) {
                         </div>
                       </div>
 
-                      {task.description && (
-                        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                          {task.description}
-                        </p>
-                      )}
+                      {/* Acciones de estado */}
+                      {task.status !== "COMPLETED" &&
+                        task.status !== "CANCELLED" && (
+                          <div className="mt-3 flex justify-end space-x-2">
+                            {task.status === "PENDING" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300 dark:border-blue-900 dark:hover:bg-blue-900/20"
+                                onClick={() =>
+                                  handleUpdateStatus(task.id, "IN_PROGRESS")
+                                }
+                                disabled={updateTaskStatusMutation.isPending}
+                              >
+                                <Clock className="h-4 w-4 mr-1" />
+                                Iniciar
+                              </Button>
+                            )}
 
-                      {task.status === "PENDING" && (
-                        <div className="mt-3 flex justify-end">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-green-600 border-green-200 hover:bg-green-50 hover:border-green-300 dark:border-green-900 dark:hover:bg-green-900/20"
-                          >
-                            <Check className="h-4 w-4 mr-1" />
-                            Completar
-                          </Button>
-                        </div>
-                      )}
+                            {task.status === "IN_PROGRESS" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-green-600 border-green-200 hover:bg-green-50 hover:border-green-300 dark:border-green-900 dark:hover:bg-green-900/20"
+                                onClick={() =>
+                                  handleUpdateStatus(task.id, "COMPLETED")
+                                }
+                                disabled={updateTaskStatusMutation.isPending}
+                              >
+                                <Check className="h-4 w-4 mr-1" />
+                                Completar
+                              </Button>
+                            )}
+
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 dark:border-red-900 dark:hover:bg-red-900/20"
+                              onClick={() =>
+                                handleUpdateStatus(task.id, "CANCELLED")
+                              }
+                              disabled={updateTaskStatusMutation.isPending}
+                            >
+                              <X className="h-4 w-4 mr-1" />
+                              Cancelar
+                            </Button>
+                          </div>
+                        )}
                     </div>
                   ))}
                 </div>

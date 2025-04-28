@@ -63,6 +63,22 @@ enum TaskStatus {
   CANCELLED
 }
 
+// Enum para los estados de los procesos de venta
+enum SalesProcessStatus {
+  DRAFT
+  COMPLETED
+  CANCELLED
+}
+
+// Enum para los métodos de pago
+enum PaymentMethod {
+  CASH // Efectivo
+  CARD // Tarjeta de crédito/débito
+  TRANSFER // Transferencia bancaria
+  CHECK // Cheque
+  FINANCING // Financiamiento
+}
+
 // Company model - for managing companies
 model Company {
   id        String   @id @default(uuid())
@@ -188,6 +204,11 @@ model Lead {
   nextFollowUpDate DateTime? @map("next_follow_up_date")
   convertedAt      DateTime? @map("converted_at")
   isArchived       Boolean   @default(false) @map("is_archived")
+
+  // Nuevas relaciones para el proceso de venta
+  quotations   Quotation[]
+  reservations Reservation[]
+  sales        Sale[]
 
   @@index([statusId])
   @@index([sourceId])
@@ -384,11 +405,8 @@ model Task {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  title       String
-  description String?
-  dueDate     DateTime     @map("due_date")
-  priority    TaskPriority @default(MEDIUM)
-  status      TaskStatus   @default(PENDING)
+  title  String
+  status TaskStatus @default(PENDING)
 
   // Relationships
   leadId String @map("lead_id")
@@ -401,9 +419,7 @@ model Task {
 
   @@index([leadId])
   @@index([assignedToId])
-  @@index([dueDate])
   @@index([status])
-  @@index([priority])
   @@map("tasks")
 }
 
@@ -528,4 +544,103 @@ model ProductImage {
   @@index([productId])
   @@index([isMain])
   @@map("product_images")
+}
+
+// Model para cotizaciones (Quotation)
+model Quotation {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relación con el Lead
+  leadId String @map("lead_id")
+  lead   Lead   @relation(fields: [leadId], references: [id])
+
+  // Datos de la cotización
+  totalAmount     Decimal            @map("total_amount") @db.Decimal(10, 2)
+  proformaUrl     String?            @map("proforma_url") // URL del documento de proforma
+  additionalNotes String?            @map("additional_notes")
+  status          SalesProcessStatus @default(DRAFT)
+
+  // Productos cotizados (para implementación futura)
+  // quotationProducts QuotationProduct[]
+
+  // Relación con Reservations
+  reservations Reservation[]
+
+  @@index([leadId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("quotations")
+}
+
+// Model para reservas (Reservation)
+model Reservation {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relación con el Lead
+  leadId String @map("lead_id")
+  lead   Lead   @relation(fields: [leadId], references: [id])
+
+  // Relación con la Cotización
+  quotationId String?    @map("quotation_id")
+  quotation   Quotation? @relation(fields: [quotationId], references: [id])
+
+  // Datos de la reserva
+  amount        Decimal       @db.Decimal(10, 2)
+  paymentMethod PaymentMethod @map("payment_method")
+  deliveryDate  DateTime      @map("delivery_date")
+
+  // Documentos
+  reservationFormUrl     String? @map("reservation_form_url")
+  depositReceiptUrl      String? @map("deposit_receipt_url")
+  reservationContractUrl String? @map("reservation_contract_url")
+
+  // Otros datos
+  vehicleDetails  String?            @map("vehicle_details")
+  additionalNotes String?            @map("additional_notes")
+  status          SalesProcessStatus @default(DRAFT)
+
+  // Relación con Sales
+  sales Sale[]
+
+  @@index([leadId])
+  @@index([quotationId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("reservations")
+}
+
+// Model para ventas (Sale)
+model Sale {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relación con el Lead
+  leadId String @map("lead_id")
+  lead   Lead   @relation(fields: [leadId], references: [id])
+
+  // Relación con la Reserva
+  reservationId String?      @map("reservation_id")
+  reservation   Reservation? @relation(fields: [reservationId], references: [id])
+
+  // Datos de la venta
+  amount        Decimal       @db.Decimal(10, 2)
+  paymentMethod PaymentMethod @map("payment_method")
+
+  // Documentos
+  saleContractUrl String? @map("sale_contract_url")
+
+  // Otros datos
+  additionalNotes String?            @map("additional_notes")
+  status          SalesProcessStatus @default(DRAFT)
+
+  @@index([leadId])
+  @@index([reservationId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("sales")
 }

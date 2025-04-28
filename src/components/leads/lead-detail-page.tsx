@@ -11,6 +11,10 @@ import {
   Loader2,
   X,
   Plus,
+  CheckCircle,
+  ShoppingCart,
+  ReceiptText,
+  LockIcon,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -23,6 +27,10 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { LeadDocuments } from "@/components/leads/sections/lead-documents";
 import { TaskList } from "@/components/leads/task-list";
+import { LeadTimeline } from "@/components/leads/lead-timeline";
+import { QuotationDialog } from "@/components/leads/sales/quotation-dialog";
+import { ReservationDialog } from "@/components/leads/sales/reservation-dialog";
+import { SaleDialog } from "@/components/leads/sales/sale-dialog";
 import { useUpdateLeadMutation } from "@/lib/hooks";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -40,6 +48,12 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
     lead.extraComments || ""
   );
   const [hasChanges, setHasChanges] = useState(false);
+  const [salesProcess, setSalesProcess] = useState({
+    quotation: false,
+    reservation: false,
+    sale: false,
+  });
+  const [openModal, setOpenModal] = useState<string | null>(null);
   const updateLeadMutation = useUpdateLeadMutation();
   const { toast } = useToast();
 
@@ -126,6 +140,38 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
       default:
         return "Sin determinar";
     }
+  };
+
+  // Cerrar cualquier modal abierto
+  const handleCloseModal = () => {
+    setOpenModal(null);
+  };
+
+  // Completar paso de cotización
+  const handleCompleteQuotation = () => {
+    setSalesProcess((prev) => ({
+      ...prev,
+      quotation: true,
+    }));
+    // Aquí se podría guardar el estado en el backend
+  };
+
+  // Completar paso de reserva
+  const handleCompleteReservation = () => {
+    setSalesProcess((prev) => ({
+      ...prev,
+      reservation: true,
+    }));
+    // Aquí se podría guardar el estado en el backend
+  };
+
+  // Completar paso de venta
+  const handleCompleteSale = () => {
+    setSalesProcess((prev) => ({
+      ...prev,
+      sale: true,
+    }));
+    // Aquí se podría guardar el estado en el backend
   };
 
   return (
@@ -237,12 +283,12 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
                 >
                   Línea de tiempo
                 </TabsTrigger>
-                <TabsTrigger
+                {/* <TabsTrigger
                   value="documentos"
                   className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:rounded-none data-[state=active]:shadow-none rounded-none px-6 py-3"
                 >
                   Documentos
-                </TabsTrigger>
+                </TabsTrigger> */}
               </TabsList>
 
               <TabsContent value="informacion" className="p-6 space-y-8">
@@ -357,14 +403,12 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
               </TabsContent>
 
               <TabsContent value="lineaTiempo" className="p-6">
-                <div className="text-center py-10 text-gray-500 dark:text-gray-400">
-                  La línea de tiempo estará disponible próximamente.
-                </div>
+                <LeadTimeline lead={lead} isFavorite={isFavorite} />
               </TabsContent>
 
-              <TabsContent value="documentos" className="p-6">
+              {/* <TabsContent value="documentos" className="p-6">
                 <LeadDocuments lead={lead} />
-              </TabsContent>
+              </TabsContent> */}
             </Tabs>
           </div>
         </div>
@@ -377,36 +421,95 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
               <h3 className="text-lg font-medium mb-6">Proceso de venta</h3>
 
               <div className="space-y-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="rounded-full bg-blue-600 text-white w-7 h-7 flex items-center justify-center text-sm">
-                    1
-                  </div>
-                  <span className="font-medium text-gray-800 dark:text-gray-200">
+                <button
+                  onClick={() => setOpenModal("quotation")}
+                  className="w-full flex items-center gap-3 mb-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md p-2 transition-colors"
+                >
+                  {salesProcess.quotation ? (
+                    <div className="rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 w-7 h-7 flex items-center justify-center">
+                      <CheckCircle className="h-4 w-4" />
+                    </div>
+                  ) : (
+                    <div className="rounded-full bg-blue-600 text-white w-7 h-7 flex items-center justify-center text-sm">
+                      1
+                    </div>
+                  )}
+                  <span
+                    className={`${salesProcess.quotation ? "text-green-600 dark:text-green-400" : "font-medium text-gray-800 dark:text-gray-200"}`}
+                  >
                     Crear cotización
                   </span>
-                </div>
+                </button>
 
                 <div className="border-l-2 border-gray-200 dark:border-gray-700 h-5 ml-3.5"></div>
 
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 w-7 h-7 flex items-center justify-center text-sm">
-                    2
-                  </div>
-                  <span className="text-gray-400 dark:text-gray-500">
+                <button
+                  onClick={() =>
+                    salesProcess.quotation && setOpenModal("reservation")
+                  }
+                  disabled={!salesProcess.quotation}
+                  className={`w-full flex items-center gap-3 mb-2 ${salesProcess.quotation ? "hover:bg-gray-50 dark:hover:bg-gray-800" : "cursor-not-allowed"} rounded-md p-2 transition-colors`}
+                >
+                  {salesProcess.reservation ? (
+                    <div className="rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 w-7 h-7 flex items-center justify-center">
+                      <CheckCircle className="h-4 w-4" />
+                    </div>
+                  ) : salesProcess.quotation ? (
+                    <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 w-7 h-7 flex items-center justify-center text-sm">
+                      2
+                    </div>
+                  ) : (
+                    <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 w-7 h-7 flex items-center justify-center text-sm">
+                      <LockIcon className="h-3 w-3" />
+                    </div>
+                  )}
+                  <span
+                    className={`${
+                      salesProcess.reservation
+                        ? "text-green-600 dark:text-green-400"
+                        : salesProcess.quotation
+                          ? "text-gray-600 dark:text-gray-300"
+                          : "text-gray-400 dark:text-gray-500"
+                    }`}
+                  >
                     Registrar reserva
                   </span>
-                </div>
+                </button>
 
                 <div className="border-l-2 border-gray-200 dark:border-gray-700 h-5 ml-3.5"></div>
 
-                <div className="flex items-center gap-3">
-                  <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 w-7 h-7 flex items-center justify-center text-sm">
-                    3
-                  </div>
-                  <span className="text-gray-400 dark:text-gray-500">
+                <button
+                  onClick={() =>
+                    salesProcess.reservation && setOpenModal("sale")
+                  }
+                  disabled={!salesProcess.reservation}
+                  className={`w-full flex items-center gap-3 ${salesProcess.reservation ? "hover:bg-gray-50 dark:hover:bg-gray-800" : "cursor-not-allowed"} rounded-md p-2 transition-colors`}
+                >
+                  {salesProcess.sale ? (
+                    <div className="rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 w-7 h-7 flex items-center justify-center">
+                      <CheckCircle className="h-4 w-4" />
+                    </div>
+                  ) : salesProcess.reservation ? (
+                    <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 w-7 h-7 flex items-center justify-center text-sm">
+                      3
+                    </div>
+                  ) : (
+                    <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 w-7 h-7 flex items-center justify-center text-sm">
+                      <LockIcon className="h-3 w-3" />
+                    </div>
+                  )}
+                  <span
+                    className={`${
+                      salesProcess.sale
+                        ? "text-green-600 dark:text-green-400"
+                        : salesProcess.reservation
+                          ? "text-gray-600 dark:text-gray-300"
+                          : "text-gray-400 dark:text-gray-500"
+                    }`}
+                  >
                     Registrar venta
                   </span>
-                </div>
+                </button>
               </div>
             </CardContent>
           </Card>
@@ -476,6 +579,31 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
           </Card>
         </div>
       </div>
+
+      {/* Modales para el proceso de venta */}
+      <QuotationDialog
+        open={openModal === "quotation"}
+        onClose={handleCloseModal}
+        leadName={`${lead.firstName} ${lead.lastName}`}
+        leadId={lead.id}
+        onComplete={handleCompleteQuotation}
+      />
+
+      <ReservationDialog
+        open={openModal === "reservation"}
+        onClose={handleCloseModal}
+        leadName={`${lead.firstName} ${lead.lastName}`}
+        leadId={lead.id}
+        onComplete={handleCompleteReservation}
+      />
+
+      <SaleDialog
+        open={openModal === "sale"}
+        onClose={handleCloseModal}
+        leadName={`${lead.firstName} ${lead.lastName}`}
+        leadId={lead.id}
+        onComplete={handleCompleteSale}
+      />
     </div>
   );
 }

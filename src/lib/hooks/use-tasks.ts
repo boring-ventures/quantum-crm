@@ -35,20 +35,16 @@ export const useCreateTaskMutation = () => {
     mutationFn: async (data: {
       leadId: string;
       title: string;
-      description?: string;
-      dueDate: string;
-      priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
       assignedToId: string;
     }) => {
-      const response = await fetch(`/api/leads/${data.leadId}/tasks`, {
+      const response = await fetch(`/api/tasks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: data.title,
-          description: data.description || "",
-          dueDate: data.dueDate,
-          priority: data.priority,
           assignedToId: data.assignedToId,
+          leadId: data.leadId,
+          status: "PENDING",
         }),
       });
 

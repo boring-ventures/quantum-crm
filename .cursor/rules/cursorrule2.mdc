@@ -1,7 +1,7 @@
 ---
 description: 
 globs: 
-alwaysApply: false
+alwaysApply: true
 ---
 ---
 description: Prevent critical structural conflicts and enforce change tracking inside Quantum CRM
