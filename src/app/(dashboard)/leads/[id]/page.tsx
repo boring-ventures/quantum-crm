@@ -1,26 +1,31 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { use } from "react";
 import { useRouter } from "next/navigation";
 import { LeadDetailPage } from "@/components/leads/lead-detail-page";
 import { useLeadQuery } from "@/lib/hooks";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface LeadPageProps {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>;
 }
 
 export default function LeadPage({ params }: LeadPageProps) {
   const router = useRouter();
-  const { data: lead, isLoading, isError } = useLeadQuery(params.id);
+
+  const { id } = use(params);
+
+  if (!id) {
+    router.push("/leads");
+    return null;
+  }
+
+  const { data: lead, isLoading, isError } = useLeadQuery(id);
 
   const handleBack = () => {
     router.push("/leads");
   };
 
-  // Si está cargando, mostrar un esqueleto
   if (isLoading) {
     return (
       <div className="p-6 space-y-6">
@@ -44,7 +49,6 @@ export default function LeadPage({ params }: LeadPageProps) {
     );
   }
 
-  // Si hay un error, mostrar un mensaje
   if (isError || !lead) {
     return (
       <div className="p-6 flex flex-col items-center justify-center h-[50vh]">

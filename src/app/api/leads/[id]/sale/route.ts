@@ -13,7 +13,15 @@ export async function GET(
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    const leadId = params.id;
+    // Obtener el ID del lead desde los parámetros de ruta (await)
+    const { id: leadId } = await params;
+
+    if (!leadId) {
+      return NextResponse.json(
+        { error: "ID de lead no válido" },
+        { status: 400 }
+      );
+    }
 
     // Buscar venta existente para este lead
     const sale = await prisma.sale.findFirst({

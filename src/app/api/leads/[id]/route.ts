@@ -25,7 +25,10 @@ async function leadExists(id: string) {
   return count > 0;
 }
 
-export async function GET(req: Request, { params }: any) {
+export async function GET(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
   try {
     // Verificar autenticación
     const session = await auth();
@@ -33,7 +36,8 @@ export async function GET(req: Request, { params }: any) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    const id = params.id;
+    // Obtener el ID del lead desde los parámetros de ruta (await)
+    const { id } = await params;
 
     // Obtener el lead con sus relaciones
     const lead = await prisma.lead.findUnique({
@@ -79,7 +83,10 @@ export async function GET(req: Request, { params }: any) {
   }
 }
 
-export async function PUT(req: Request, { params }: any) {
+export async function PUT(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
   try {
     // Verificar autenticación
     const session = await auth();
@@ -87,7 +94,8 @@ export async function PUT(req: Request, { params }: any) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    const id = params.id;
+    // Obtener el ID del lead desde los parámetros de ruta (await)
+    const { id } = await params;
 
     // Verificar si el lead existe
     if (!(await leadExists(id))) {
@@ -154,7 +162,10 @@ export async function PUT(req: Request, { params }: any) {
   }
 }
 
-export async function DELETE(req: Request, { params }: any) {
+export async function DELETE(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
   try {
     // Verificar autenticación
     const session = await auth();
@@ -162,7 +173,8 @@ export async function DELETE(req: Request, { params }: any) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    const id = params.id;
+    // Obtener el ID del lead desde los parámetros de ruta (await)
+    const { id } = await params;
 
     // Verificar si el lead existe
     if (!(await leadExists(id))) {

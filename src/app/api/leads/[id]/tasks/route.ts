@@ -13,7 +13,16 @@ export async function GET(
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    const leadId = params.id;
+    // Extraer id de forma segura
+    const leadId =
+      typeof params === "object" && params !== null ? params.id : "";
+
+    if (!leadId) {
+      return NextResponse.json(
+        { error: "ID de lead no válido" },
+        { status: 400 }
+      );
+    }
 
     // Verificar que el lead existe
     const lead = await prisma.lead.findUnique({
