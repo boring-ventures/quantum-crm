@@ -1,11 +1,63 @@
 import { useQuery } from "@tanstack/react-query";
 
-export function useProducts() {
-  return useQuery({
-    queryKey: ["products"],
+interface Product {
+  id: string;
+  code: string;
+  name: string;
+  nameProduct: string;
+  descriptionProduct?: string;
+  price?: number;
+  isActive: boolean;
+  businessTypeId?: string;
+  brandId?: string;
+  modelId?: string;
+  businessType?: { name: string };
+  brand?: { name: string; company: { name: string } };
+  model?: { name: string };
+  images?: Array<{ url: string; isMain: boolean }>;
+}
+
+// Hook para obtener productos
+export function useProducts(
+  filters: {
+    businessTypeId?: string;
+    brandId?: string;
+    modelId?: string;
+    active?: boolean;
+  } = {}
+) {
+  const { businessTypeId, brandId, modelId, active } = filters;
+
+  // Construir parámetros de consulta
+  const queryParams = new URLSearchParams();
+  if (businessTypeId) queryParams.append("businessTypeId", businessTypeId);
+  if (brandId) queryParams.append("brandId", brandId);
+  if (modelId) queryParams.append("modelId", modelId);
+  if (active !== undefined) queryParams.append("active", active.toString());
+
+  return useQuery<Product[]>({
+    queryKey: ["products", filters],
     queryFn: async () => {
-      const response = await fetch("/api/products");
+      const response = await fetch(`/api/products?${queryParams.toString()}`);
+      if (!response.ok) {
+        throw new Error("Error al obtener productos");
+      }
       return response.json();
     },
+  });
+}
+
+// Hook para obtener un producto específico
+export function useProduct(id?: string) {
+  return useQuery<Product>({
+    queryKey: ["product", id],
+    queryFn: async () => {
+      const response = await fetch(`/api/products/${id}`);
+      if (!response.ok) {
+        throw new Error("Error al obtener producto");
+      }
+      return response.json();
+    },
+    enabled: !!id,
   });
 }

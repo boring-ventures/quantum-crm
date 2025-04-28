@@ -4,6 +4,7 @@ export * from "./use-companies";
 export * from "./use-products";
 export * from "./use-lead-metadata";
 export * from "./use-quotations";
+export * from "./use-reservations";
 
 // Exportar los hooks de tareas explícitamente
 import {

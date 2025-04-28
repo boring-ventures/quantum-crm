@@ -32,7 +32,11 @@ import { LeadTimeline } from "@/components/leads/lead-timeline";
 import { QuotationDialog } from "@/components/leads/sales/quotation-dialog";
 import { ReservationDialog } from "@/components/leads/sales/reservation-dialog";
 import { SaleDialog } from "@/components/leads/sales/sale-dialog";
-import { useUpdateLeadMutation, useLeadQuotation } from "@/lib/hooks";
+import {
+  useUpdateLeadMutation,
+  useLeadQuotation,
+  useLeadReservation,
+} from "@/lib/hooks";
 import { useToast } from "@/components/ui/use-toast";
 
 interface LeadDetailPageProps {
@@ -63,7 +67,11 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
     lead.id
   );
 
-  // Actualizar el estado del proceso si ya hay una cotización
+  // Reflejar el estado de la reserva en el proceso de venta
+  const { data: leadReservation, isLoading: reservationLoading } =
+    useLeadReservation(lead.id);
+
+  // Actualizar el estado del proceso si ya hay una cotización o reserva
   useEffect(() => {
     if (leadQuotation) {
       setSalesProcess((prev) => ({
@@ -71,7 +79,14 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
         quotation: true,
       }));
     }
-  }, [leadQuotation]);
+
+    if (leadReservation) {
+      setSalesProcess((prev) => ({
+        ...prev,
+        reservation: true,
+      }));
+    }
+  }, [leadQuotation, leadReservation]);
 
   // Obtener iniciales del nombre para el avatar
   const getInitials = (firstName: string, lastName: string) => {
