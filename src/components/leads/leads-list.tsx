@@ -104,6 +104,34 @@ function LeadCard({ lead, onLeadUpdated }: LeadCardProps) {
     }
   };
 
+  // Color del badge según el qualityScore
+  const getQualityScoreColor = (score?: number) => {
+    switch (score) {
+      case 3:
+        return "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-900/50";
+      case 2:
+        return "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-900/50";
+      case 1:
+        return "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700";
+    }
+  };
+
+  // Texto según el qualityScore
+  const getQualityScoreText = (score?: number) => {
+    switch (score) {
+      case 3:
+        return "Alto";
+      case 2:
+        return "Medio";
+      case 1:
+        return "Bajo";
+      default:
+        return "No definido";
+    }
+  };
+
   const handleCardClick = () => {
     // Si el lead ya está calificado como bueno, ir directamente a la página de detalles
     if (lead.qualification === "GOOD_LEAD") {
@@ -188,17 +216,17 @@ function LeadCard({ lead, onLeadUpdated }: LeadCardProps) {
                   }`}
                   onClick={handleToggleFavorite}
                 />
+                {lead.qualityScore && (
+                  <Badge
+                    className={`ml-2 ${getQualityScoreColor(lead.qualityScore)}`}
+                  >
+                    {getQualityScoreText(lead.qualityScore)}
+                  </Badge>
+                )}
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 {lead.source?.name} {lead.company ? `- ${lead.company}` : ""}
               </p>
-              <div className="flex items-center mt-2">
-                {lead.interest === "Alto" && (
-                  <Badge className={getInterestColor(lead.interest)}>
-                    Alto interés
-                  </Badge>
-                )}
-              </div>
             </div>
           </div>
           <div className="text-right relative" ref={dropdownRef}>
@@ -408,9 +436,23 @@ function LeadCardSkeleton() {
 
 interface LeadsListProps {
   filterBadLeads?: boolean;
+  searchTerm?: string;
+  filterType?:
+    | "all"
+    | "no-management"
+    | "no-tasks"
+    | "overdue-tasks"
+    | "today-tasks"
+    | "favorites";
+  interestLevel?: number;
 }
 
-export function LeadsList({ filterBadLeads = false }: LeadsListProps) {
+export function LeadsList({
+  filterBadLeads = false,
+  searchTerm = "",
+  filterType = "all",
+  interestLevel = 0,
+}: LeadsListProps) {
   const { data, isLoading, isError } = useLeadsQuery();
   const queryClient = useQueryClient();
 
@@ -453,19 +495,99 @@ export function LeadsList({ filterBadLeads = false }: LeadsListProps) {
     );
   }
 
-  // Filtrar los bad leads y leads archivados si es necesario
-  const filteredLeads = filterBadLeads
+  // Paso 1: Filtrar los bad leads y leads archivados si es necesario
+  let filteredLeads = filterBadLeads
     ? data.items.filter(
         (lead) => lead.qualification !== "BAD_LEAD" && !lead.isArchived
       )
     : data.items;
 
+  // Paso 2: Aplicar filtro según el tipo seleccionado
+  switch (filterType) {
+    case "no-management":
+      // Leads sin cotizaciones, ventas o reservas
+      filteredLeads = filteredLeads.filter(
+        (lead) =>
+          (!lead.quotations || lead.quotations.length === 0) &&
+          (!lead.reservations || lead.reservations.length === 0) &&
+          (!lead.sales || lead.sales.length === 0)
+      );
+      break;
+    case "no-tasks":
+      // Leads sin tareas - Ahora usando tasks de la relación
+      filteredLeads = filteredLeads.filter(
+        (lead) => !lead.tasks || lead.tasks.length === 0
+      );
+      break;
+    case "today-tasks":
+      // Leads con tareas programadas para hoy - Ahora usando tasks de la relación
+      filteredLeads = filteredLeads.filter((lead) => {
+        if (!lead.tasks || lead.tasks.length === 0) return false;
+
+        return lead.tasks.some((task) => {
+          if (!task.scheduledFor) return false;
+
+          const today = new Date();
+          const taskDate = new Date(task.scheduledFor);
+
+          return (
+            taskDate.getDate() === today.getDate() &&
+            taskDate.getMonth() === today.getMonth() &&
+            taskDate.getFullYear() === today.getFullYear() &&
+            task.status === "PENDING"
+          );
+        });
+      });
+      break;
+    case "overdue-tasks":
+      // Leads con tareas vencidas - Ahora usando tasks de la relación
+      filteredLeads = filteredLeads.filter((lead) => {
+        if (!lead.tasks || lead.tasks.length === 0) return false;
+
+        return lead.tasks.some((task) => {
+          if (!task.scheduledFor) return false;
+
+          const today = new Date();
+          const taskDate = new Date(task.scheduledFor);
+
+          return taskDate < today && task.status === "PENDING";
+        });
+      });
+      break;
+    case "favorites":
+      // Leads marcados como favoritos
+      filteredLeads = filteredLeads.filter((lead) => lead.isFavorite);
+      break;
+  }
+
+  // Paso 3: Filtrar por nivel de interés si se especificó
+  if (interestLevel > 0) {
+    filteredLeads = filteredLeads.filter(
+      (lead) => lead.qualityScore === interestLevel
+    );
+  }
+
+  // Paso 4: Aplicar filtro de búsqueda por texto
+  if (searchTerm) {
+    const search = searchTerm.toLowerCase();
+    filteredLeads = filteredLeads.filter(
+      (lead) =>
+        lead.firstName.toLowerCase().includes(search) ||
+        lead.lastName.toLowerCase().includes(search) ||
+        (lead.email && lead.email.toLowerCase().includes(search)) ||
+        (lead.phone && lead.phone.toLowerCase().includes(search)) ||
+        (lead.company && lead.company.toLowerCase().includes(search))
+    );
+  }
+
   if (filteredLeads.length === 0) {
     return (
       <div className="text-center py-10">
-        <p className="text-gray-400">No se encontraron leads activos.</p>
+        <p className="text-gray-400">
+          No se encontraron leads que coincidan con los criterios.
+        </p>
         <p className="text-gray-500 text-sm mt-1">
-          Todos los leads han sido marcados como Bad Leads o inactivos.
+          Prueba con otros filtros o crea nuevos leads.
         </p>
       </div>
     );

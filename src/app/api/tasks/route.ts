@@ -15,6 +15,66 @@ const createTaskSchema = z.object({
   scheduledFor: z.string().datetime().optional(),
 });
 
+export async function GET(request: NextRequest) {
+  try {
+    // Verificar autenticación
+    const session = await auth();
+    if (!session) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    // Obtener tareas pendientes (por defecto) o según el estado especificado
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get("status") || "PENDING";
+    const limit = parseInt(searchParams.get("limit") || "5");
+
+    // Verificar que el estado es válido
+    if (
+      !["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"].includes(status)
+    ) {
+      return NextResponse.json(
+        { error: "Estado de tarea inválido" },
+        { status: 400 }
+      );
+    }
+
+    // Consultar tareas pendientes con información del lead
+    const tasks = await prisma.task.findMany({
+      where: {
+        status: status as any,
+      },
+      orderBy: [
+        // Primero las tareas programadas para hoy o vencidas
+        { scheduledFor: "asc" },
+      ],
+      include: {
+        lead: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+        assignedTo: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      take: limit,
+    });
+
+    return NextResponse.json(tasks);
+  } catch (error) {
+    console.error("Error fetching tasks:", error);
+    return NextResponse.json(
+      { error: "Error al obtener las tareas" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Verificar autenticación

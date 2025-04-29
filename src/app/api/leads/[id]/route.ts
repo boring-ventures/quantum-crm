@@ -57,6 +57,7 @@ export async function GET(
           },
           take: 5,
         },
+        tasks: true,
         quotations: true,
         reservations: true,
         sales: true,
