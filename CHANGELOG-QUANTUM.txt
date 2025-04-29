@@ -18,3 +18,8 @@
 [2023-06-19] [Feature] - Agregada funcionalidad para actualizar la lista de leads inmediatamente después de calificar como "Bad Lead" - [CL]
 [2023-06-19] [Refactor] - Mejorado el sistema de filtrado para incluir isArchived además de qualification en la lista de leads - [CL]
 [2023-06-19] [Schema] - Añadida propiedad isArchived al tipo LeadWithRelations para TypeScript - [CL]
+[2023-06-19] [Schema] - Añadido campo isFavorite a la tabla Lead con índice para mejorar rendimiento en filtrado - [CL]
+[2023-06-19] [Feature] - Implementado menú de acciones en tarjetas de leads con opciones para ver detalles, editar y marcar favoritos - [CL]
+[2023-06-19] [Feature] - Creado componente de edición de leads similar al de creación pero adaptado para actualización - [CL]
+[2023-06-19] [Feature] - Mejorada la visualización de información de usuario asignado y próxima tarea en las tarjetas de leads - [CL]
+[2023-06-19] [API] - Añadido endpoint para actualizar estado de favorito de leads con validación Zod - [CL]

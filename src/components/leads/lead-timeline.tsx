@@ -10,6 +10,8 @@ import {
   Clock,
   CalendarClock,
   Loader2,
+  FileText,
+  CreditCard,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { LeadWithRelations, Task } from "@/types/lead";
@@ -22,12 +24,20 @@ interface LeadTimelineProps {
 
 interface TimelineEvent {
   id: string;
-  type: "lead_created" | "task_created" | "lead_favorited";
+  type:
+    | "lead_created"
+    | "task_created"
+    | "lead_favorited"
+    | "quotation_created"
+    | "reservation_created"
+    | "sale_created";
   date: Date;
   title: string;
   description: string;
   status?: string;
   statusColor?: string;
+  amount?: number;
+  paymentMethod?: string;
 }
 
 export function LeadTimeline({ lead, isFavorite = false }: LeadTimelineProps) {
@@ -62,12 +72,77 @@ export function LeadTimeline({ lead, isFavorite = false }: LeadTimelineProps) {
       });
     }
 
-    // Añadir evento de favorito si aplica
-    if (isFavorite) {
+    // Añadir eventos de cotizaciones
+    if (lead.quotations && lead.quotations.length > 0) {
+      lead.quotations.forEach((quotation) => {
+        const totalAmount =
+          typeof quotation.totalAmount === "string"
+            ? parseFloat(quotation.totalAmount)
+            : quotation.totalAmount;
+
+        allEvents.push({
+          id: `quotation-${quotation.id}`,
+          type: "quotation_created",
+          date: new Date(quotation.createdAt),
+          title: "Cotización creada",
+          description: `Monto total: $${totalAmount.toFixed(2)}`,
+          status: quotation.status,
+          statusColor: getStatusColor(quotation.status),
+          amount: totalAmount,
+        });
+      });
+    }
+
+    // Añadir eventos de reservas
+    if (lead.reservations && lead.reservations.length > 0) {
+      lead.reservations.forEach((reservation) => {
+        const amount =
+          typeof reservation.amount === "string"
+            ? parseFloat(reservation.amount)
+            : reservation.amount;
+
+        allEvents.push({
+          id: `reservation-${reservation.id}`,
+          type: "reservation_created",
+          date: new Date(reservation.createdAt),
+          title: "Reserva creada",
+          description: `Monto: $${amount.toFixed(2)} - Método: ${reservation.paymentMethod}`,
+          status: reservation.status,
+          statusColor: getStatusColor(reservation.status),
+          amount: amount,
+          paymentMethod: reservation.paymentMethod,
+        });
+      });
+    }
+
+    // Añadir eventos de ventas
+    if (lead.sales && lead.sales.length > 0) {
+      lead.sales.forEach((sale) => {
+        const amount =
+          typeof sale.amount === "string"
+            ? parseFloat(sale.amount)
+            : sale.amount;
+
+        allEvents.push({
+          id: `sale-${sale.id}`,
+          type: "sale_created",
+          date: new Date(sale.createdAt),
+          title: "Venta realizada",
+          description: `Monto: $${amount.toFixed(2)} - Método: ${sale.paymentMethod}`,
+          status: sale.status,
+          statusColor: getStatusColor(sale.status),
+          amount: amount,
+          paymentMethod: sale.paymentMethod,
+        });
+      });
+    }
+
+    // Añadir evento de favorito solo si existe favoriteAt
+    if (lead.isFavorite) {
       allEvents.push({
         id: `lead-favorited-${lead.id}`,
         type: "lead_favorited",
-        date: new Date(), // Asumimos que es ahora, o podríamos usar algún campo de updatedAt
+        date: new Date(lead.favoriteAt || lead.updatedAt),
         title: "Marcado como favorito",
         description: "Lead destacado para seguimiento prioritario",
       });
@@ -75,7 +150,7 @@ export function LeadTimeline({ lead, isFavorite = false }: LeadTimelineProps) {
 
     // Ordenar eventos por fecha (ascendente)
     return allEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
-  }, [lead, tasks, isFavorite]);
+  }, [lead, tasks]);
 
   // Determinar el color del estado de la tarea
   function getStatusColor(status?: string): string {
@@ -102,6 +177,12 @@ export function LeadTimeline({ lead, isFavorite = false }: LeadTimelineProps) {
         return <CalendarClock className="h-5 w-5 text-blue-500" />;
       case "lead_favorited":
         return <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />;
+      case "quotation_created":
+        return <FileText className="h-5 w-5 text-purple-500" />;
+      case "reservation_created":
+        return <CreditCard className="h-5 w-5 text-green-500" />;
+      case "sale_created":
+        return <CheckCircle2 className="h-5 w-5 text-emerald-500" />;
       default:
         return <Clock className="h-5 w-5 text-gray-500" />;
     }
@@ -179,6 +260,13 @@ export function LeadTimeline({ lead, isFavorite = false }: LeadTimelineProps) {
                   <Badge className={`mt-1 font-normal ${event.statusColor}`}>
                     {getStatusText(event.status)}
                   </Badge>
+                )}
+
+                {event.amount && (
+                  <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Monto: ${event.amount.toFixed(2)}
+                    {event.paymentMethod && ` - Método: ${event.paymentMethod}`}
+                  </div>
                 )}
               </div>
             </div>
