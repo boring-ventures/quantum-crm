@@ -47,7 +47,7 @@ interface LeadDetailPageProps {
 
 export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
   const [activeTab, setActiveTab] = useState("informacion");
-  const [isFavorite, setIsFavorite] = useState(true);
+  const [isFavorite, setIsFavorite] = useState(lead.isFavorite || false);
   const [comments, setComments] = useState(lead.extraComments || "");
   const [isEditing, setIsEditing] = useState(false);
   const [originalComments, setOriginalComments] = useState(
@@ -216,6 +216,34 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
     // Aquí se podría guardar el estado en el backend
   };
 
+  // Manejar el cambio de favorito
+  const handleToggleFavorite = async () => {
+    try {
+      await updateLeadMutation.mutateAsync({
+        id: lead.id,
+        data: {
+          isFavorite: !isFavorite,
+          favoriteAt: !isFavorite ? new Date() : undefined,
+        },
+      });
+      setIsFavorite(!isFavorite);
+      toast({
+        title: !isFavorite
+          ? "Lead marcado como favorito"
+          : "Lead quitado de favoritos",
+        description: !isFavorite
+          ? "El lead ha sido marcado como favorito"
+          : "El lead ha sido quitado de favoritos",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el estado de favorito",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Cabecera del Lead */}
@@ -233,7 +261,7 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
             </h1>
             <Star
               className={`h-5 w-5 cursor-pointer ${isFavorite ? "fill-yellow-400 text-yellow-400" : "text-gray-400"}`}
-              onClick={() => setIsFavorite(!isFavorite)}
+              onClick={handleToggleFavorite}
             />
             <Badge className="ml-2 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
               Lead #{lead.id.substring(0, 8)}
@@ -243,33 +271,6 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
             {lead.source?.name || "Facebook - Campaña Q4"}
             {lead.company ? ` - ${lead.company}` : ""}
           </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            className="border-gray-200 dark:border-gray-700"
-          >
-            <Mail className="h-4 w-4 mr-2" />
-            Email
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="border-gray-200 dark:border-gray-700"
-          >
-            <Phone className="h-4 w-4 mr-2" />
-            SMS
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="border-gray-200 dark:border-gray-700"
-          >
-            <CalendarClock className="h-4 w-4 mr-2" />
-            Asistencia
-          </Button>
         </div>
       </div>
 
@@ -578,7 +579,7 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
               <Button
                 className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700 text-yellow-500"
                 variant="ghost"
-                onClick={() => setIsFavorite(!isFavorite)}
+                onClick={handleToggleFavorite}
               >
                 <Star className="mr-3 h-5 w-5" />
                 {isFavorite ? "Quitar de favoritos" : "Marcar como favorito"}

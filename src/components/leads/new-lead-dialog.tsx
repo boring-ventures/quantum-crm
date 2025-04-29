@@ -31,21 +31,7 @@ import {
 import { useCompanies } from "@/lib/hooks/use-companies";
 import { useProducts } from "@/lib/hooks/use-products";
 import { useAuth } from "@/providers/auth-provider";
-import type { CreateLeadPayload } from "@/types/lead";
-
-// Tipos básicos para Company y Product
-interface Company {
-  id: string;
-  name: string;
-  isActive?: boolean;
-}
-
-interface Product {
-  id: string;
-  name: string;
-  code?: string;
-  isActive?: boolean;
-}
+import type { CreateLeadPayload, Company, Product } from "@/types/lead";
 
 // Esquema de validación para el formulario
 const newLeadSchema = z.object({

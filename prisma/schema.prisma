@@ -205,6 +205,8 @@ model Lead {
   nextFollowUpDate DateTime? @map("next_follow_up_date")
   convertedAt      DateTime? @map("converted_at")
   isArchived       Boolean   @default(false) @map("is_archived")
+  isFavorite       Boolean   @default(false) @map("is_favorite")
+  favoriteAt       DateTime? @map("favorite_at")
 
   // Nuevas relaciones para el proceso de venta
   quotations   Quotation[]
@@ -219,6 +221,8 @@ model Lead {
   @@index([createdAt])
   @@index([qualityScore])
   @@index([isArchived])
+  @@index([isFavorite])
+  @@index([favoriteAt])
   @@index([nextFollowUpDate])
   @@map("leads")
 }
