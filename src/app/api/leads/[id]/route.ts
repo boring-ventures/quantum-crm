@@ -15,6 +15,7 @@ const updateLeadSchema = z.object({
   assignedToId: z.string().uuid("ID de usuario inválido").optional().nullable(),
   interest: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
+  isArchived: z.boolean().optional(),
 });
 
 // Función para verificar si un lead existe
@@ -136,6 +137,8 @@ export async function PUT(
       if (validatedData.interest !== undefined)
         data.interest = validatedData.interest;
       if (validatedData.notes !== undefined) data.notes = validatedData.notes;
+      if (validatedData.isArchived !== undefined)
+        data.isArchived = validatedData.isArchived;
 
       const updatedLead = await prisma.lead.update({
         where: { id },

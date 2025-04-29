@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import {
@@ -40,7 +40,17 @@ interface TimelineEvent {
   paymentMethod?: string;
 }
 
-export function LeadTimeline({ lead }: LeadTimelineProps) {
+export function LeadTimeline({ lead, isFavorite }: LeadTimelineProps) {
+  // Estado local para manejar el estado de favorito
+  const [localFavorite, setLocalFavorite] = useState(lead.isFavorite || false);
+
+  // Actualizar estado local cuando cambie la prop
+  useEffect(() => {
+    setLocalFavorite(
+      isFavorite !== undefined ? isFavorite : lead.isFavorite || false
+    );
+  }, [isFavorite, lead.isFavorite]);
+
   // Obtener tareas del lead usando el hook
   const { data: tasks, isLoading: tasksLoading } = useLeadTasks(lead.id);
 
@@ -137,12 +147,12 @@ export function LeadTimeline({ lead }: LeadTimelineProps) {
       });
     }
 
-    // Añadir evento de favorito solo si existe favoriteAt
-    if (lead.isFavorite) {
+    // Añadir evento de favorito solo si existe favoriteAt o si localFavorite es true
+    if (localFavorite) {
       allEvents.push({
         id: `lead-favorited-${lead.id}`,
         type: "lead_favorited",
-        date: new Date(lead.favoriteAt || lead.updatedAt),
+        date: new Date(lead.favoriteAt || new Date()),
         title: "Marcado como favorito",
         description: "Lead destacado para seguimiento prioritario",
       });
@@ -150,7 +160,7 @@ export function LeadTimeline({ lead }: LeadTimelineProps) {
 
     // Ordenar eventos por fecha (ascendente)
     return allEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
-  }, [lead, tasks]);
+  }, [lead, tasks, localFavorite]);
 
   // Determinar el color del estado de la tarea
   function getStatusColor(status?: string): string {
