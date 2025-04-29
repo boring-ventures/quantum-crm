@@ -63,6 +63,13 @@ enum SalesProcessStatus {
   CANCELLED
 }
 
+// Enum para la calificación de leads
+enum LeadQualification {
+  NOT_QUALIFIED
+  GOOD_LEAD
+  BAD_LEAD
+}
+
 // Enum para los métodos de pago
 enum PaymentMethod {
   CASH // Efectivo
@@ -168,10 +175,11 @@ model Lead {
   company   Company? @relation(fields: [companyId], references: [id])
 
   // Lead qualification and scoring
-  qualityScore  Int?     @map("quality_score")
-  productId     String?  @map("product_id")
-  product       Product? @relation(fields: [productId], references: [id])
-  extraComments String?  @map("extra_comments") // Comentarios adicionales del lead
+  qualityScore  Int?              @map("quality_score")
+  qualification LeadQualification @default(NOT_QUALIFIED) @map("qualification")
+  productId     String?           @map("product_id")
+  product       Product?          @relation(fields: [productId], references: [id])
+  extraComments String?           @map("extra_comments") // Comentarios adicionales del lead
 
   // Relationships
   statusId String     @map("status_id")

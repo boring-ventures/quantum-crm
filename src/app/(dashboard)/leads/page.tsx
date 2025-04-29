@@ -162,7 +162,7 @@ export default function LeadsPage() {
                 </TabsList>
 
                 <TabsContent value="all">
-                  <LeadsList />
+                  <LeadsList filterBadLeads={true} />
                 </TabsContent>
                 {/* Other tab contents would be similar */}
               </Tabs>

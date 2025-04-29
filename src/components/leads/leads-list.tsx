@@ -11,6 +11,7 @@ import { formatDistanceToNow, format } from "date-fns";
 import { es } from "date-fns/locale";
 import { QualifyLeadDialog } from "@/components/leads/qualify-lead-dialog";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 
 // Tipo para lead basado en el modelo de Prisma
 export type Lead = {
@@ -40,12 +41,14 @@ export type Lead = {
 
 interface LeadCardProps {
   lead: LeadWithRelations;
+  onLeadUpdated?: () => void;
 }
 
-function LeadCard({ lead }: LeadCardProps) {
+function LeadCard({ lead, onLeadUpdated }: LeadCardProps) {
   const [isFavorite, setIsFavorite] = useState(false);
   const [showQualifyDialog, setShowQualifyDialog] = useState(false);
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   // Color del badge según el interés
   const getInterestColor = (interest?: string) => {
@@ -62,7 +65,13 @@ function LeadCard({ lead }: LeadCardProps) {
   };
 
   const handleCardClick = () => {
-    setShowQualifyDialog(true);
+    // Si el lead ya está calificado como bueno, ir directamente a la página de detalles
+    if (lead.qualification === "GOOD_LEAD") {
+      router.push(`/leads/${lead.id}`);
+    } else {
+      // Si no está calificado, mostrar el diálogo
+      setShowQualifyDialog(true);
+    }
   };
 
   const handleQualify = (isGoodLead: boolean) => {
@@ -72,8 +81,10 @@ function LeadCard({ lead }: LeadCardProps) {
       // Si es un buen lead, redirigir a la página detallada del lead
       router.push(`/leads/${lead.id}`);
     } else {
-      // Si es un bad lead, simplemente cerrar el diálogo y volver a la lista
-      // Se podría implementar alguna lógica adicional aquí si es necesario
+      // Si es un bad lead, actualizar la data
+      if (onLeadUpdated) {
+        onLeadUpdated();
+      }
     }
   };
 
@@ -270,8 +281,18 @@ function LeadCardSkeleton() {
   );
 }
 
-export function LeadsList() {
+interface LeadsListProps {
+  filterBadLeads?: boolean;
+}
+
+export function LeadsList({ filterBadLeads = false }: LeadsListProps) {
   const { data, isLoading, isError } = useLeadsQuery();
+  const queryClient = useQueryClient();
+
+  const handleLeadUpdated = () => {
+    // Invalidar la caché para refrescar la lista
+    queryClient.invalidateQueries({ queryKey: ["leads"] });
+  };
 
   if (isLoading) {
     return (
@@ -307,10 +328,28 @@ export function LeadsList() {
     );
   }
 
+  // Filtrar los bad leads y leads archivados si es necesario
+  const filteredLeads = filterBadLeads
+    ? data.items.filter(
+        (lead) => lead.qualification !== "BAD_LEAD" && !lead.isArchived
+      )
+    : data.items;
+
+  if (filteredLeads.length === 0) {
+    return (
+      <div className="text-center py-10">
+        <p className="text-gray-400">No se encontraron leads activos.</p>
+        <p className="text-gray-500 text-sm mt-1">
+          Todos los leads han sido marcados como Bad Leads o inactivos.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      {data.items.map((lead) => (
-        <LeadCard key={lead.id} lead={lead} />
+      {filteredLeads.map((lead) => (
+        <LeadCard key={lead.id} lead={lead} onLeadUpdated={handleLeadUpdated} />
       ))}
     </div>
   );

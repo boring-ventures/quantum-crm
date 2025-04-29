@@ -12,6 +12,8 @@ export interface Lead {
   interest?: string;
   extraComments?: string;
   qualityScore?: number;
+  qualification?: "NOT_QUALIFIED" | "GOOD_LEAD" | "BAD_LEAD";
+  isArchived?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
