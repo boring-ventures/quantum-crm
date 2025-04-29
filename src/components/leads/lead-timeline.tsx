@@ -1,0 +1,190 @@
+"use client";
+
+import { useMemo } from "react";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+import {
+  UserRound,
+  Star,
+  CheckCircle2,
+  Clock,
+  CalendarClock,
+  Loader2,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { LeadWithRelations, Task } from "@/types/lead";
+import { useLeadTasks } from "@/lib/hooks";
+
+interface LeadTimelineProps {
+  lead: LeadWithRelations;
+  isFavorite?: boolean;
+}
+
+interface TimelineEvent {
+  id: string;
+  type: "lead_created" | "task_created" | "lead_favorited";
+  date: Date;
+  title: string;
+  description: string;
+  status?: string;
+  statusColor?: string;
+}
+
+export function LeadTimeline({ lead, isFavorite = false }: LeadTimelineProps) {
+  // Obtener tareas del lead usando el hook
+  const { data: tasks, isLoading: tasksLoading } = useLeadTasks(lead.id);
+
+  // Generar eventos para la línea de tiempo
+  const events = useMemo(() => {
+    const allEvents: TimelineEvent[] = [];
+
+    // Añadir evento de creación del lead
+    allEvents.push({
+      id: `lead-creation-${lead.id}`,
+      type: "lead_created",
+      date: new Date(lead.createdAt),
+      title: "Lead creado",
+      description: `Lead asignado a ${lead.assignedTo?.name || "Sin asignar"}`,
+    });
+
+    // Añadir eventos de tareas
+    if (tasks && tasks.length > 0) {
+      tasks.forEach((task: Task) => {
+        allEvents.push({
+          id: `task-creation-${task.id}`,
+          type: "task_created",
+          date: new Date(task.createdAt),
+          title: "Nueva tarea creada",
+          description: task.title,
+          status: task.status,
+          statusColor: getStatusColor(task.status),
+        });
+      });
+    }
+
+    // Añadir evento de favorito si aplica
+    if (isFavorite) {
+      allEvents.push({
+        id: `lead-favorited-${lead.id}`,
+        type: "lead_favorited",
+        date: new Date(), // Asumimos que es ahora, o podríamos usar algún campo de updatedAt
+        title: "Marcado como favorito",
+        description: "Lead destacado para seguimiento prioritario",
+      });
+    }
+
+    // Ordenar eventos por fecha (ascendente)
+    return allEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
+  }, [lead, tasks, isFavorite]);
+
+  // Determinar el color del estado de la tarea
+  function getStatusColor(status?: string): string {
+    switch (status) {
+      case "PENDING":
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400";
+      case "IN_PROGRESS":
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400";
+      case "COMPLETED":
+        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
+      case "CANCELLED":
+        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400";
+    }
+  }
+
+  // Renderizar el icono adecuado según el tipo de evento
+  function renderEventIcon(type: string) {
+    switch (type) {
+      case "lead_created":
+        return <UserRound className="h-5 w-5 text-gray-500" />;
+      case "task_created":
+        return <CalendarClock className="h-5 w-5 text-blue-500" />;
+      case "lead_favorited":
+        return <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />;
+      default:
+        return <Clock className="h-5 w-5 text-gray-500" />;
+    }
+  }
+
+  // Convertir el estado de la tarea a español
+  function getStatusText(status?: string): string {
+    switch (status) {
+      case "PENDING":
+        return "Pendiente";
+      case "IN_PROGRESS":
+        return "En progreso";
+      case "COMPLETED":
+        return "Completada";
+      case "CANCELLED":
+        return "Cancelada";
+      default:
+        return "";
+    }
+  }
+
+  if (!lead) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  if (tasksLoading) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        <span className="ml-3 text-gray-500 dark:text-gray-400">
+          Cargando línea de tiempo...
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+        Línea de Tiempo
+      </h3>
+
+      {events.length === 0 ? (
+        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+          No hay eventos para mostrar en la línea de tiempo
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {events.map((event, index) => (
+            <div
+              key={event.id}
+              className="flex gap-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm"
+            >
+              <div className="mt-1">{renderEventIcon(event.type)}</div>
+
+              <div className="flex-1 space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium text-gray-900 dark:text-gray-100">
+                    {event.title}
+                  </h4>
+                  <time className="text-sm text-gray-500 dark:text-gray-400">
+                    {format(event.date, "dd/MM/yyyy, HH:mm:ss", { locale: es })}
+                  </time>
+                </div>
+
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  {event.description}
+                </p>
+
+                {event.status && (
+                  <Badge className={`mt-1 font-normal ${event.statusColor}`}>
+                    {getStatusText(event.status)}
+                  </Badge>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
