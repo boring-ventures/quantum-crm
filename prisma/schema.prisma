@@ -49,13 +49,6 @@ enum CommunicationDirection {
   OUTBOUND
 }
 
-enum TaskPriority {
-  LOW
-  MEDIUM
-  HIGH
-  URGENT
-}
-
 enum TaskStatus {
   PENDING
   IN_PROGRESS
@@ -405,8 +398,10 @@ model Task {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  title  String
-  status TaskStatus @default(PENDING)
+  title        String
+  status       TaskStatus @default(PENDING)
+  description  String?    @map("description")
+  scheduledFor DateTime?  @map("scheduled_for")
 
   // Relationships
   leadId String @map("lead_id")

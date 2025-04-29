@@ -3,7 +3,15 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Check, Plus, ClipboardList, Clock, X, Loader2 } from "lucide-react";
+import {
+  Check,
+  Plus,
+  ClipboardList,
+  Clock,
+  X,
+  Loader2,
+  Calendar,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Task } from "@/types/lead";
@@ -200,6 +208,21 @@ export function TaskList({ leadId }: TaskListProps) {
                               { locale: es }
                             )}
                           </div>
+                          {task.scheduledFor && (
+                            <div className="flex items-center mt-1 text-sm text-blue-500 dark:text-blue-400">
+                              <Calendar className="h-4 w-4 mr-1" />
+                              {format(
+                                new Date(task.scheduledFor),
+                                "d 'de' MMMM, yyyy • HH:mm",
+                                { locale: es }
+                              )}
+                            </div>
+                          )}
+                          {task.description && (
+                            <div className="mt-2 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 p-2 rounded-md">
+                              {task.description}
+                            </div>
+                          )}
                         </div>
                         <div className="flex items-start">
                           <Badge

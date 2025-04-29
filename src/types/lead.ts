@@ -45,6 +45,8 @@ export interface Task {
   leadId: string;
   assignedToId: string;
   completedAt?: string | null;
+  description?: string;
+  scheduledFor?: string | null;
 }
 
 // Definir User localmente para evitar problemas de importación

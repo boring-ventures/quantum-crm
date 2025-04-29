@@ -11,6 +11,8 @@ const createTaskSchema = z.object({
   status: z
     .enum(["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"])
     .default("PENDING"),
+  description: z.string().optional(),
+  scheduledFor: z.string().datetime().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -46,6 +48,10 @@ export async function POST(request: NextRequest) {
           status: validatedData.status,
           leadId: validatedData.leadId,
           assignedToId: validatedData.assignedToId,
+          description: validatedData.description,
+          scheduledFor: validatedData.scheduledFor
+            ? new Date(validatedData.scheduledFor)
+            : undefined,
         },
       });
 

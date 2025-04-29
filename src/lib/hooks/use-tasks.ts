@@ -36,6 +36,8 @@ export const useCreateTaskMutation = () => {
       leadId: string;
       title: string;
       assignedToId: string;
+      description?: string;
+      scheduledFor?: Date;
     }) => {
       const response = await fetch(`/api/tasks`, {
         method: "POST",
@@ -45,6 +47,10 @@ export const useCreateTaskMutation = () => {
           assignedToId: data.assignedToId,
           leadId: data.leadId,
           status: "PENDING",
+          description: data.description,
+          scheduledFor: data.scheduledFor
+            ? data.scheduledFor.toISOString()
+            : undefined,
         }),
       });
 
