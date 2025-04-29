@@ -8,7 +8,7 @@ const businessTypeSchema = z.object({
   isActive: z.boolean().default(true),
 });
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     // Verificar autenticación
     const session = await auth();

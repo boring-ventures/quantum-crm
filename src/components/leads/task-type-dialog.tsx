@@ -18,11 +18,24 @@ import {
   MessageSquare,
   MessageCircle,
   Loader2,
+  Calendar,
+  Clock,
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { useCreateTaskMutation } from "@/lib/hooks";
 import { useToast } from "@/components/ui/use-toast";
-import { auth } from "@/lib/auth";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/providers/auth-provider";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 
 interface TaskType {
   id: string;
@@ -80,35 +93,85 @@ interface TaskTypeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   leadId: string;
+  initialStep?: 1 | 2;
+  preselectedTaskType?: string | null;
 }
 
 export function TaskTypeDialog({
   open,
   onOpenChange,
   leadId,
+  initialStep = 1,
+  preselectedTaskType = null,
 }: TaskTypeDialogProps) {
+  const [step, setStep] = useState<1 | 2>(1);
   const [selectedTaskType, setSelectedTaskType] = useState<string | null>(null);
+  const [description, setDescription] = useState<string>("");
+  const [date, setDate] = useState<Date | undefined>(undefined);
+  const [time, setTime] = useState<string>("12:00");
   const { user } = useAuth();
   const createTaskMutation = useCreateTaskMutation();
   const { toast } = useToast();
+
+  // Resetear el estado cuando se abre/cierra el diálogo
+  useEffect(() => {
+    if (!open) {
+      setStep(1);
+      setSelectedTaskType(null);
+      setDescription("");
+      setDate(undefined);
+      setTime("12:00");
+    } else {
+      // Si se proporciona un paso inicial y un tipo de tarea preseleccionado
+      if (initialStep === 2 && preselectedTaskType) {
+        setStep(2);
+        setSelectedTaskType(preselectedTaskType);
+      }
+    }
+  }, [open, initialStep, preselectedTaskType]);
 
   const handleTaskTypeSelect = (taskType: TaskType) => {
     setSelectedTaskType(taskType.id);
   };
 
+  const handleNextStep = () => {
+    if (selectedTaskType) {
+      setStep(2);
+    }
+  };
+
+  const handleBackStep = () => {
+    setStep(1);
+  };
+
+  const getSelectedTaskTitle = () => {
+    if (!selectedTaskType) return "";
+    return taskTypes.find((type) => type.id === selectedTaskType)?.title || "";
+  };
+
   const handleCreateTask = async () => {
-    if (!selectedTaskType) return;
+    if (!selectedTaskType || !user?.id) return;
 
     const selectedType = taskTypes.find((type) => type.id === selectedTaskType);
     if (!selectedType) return;
 
-    console.log("selectedType", selectedType);
+    // Construir fecha y hora programada
+    let scheduledFor: Date | undefined = undefined;
+    if (date) {
+      scheduledFor = new Date(date);
+      if (time) {
+        const [hours, minutes] = time.split(":").map(Number);
+        scheduledFor.setHours(hours, minutes);
+      }
+    }
 
     try {
       await createTaskMutation.mutateAsync({
         leadId,
         title: selectedType.title,
-        assignedToId: user?.id || "",
+        assignedToId: user.id,
+        description: description.trim() || undefined,
+        scheduledFor: scheduledFor || undefined,
       });
 
       toast({
@@ -116,10 +179,10 @@ export function TaskTypeDialog({
         description: "La tarea se ha creado correctamente",
       });
 
-      // Cerrar el diálogo y resetear la selección
+      // Cerrar el diálogo y resetear
       onOpenChange(false);
-      setSelectedTaskType(null);
     } catch (error) {
+      console.error("Error al crear la tarea:", error);
       toast({
         title: "Error",
         description: "No se pudo crear la tarea. Inténtalo de nuevo.",
@@ -132,50 +195,132 @@ export function TaskTypeDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle className="text-xl">Asistente Nueva Tarea</DialogTitle>
+          <DialogTitle className="text-xl">
+            {step === 1
+              ? "Asistente Nueva Tarea"
+              : `Nueva tarea: ${getSelectedTaskTitle()}`}
+          </DialogTitle>
           <p className="text-gray-500 dark:text-gray-400 mt-2">
-            ¿Cuál es tu próxima tarea para este cliente?
+            {step === 1
+              ? "¿Cuál es tu próxima tarea para este cliente?"
+              : "Programa cuando quieres realizar esta tarea y agrega notas si es necesario"}
           </p>
         </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-4 py-4">
-          {taskTypes.map((taskType) => (
-            <div
-              key={taskType.id}
-              className={`
-                p-4 border rounded-md cursor-pointer transition-all 
-                hover:border-blue-600 hover:shadow-sm
-                ${selectedTaskType === taskType.id ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20" : "border-gray-200 dark:border-gray-700"}
-              `}
-              onClick={() => handleTaskTypeSelect(taskType)}
-            >
-              <div className="flex items-center gap-3">
-                {taskType.icon}
-                <div>
-                  <p className="font-medium">{taskType.title}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {taskType.description}
-                  </p>
+        {step === 1 ? (
+          <div className="grid grid-cols-2 gap-4 py-4">
+            {taskTypes.map((taskType) => (
+              <div
+                key={taskType.id}
+                className={`
+                  p-4 border rounded-md cursor-pointer transition-all 
+                  hover:border-blue-600 hover:shadow-sm
+                  ${selectedTaskType === taskType.id ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20" : "border-gray-200 dark:border-gray-700"}
+                `}
+                onClick={() => handleTaskTypeSelect(taskType)}
+              >
+                <div className="flex items-center gap-3">
+                  {taskType.icon}
+                  <div>
+                    <p className="font-medium">{taskType.title}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      {taskType.description}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="date">Fecha</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !date && "text-muted-foreground"
+                      )}
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {date ? (
+                        format(date, "PPP", { locale: es })
+                      ) : (
+                        <span>Seleccionar fecha</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <CalendarComponent
+                      mode="single"
+                      selected={date}
+                      onSelect={setDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="time">Hora</Label>
+                <div className="flex items-center">
+                  <Clock className="mr-2 h-4 w-4 text-gray-500" />
+                  <Input
+                    id="time"
+                    type="time"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    className="bg-gray-50 dark:bg-gray-800"
+                  />
                 </div>
               </div>
             </div>
-          ))}
-        </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Notas adicionales (opcional)</Label>
+              <Textarea
+                id="description"
+                placeholder="Agrega detalles o información adicional sobre esta tarea..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="h-32 bg-gray-50 dark:bg-gray-800"
+              />
+            </div>
+          </div>
+        )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button
-            disabled={!selectedTaskType || createTaskMutation.isPending}
-            onClick={handleCreateTask}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            {createTaskMutation.isPending && (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            )}
-            Crear tarea
-          </Button>
+          {step === 1 ? (
+            <>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Cancelar
+              </Button>
+              <Button
+                disabled={!selectedTaskType}
+                onClick={handleNextStep}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Continuar
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={handleBackStep}>
+                Atrás
+              </Button>
+              <Button
+                disabled={createTaskMutation.isPending}
+                onClick={handleCreateTask}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {createTaskMutation.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Crear tarea
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

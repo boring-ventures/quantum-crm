@@ -19,6 +19,7 @@ export const useLeadTasks = (leadId: string) => {
 
         return response.json();
       } catch (error) {
+        console.error("Error fetching lead tasks:", error);
         // Si el endpoint no existe, retornar array vacío
         return [];
       }
@@ -36,6 +37,8 @@ export const useCreateTaskMutation = () => {
       leadId: string;
       title: string;
       assignedToId: string;
+      description?: string;
+      scheduledFor?: Date;
     }) => {
       const response = await fetch(`/api/tasks`, {
         method: "POST",
@@ -45,6 +48,10 @@ export const useCreateTaskMutation = () => {
           assignedToId: data.assignedToId,
           leadId: data.leadId,
           status: "PENDING",
+          description: data.description,
+          scheduledFor: data.scheduledFor
+            ? data.scheduledFor.toISOString()
+            : undefined,
         }),
       });
 
@@ -72,7 +79,6 @@ export const useUpdateTaskStatusMutation = () => {
   return useMutation({
     mutationFn: async ({
       taskId,
-      leadId,
       status,
     }: {
       taskId: string;
@@ -107,13 +113,7 @@ export const useDeleteTaskMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
-      taskId,
-      leadId,
-    }: {
-      taskId: string;
-      leadId: string;
-    }) => {
+    mutationFn: async ({ taskId }: { taskId: string; leadId: string }) => {
       const response = await fetch(`/api/tasks/${taskId}`, {
         method: "DELETE",
       });

@@ -5,13 +5,19 @@ export interface Lead {
   lastName: string;
   email?: string;
   phone?: string;
+  cellphone?: string;
   company?: string;
+  product?: string;
   statusId: string;
   sourceId: string;
   assignedToId?: string;
   interest?: string;
   extraComments?: string;
   qualityScore?: number;
+  qualification?: "NOT_QUALIFIED" | "GOOD_LEAD" | "BAD_LEAD";
+  isArchived?: boolean;
+  isFavorite?: boolean;
+  favoriteAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -45,6 +51,8 @@ export interface Task {
   leadId: string;
   assignedToId: string;
   completedAt?: string | null;
+  description?: string;
+  scheduledFor?: string | null;
 }
 
 // Definir User localmente para evitar problemas de importación
@@ -53,6 +61,19 @@ export interface User {
   email: string;
   name: string;
   role?: string;
+  isActive?: boolean;
+}
+
+export interface Company {
+  id: string;
+  name: string;
+  isActive?: boolean;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  code?: string;
   isActive?: boolean;
 }
 
@@ -67,6 +88,9 @@ export interface LeadWithRelations extends Lead {
   assignedTo?: User;
   tags?: Tag[];
   tasks?: Task[];
+  quotations?: Quotation[];
+  reservations?: Reservation[];
+  sales?: Sale[];
 }
 
 // Tipos para respuestas de API paginadas
@@ -79,3 +103,44 @@ export interface PaginatedResponse<T> {
 }
 
 export interface LeadsResponse extends PaginatedResponse<LeadWithRelations> {}
+
+export interface Quotation {
+  id: string;
+  leadId: string;
+  totalAmount: string | number;
+  proformaUrl?: string;
+  additionalNotes?: string;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Reservation {
+  id: string;
+  leadId: string;
+  quotationId?: string;
+  amount: string | number;
+  paymentMethod: string;
+  deliveryDate: Date;
+  reservationFormUrl?: string;
+  depositReceiptUrl?: string;
+  reservationContractUrl?: string;
+  vehicleDetails?: string;
+  additionalNotes?: string;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Sale {
+  id: string;
+  leadId: string;
+  reservationId?: string;
+  amount: string | number;
+  paymentMethod: string;
+  saleContractUrl?: string;
+  additionalNotes?: string;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+}

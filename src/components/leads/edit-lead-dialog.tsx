@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -21,19 +21,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import {
   useLeadStatuses,
   useLeadSources,
-  useCreateLeadMutation,
+  useUpdateLeadMutation,
 } from "@/lib/hooks";
 import { useCompanies } from "@/lib/hooks/use-companies";
 import { useProducts } from "@/lib/hooks/use-products";
-import { useAuth } from "@/providers/auth-provider";
-import type { CreateLeadPayload, Company, Product } from "@/types/lead";
+import type {
+  LeadWithRelations,
+  UpdateLeadPayload,
+  Company,
+  Product,
+} from "@/types/lead";
 
 // Esquema de validación para el formulario
-const newLeadSchema = z.object({
+const editLeadSchema = z.object({
   firstName: z.string().min(1, "El nombre es requerido"),
   lastName: z.string().min(1, "El apellido es requerido"),
   email: z.string().email("Email inválido").optional().nullable(),
@@ -44,18 +49,23 @@ const newLeadSchema = z.object({
   statusId: z.string().min(1, "El estado es requerido"),
   sourceId: z.string().min(1, "La fuente es requerida"),
   interest: z.string().optional().nullable(),
+  extraComments: z.string().optional().nullable(),
 });
 
-type FormData = z.infer<typeof newLeadSchema>;
+type FormData = z.infer<typeof editLeadSchema>;
 
-interface NewLeadDialogProps {
+interface EditLeadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  lead: LeadWithRelations | null;
 }
 
-export function NewLeadDialog({ open, onOpenChange }: NewLeadDialogProps) {
+export function EditLeadDialog({
+  open,
+  onOpenChange,
+  lead,
+}: EditLeadDialogProps) {
   const { toast } = useToast();
-  const { user } = useAuth();
   const [isPending, setIsPending] = useState(false);
 
   // Obtener datos necesarios para el formulario
@@ -63,34 +73,48 @@ export function NewLeadDialog({ open, onOpenChange }: NewLeadDialogProps) {
   const { data: sources, isLoading: isLoadingSources } = useLeadSources();
   const { data: companies, isLoading: isLoadingCompanies } = useCompanies();
   const { data: products, isLoading: isLoadingProducts } = useProducts();
-  const createLeadMutation = useCreateLeadMutation();
-
-  // Valores por defecto del formulario
-  const formDefaultValues = {
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    cellphone: "",
-    companyId: "",
-    productId: "",
-    interest: "",
-    statusId: "",
-    sourceId: "",
-  };
+  const updateLeadMutation = useUpdateLeadMutation();
 
   // Configurar el formulario con react-hook-form
   const {
     register,
     handleSubmit,
     formState: { errors },
-    reset,
     setValue,
     watch,
   } = useForm<FormData>({
-    resolver: zodResolver(newLeadSchema),
-    defaultValues: formDefaultValues,
+    resolver: zodResolver(editLeadSchema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      cellphone: "",
+      companyId: "",
+      productId: "",
+      interest: "",
+      statusId: "",
+      sourceId: "",
+      extraComments: "",
+    },
   });
+
+  // Cargar datos del lead cuando se abra el diálogo
+  useEffect(() => {
+    if (lead && open) {
+      setValue("firstName", lead.firstName);
+      setValue("lastName", lead.lastName);
+      setValue("email", lead.email || "");
+      setValue("phone", lead.phone || "");
+      setValue("cellphone", lead.cellphone || "");
+      setValue("companyId", lead.company || "");
+      setValue("productId", lead.product || "");
+      setValue("interest", lead.qualityScore?.toString() || "");
+      setValue("statusId", lead.statusId);
+      setValue("sourceId", lead.sourceId);
+      setValue("extraComments", lead.extraComments || "");
+    }
+  }, [lead, open, setValue]);
 
   // Valores del formulario
   const watchedStatusId = watch("statusId");
@@ -115,41 +139,38 @@ export function NewLeadDialog({ open, onOpenChange }: NewLeadDialogProps) {
       product.id.trim() !== ""
   );
 
-  // Logging para debug
-  // console.log("Companies:", companies);
-  // console.log("Products:", products);
-
   // Manejar el envío del formulario
   const onSubmit = async (data: FormData) => {
+    if (!lead) return;
+
     setIsPending(true);
 
     try {
       // Limpiar valores "none" por vacíos antes de enviar
       const cleanedData = {
         ...data,
-        companyId: data.companyId === "none" ? "" : data.companyId,
-        productId: data.productId === "none" ? "" : data.productId,
-        assignedToId: user?.id || "",
-        qualityScore: 1,
-        isArchived: false,
+        companyId: data.companyId === "none" ? null : data.companyId || null,
+        productId: data.productId === "none" ? null : data.productId || null,
       };
 
-      await createLeadMutation.mutateAsync(cleanedData as CreateLeadPayload);
-
-      toast({
-        title: "Lead creado",
-        description: "El lead se ha creado correctamente.",
+      await updateLeadMutation.mutateAsync({
+        id: lead.id,
+        data: cleanedData as UpdateLeadPayload,
       });
 
-      reset(); // Limpiar el formulario
+      toast({
+        title: "Lead actualizado",
+        description: "El lead se ha actualizado correctamente.",
+      });
+
       onOpenChange(false); // Cerrar el diálogo
     } catch (error: any) {
-      console.error("Error creating lead:", error);
+      console.error("Error updating lead:", error);
       toast({
-        title: "Error al crear el lead",
+        title: "Error al actualizar el lead",
         description:
           error.message ||
-          "Ha ocurrido un error al crear el lead. Intenta nuevamente.",
+          "Ha ocurrido un error al actualizar el lead. Intenta nuevamente.",
         variant: "destructive",
       });
     } finally {
@@ -157,16 +178,23 @@ export function NewLeadDialog({ open, onOpenChange }: NewLeadDialogProps) {
     }
   };
 
+  // Si no hay lead, no mostrar nada
+  if (!lead) return null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] bg-gray-900 border-gray-800">
+      <DialogContent className="sm:max-w-[500px] bg-gray-900 border-gray-800 max-h-[90vh] flex flex-col [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold text-gray-100">
-            Nuevo Lead
+            Editar Lead
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-4">
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="flex-1 overflow-y-auto space-y-4 mt-4 px-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+        >
+          {/* Resto del contenido del formulario sin cambios */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="firstName">
@@ -395,14 +423,24 @@ export function NewLeadDialog({ open, onOpenChange }: NewLeadDialogProps) {
                 <SelectValue placeholder="Seleccionar grado de interés" />
               </SelectTrigger>
               <SelectContent className="bg-gray-800 border-gray-700">
-                <SelectItem value="Alto">Alto</SelectItem>
-                <SelectItem value="Medio">Medio</SelectItem>
-                <SelectItem value="Bajo">Bajo</SelectItem>
+                <SelectItem value="1">Bajo</SelectItem>
+                <SelectItem value="2">Medio</SelectItem>
+                <SelectItem value="3">Alto</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          <DialogFooter className="mt-6">
+          <div className="space-y-2">
+            <Label htmlFor="extraComments">Comentarios adicionales</Label>
+            <Textarea
+              id="extraComments"
+              placeholder="Comentarios adicionales sobre el lead..."
+              className="bg-gray-800 border-gray-700 h-24"
+              {...register("extraComments")}
+            />
+          </div>
+
+          <DialogFooter className="mt-6 sticky bottom-0 bg-gray-900 pt-4 border-t border-gray-800">
             <Button
               type="button"
               variant="outline"
@@ -416,7 +454,7 @@ export function NewLeadDialog({ open, onOpenChange }: NewLeadDialogProps) {
               className="bg-blue-600 hover:bg-blue-700"
               disabled={isPending}
             >
-              {isPending ? "Creando..." : "Crear Lead"}
+              {isPending ? "Guardando..." : "Guardar Cambios"}
             </Button>
           </DialogFooter>
         </form>

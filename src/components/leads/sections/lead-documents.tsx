@@ -17,7 +17,6 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { LeadWithRelations } from "@/types/lead";
 import {
   Dialog,
   DialogContent,
@@ -26,10 +25,6 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-
-interface LeadDocumentsProps {
-  lead: LeadWithRelations;
-}
 
 // Tipo para representar un documento
 interface Document {
@@ -42,7 +37,7 @@ interface Document {
   url: string;
 }
 
-export function LeadDocuments({ lead }: LeadDocumentsProps) {
+export function LeadDocuments() {
   const [open, setOpen] = useState(false);
 
   // Función para obtener el icono según el tipo de archivo

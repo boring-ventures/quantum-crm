@@ -1,6 +1,7 @@
 "use client";
 
-import { AlertTriangle } from "lucide-react";
+import { useState } from "react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -9,6 +10,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { LeadWithRelations } from "@/types/lead";
+import { useToast } from "@/components/ui/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface QualifyLeadDialogProps {
   open: boolean;
@@ -23,7 +26,58 @@ export function QualifyLeadDialog({
   lead,
   onQualify,
 }: QualifyLeadDialogProps) {
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
   if (!lead) return null;
+
+  const handleQualifyLead = async (isGoodLead: boolean) => {
+    setIsLoading(true);
+
+    try {
+      const qualification = isGoodLead ? "GOOD_LEAD" : "BAD_LEAD";
+
+      const response = await fetch(`/api/leads/${lead.id}/qualify`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ qualification }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Error al calificar el lead");
+      }
+
+      toast({
+        title: isGoodLead
+          ? "Lead Calificado Positivamente"
+          : "Lead Calificado como Negativo",
+        description: isGoodLead
+          ? "El lead ha sido calificado como bueno y avanzará en el proceso de venta."
+          : "El lead ha sido calificado como malo y será archivado.",
+      });
+
+      // Invalidar la caché de leads para refrescar la lista
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+
+      // Si es necesario, también invalidar el lead específico
+      queryClient.invalidateQueries({ queryKey: ["leads", lead.id] });
+
+      onQualify(isGoodLead);
+    } catch (error) {
+      console.error("Error calificando lead:", error);
+      toast({
+        title: "Error",
+        description:
+          "Hubo un problema al calificar el lead. Inténtalo nuevamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -82,15 +136,19 @@ export function QualifyLeadDialog({
         <div className="flex gap-3 justify-end mt-2">
           <Button
             variant="destructive"
-            onClick={() => onQualify(false)}
+            onClick={() => handleQualifyLead(false)}
+            disabled={isLoading}
             className="bg-red-500 hover:bg-red-600 text-white"
           >
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Bad Lead
           </Button>
           <Button
-            onClick={() => onQualify(true)}
+            onClick={() => handleQualifyLead(true)}
+            disabled={isLoading}
             className="bg-green-600 hover:bg-green-700 text-white"
           >
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Good Lead
           </Button>
         </div>

@@ -49,13 +49,6 @@ enum CommunicationDirection {
   OUTBOUND
 }
 
-enum TaskPriority {
-  LOW
-  MEDIUM
-  HIGH
-  URGENT
-}
-
 enum TaskStatus {
   PENDING
   IN_PROGRESS
@@ -68,6 +61,13 @@ enum SalesProcessStatus {
   DRAFT
   COMPLETED
   CANCELLED
+}
+
+// Enum para la calificación de leads
+enum LeadQualification {
+  NOT_QUALIFIED
+  GOOD_LEAD
+  BAD_LEAD
 }
 
 // Enum para los métodos de pago
@@ -175,10 +175,11 @@ model Lead {
   company   Company? @relation(fields: [companyId], references: [id])
 
   // Lead qualification and scoring
-  qualityScore  Int?     @map("quality_score")
-  productId     String?  @map("product_id")
-  product       Product? @relation(fields: [productId], references: [id])
-  extraComments String?  @map("extra_comments") // Comentarios adicionales del lead
+  qualityScore  Int?              @map("quality_score")
+  qualification LeadQualification @default(NOT_QUALIFIED) @map("qualification")
+  productId     String?           @map("product_id")
+  product       Product?          @relation(fields: [productId], references: [id])
+  extraComments String?           @map("extra_comments") // Comentarios adicionales del lead
 
   // Relationships
   statusId String     @map("status_id")
@@ -204,6 +205,8 @@ model Lead {
   nextFollowUpDate DateTime? @map("next_follow_up_date")
   convertedAt      DateTime? @map("converted_at")
   isArchived       Boolean   @default(false) @map("is_archived")
+  isFavorite       Boolean   @default(false) @map("is_favorite")
+  favoriteAt       DateTime? @map("favorite_at")
 
   // Nuevas relaciones para el proceso de venta
   quotations   Quotation[]
@@ -218,6 +221,8 @@ model Lead {
   @@index([createdAt])
   @@index([qualityScore])
   @@index([isArchived])
+  @@index([isFavorite])
+  @@index([favoriteAt])
   @@index([nextFollowUpDate])
   @@map("leads")
 }
@@ -405,8 +410,10 @@ model Task {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  title  String
-  status TaskStatus @default(PENDING)
+  title        String
+  status       TaskStatus @default(PENDING)
+  description  String?    @map("description")
+  scheduledFor DateTime?  @map("scheduled_for")
 
   // Relationships
   leadId String @map("lead_id")

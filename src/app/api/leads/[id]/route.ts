@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
@@ -57,6 +57,10 @@ export async function GET(
           },
           take: 5,
         },
+        tasks: true,
+        quotations: true,
+        reservations: true,
+        sales: true,
       },
     });
 

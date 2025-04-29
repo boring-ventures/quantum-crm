@@ -171,35 +171,17 @@ export function ReservationDialog({
 
       // 1. Subir el formulario de reserva (requerido)
       if (formDocument) {
-        uploadPromises.push(
-          uploadDocument(formDocument, leadId, "reservation-form").then(
-            (doc) => {
-              documentUrls.reservationForm = doc.url;
-            }
-          )
-        );
+        await uploadDocument(formDocument, leadId, "reservation-form");
       }
 
       // 2. Subir el comprobante de depósito (requerido)
       if (depositDocument) {
-        uploadPromises.push(
-          uploadDocument(depositDocument, leadId, "deposit-receipt").then(
-            (doc) => {
-              documentUrls.depositReceipt = doc.url;
-            }
-          )
-        );
+        uploadDocument(depositDocument, leadId, "deposit-receipt");
       }
 
       // 3. Subir el contrato de reserva (opcional)
       if (contractDocument) {
-        uploadPromises.push(
-          uploadDocument(contractDocument, leadId, "reservation-contract").then(
-            (doc) => {
-              documentUrls.reservationContract = doc.url;
-            }
-          )
-        );
+        await uploadDocument(contractDocument, leadId, "reservation-contract");
       }
 
       // Esperar a que todos los documentos se suban

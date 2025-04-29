@@ -4,18 +4,16 @@ import { useState } from "react";
 import { useEffect } from "react";
 import {
   Star,
-  Phone,
-  Mail,
   CalendarClock,
   PenLine,
   MoreHorizontal,
   Loader2,
   X,
-  Plus,
   CheckCircle,
-  ShoppingCart,
-  ReceiptText,
   LockIcon,
+  MessageCircle,
+  Archive,
+  Trash2,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -26,7 +24,6 @@ import { Badge } from "@/components/ui/badge";
 import { LeadWithRelations } from "@/types/lead";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { LeadDocuments } from "@/components/leads/sections/lead-documents";
 import { TaskList } from "@/components/leads/task-list";
 import { LeadTimeline } from "@/components/leads/lead-timeline";
 import { QuotationDialog } from "@/components/leads/sales/quotation-dialog";
@@ -37,8 +34,17 @@ import {
   useLeadQuotation,
   useLeadReservation,
   useLeadSale,
+  useDeleteLeadMutation,
 } from "@/lib/hooks";
 import { useToast } from "@/components/ui/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { TaskTypeDialog } from "@/components/leads/task-type-dialog";
 
 interface LeadDetailPageProps {
   lead: LeadWithRelations;
@@ -47,7 +53,7 @@ interface LeadDetailPageProps {
 
 export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
   const [activeTab, setActiveTab] = useState("informacion");
-  const [isFavorite, setIsFavorite] = useState(true);
+  const [isFavorite, setIsFavorite] = useState(lead.isFavorite || false);
   const [comments, setComments] = useState(lead.extraComments || "");
   const [isEditing, setIsEditing] = useState(false);
   const [originalComments, setOriginalComments] = useState(
@@ -60,20 +66,23 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
     sale: false,
   });
   const [openModal, setOpenModal] = useState<string | null>(null);
+  const [openTaskDialog, setOpenTaskDialog] = useState(false);
+  const [selectedTaskType, setSelectedTaskType] = useState<string | null>(null);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const updateLeadMutation = useUpdateLeadMutation();
+  const deleteLeadMutation = useDeleteLeadMutation();
   const { toast } = useToast();
 
   // Reflejar el estado de la cotización y reserva en el proceso de venta
-  const { data: leadQuotation, isLoading: quotationLoading } = useLeadQuotation(
-    lead.id
-  );
+  const { data: leadQuotation } = useLeadQuotation(lead.id);
 
   // Reflejar el estado de la reserva en el proceso de venta
-  const { data: leadReservation, isLoading: reservationLoading } =
-    useLeadReservation(lead.id);
+  const { data: leadReservation } = useLeadReservation(lead.id);
 
   // Reflejar el estado de la venta en el proceso de venta
-  const { data: leadSale, isLoading: saleLoading } = useLeadSale(lead.id);
+  const { data: leadSale } = useLeadSale(lead.id);
 
   // Actualizar el estado del proceso si ya hay una cotización, reserva o venta
   useEffect(() => {
@@ -143,6 +152,7 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
         variant: "default",
       });
     } catch (error) {
+      console.error("Error al guardar comentarios:", error);
       toast({
         title: "Error al guardar",
         description: "No se pudieron guardar los comentarios",
@@ -216,6 +226,50 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
     // Aquí se podría guardar el estado en el backend
   };
 
+  // Manejar el cambio de favorito
+  const handleToggleFavorite = async () => {
+    try {
+      await updateLeadMutation.mutateAsync({
+        id: lead.id,
+        data: {
+          isFavorite: !isFavorite,
+          favoriteAt: !isFavorite ? new Date() : undefined,
+        },
+      });
+      setIsFavorite(!isFavorite);
+      toast({
+        title: !isFavorite
+          ? "Lead marcado como favorito"
+          : "Lead quitado de favoritos",
+        description: !isFavorite
+          ? "El lead ha sido marcado como favorito"
+          : "El lead ha sido quitado de favoritos",
+      });
+    } catch (error) {
+      console.error("Error al actualizar el estado de favorito:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el estado de favorito",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleContactLead = () => {
+    if (lead.phone) {
+      // Eliminar cualquier carácter no numérico del número de teléfono
+      const phoneNumber = lead.phone.replace(/\D/g, "");
+      // Abrir WhatsApp con el número de teléfono
+      window.open(`https://wa.me/${phoneNumber}`, "_blank");
+    }
+  };
+
+  const handleScheduleAppointment = () => {
+    // Abrir el diálogo de tareas directamente en el paso 2 con el tipo "client-visit"
+    setSelectedTaskType("client-visit");
+    setOpenTaskDialog(true);
+  };
+
   return (
     <div className="space-y-6">
       {/* Cabecera del Lead */}
@@ -233,7 +287,7 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
             </h1>
             <Star
               className={`h-5 w-5 cursor-pointer ${isFavorite ? "fill-yellow-400 text-yellow-400" : "text-gray-400"}`}
-              onClick={() => setIsFavorite(!isFavorite)}
+              onClick={handleToggleFavorite}
             />
             <Badge className="ml-2 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
               Lead #{lead.id.substring(0, 8)}
@@ -243,33 +297,6 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
             {lead.source?.name || "Facebook - Campaña Q4"}
             {lead.company ? ` - ${lead.company}` : ""}
           </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            className="border-gray-200 dark:border-gray-700"
-          >
-            <Mail className="h-4 w-4 mr-2" />
-            Email
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="border-gray-200 dark:border-gray-700"
-          >
-            <Phone className="h-4 w-4 mr-2" />
-            SMS
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="border-gray-200 dark:border-gray-700"
-          >
-            <CalendarClock className="h-4 w-4 mr-2" />
-            Asistencia
-          </Button>
         </div>
       </div>
 
@@ -562,14 +589,16 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
               <Button
                 className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700"
                 variant="ghost"
+                onClick={handleContactLead}
               >
-                <Phone className="mr-3 h-5 w-5" />
-                Llamar
+                <MessageCircle className="mr-3 h-5 w-5" />
+                Contactar
               </Button>
 
               <Button
                 className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700"
                 variant="ghost"
+                onClick={handleScheduleAppointment}
               >
                 <CalendarClock className="mr-3 h-5 w-5" />
                 Agendar cita
@@ -578,7 +607,7 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
               <Button
                 className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700 text-yellow-500"
                 variant="ghost"
-                onClick={() => setIsFavorite(!isFavorite)}
+                onClick={handleToggleFavorite}
               >
                 <Star className="mr-3 h-5 w-5" />
                 {isFavorite ? "Quitar de favoritos" : "Marcar como favorito"}
@@ -587,10 +616,33 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
               <Button
                 className="w-full justify-start rounded-none py-3 h-auto font-normal text-base"
                 variant="ghost"
+                onClick={() => setShowActionsMenu(!showActionsMenu)}
               >
                 <MoreHorizontal className="mr-3 h-5 w-5" />
                 Más acciones
               </Button>
+
+              {showActionsMenu && (
+                <div className="border-t border-gray-200 dark:border-gray-700">
+                  <Button
+                    className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700"
+                    variant="ghost"
+                    onClick={() => setShowArchiveDialog(true)}
+                  >
+                    <Archive className="mr-3 h-5 w-5 text-gray-500" />
+                    Archivar lead
+                  </Button>
+
+                  <Button
+                    className="w-full justify-start rounded-none py-3 h-auto font-normal text-base text-red-500"
+                    variant="ghost"
+                    onClick={() => setShowDeleteDialog(true)}
+                  >
+                    <Trash2 className="mr-3 h-5 w-5" />
+                    Eliminar lead
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -645,6 +697,117 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
         leadName={`${lead.firstName} ${lead.lastName}`}
         leadId={lead.id}
         onComplete={handleCompleteSale}
+      />
+
+      {/* Diálogo de confirmación para archivar lead */}
+      <Dialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Archivar Lead</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p>
+              ¿Estás seguro que deseas archivar este lead? Esta acción no se
+              puede deshacer.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowArchiveDialog(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="default"
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={() => {
+                // Lógica para archivar lead
+                updateLeadMutation
+                  .mutateAsync({
+                    id: lead.id,
+                    data: {
+                      isArchived: true,
+                    },
+                  })
+                  .then(() => {
+                    setShowArchiveDialog(false);
+                    toast({
+                      title: "Lead archivado",
+                      description: "El lead ha sido archivado correctamente",
+                    });
+                    if (onBack) onBack();
+                  })
+                  .catch(() => {
+                    toast({
+                      title: "Error",
+                      description: "No se pudo archivar el lead",
+                      variant: "destructive",
+                    });
+                  });
+              }}
+            >
+              Archivar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo de confirmación para eliminar lead */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Eliminar Lead</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p>
+              ¿Estás seguro que deseas eliminar este lead? Esta acción es
+              permanente y no se puede deshacer.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                // Lógica para eliminar lead
+                deleteLeadMutation
+                  .mutateAsync(lead.id)
+                  .then(() => {
+                    toast({
+                      title: "Lead eliminado",
+                      description: "El lead ha sido eliminado correctamente",
+                    });
+                    setShowDeleteDialog(false);
+                    if (onBack) onBack();
+                  })
+                  .catch(() => {
+                    toast({
+                      title: "Error",
+                      description: "No se pudo eliminar el lead",
+                      variant: "destructive",
+                    });
+                  });
+              }}
+            >
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo de tarea */}
+      <TaskTypeDialog
+        open={openTaskDialog}
+        onOpenChange={setOpenTaskDialog}
+        leadId={lead.id}
+        initialStep={selectedTaskType ? 2 : 1}
+        preselectedTaskType={selectedTaskType}
       />
     </div>
   );

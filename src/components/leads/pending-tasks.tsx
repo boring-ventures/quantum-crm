@@ -1,36 +1,140 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+"use client";
+
+import { useState, useEffect } from "react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Calendar, CheckCircle2, Clock } from "lucide-react";
+import { Loader2, CheckCircle2, Calendar } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+import { useUpdateTaskStatusMutation } from "@/lib/hooks";
+import { Task } from "@/types/lead";
 
 export function PendingTasks() {
-  const tasks = [
-    {
-      id: 1,
-      title: "Llamada de seguimiento",
-      lead: "Carlos Mendoza",
-      leadAvatar: "/placeholder.svg",
-      time: "15:00",
-      priority: "high",
-    },
-    {
-      id: 2,
-      title: "Enviar cotización",
-      lead: "María Antonia López",
-      leadAvatar: "/placeholder.svg",
-      time: "Mañana, 10:00",
-      priority: "medium",
-    },
-    {
-      id: 3,
-      title: "Actualizar datos",
-      lead: "Nicolas Rojas",
-      leadAvatar: "/placeholder.svg",
-      time: "Mañana, 14:30",
-      priority: "low",
-    },
-  ];
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const updateTaskStatusMutation = useUpdateTaskStatusMutation();
+  const { toast } = useToast();
+
+  // Cargar las tareas pendientes
+  useEffect(() => {
+    const fetchPendingTasks = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch("/api/tasks/pending");
+
+        if (!response.ok) {
+          throw new Error("Error al cargar tareas pendientes");
+        }
+
+        const data = await response.json();
+        setTasks(data);
+      } catch (error) {
+        console.error("Error cargando tareas:", error);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar las tareas pendientes",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPendingTasks();
+  }, [toast]);
+
+  // Manejar la actualización del estado de la tarea
+  const handleCompleteTask = async (taskId: string, leadId: string) => {
+    try {
+      await updateTaskStatusMutation.mutateAsync({
+        taskId,
+        leadId,
+        status: "COMPLETED",
+      });
+
+      // Actualizar localmente la lista de tareas
+      setTasks(tasks.filter((task) => task.id !== taskId));
+
+      toast({
+        title: "Tarea completada",
+        description: "La tarea ha sido marcada como completada correctamente",
+      });
+    } catch (error) {
+      console.error("Error al completar la tarea:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo completar la tarea",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Determinar la prioridad de la tarea basada en la fecha programada
+  const getTaskPriority = (task: Task) => {
+    if (!task.scheduledFor) return "low";
+
+    const now = new Date();
+    const scheduledDate = new Date(task.scheduledFor);
+    const diffTime = scheduledDate.getTime() - now.getTime();
+    const diffDays = diffTime / (1000 * 3600 * 24);
+
+    if (diffDays < 0) return "high"; // Vencida
+    if (diffDays < 1) return "high"; // Hoy
+    if (diffDays < 2) return "medium"; // Mañana
+    return "low"; // Más adelante
+  };
+
+  // Formatear la fecha/hora programada para una tarea
+  const formatScheduledTime = (scheduledFor?: string) => {
+    if (!scheduledFor) return "No programada";
+
+    const scheduledDate = new Date(scheduledFor);
+    const today = new Date();
+    const tomorrow = new Date();
+    tomorrow.setDate(today.getDate() + 1);
+
+    if (
+      scheduledDate.getDate() === today.getDate() &&
+      scheduledDate.getMonth() === today.getMonth() &&
+      scheduledDate.getFullYear() === today.getFullYear()
+    ) {
+      return `Hoy, ${format(scheduledDate, "HH:mm", { locale: es })}`;
+    } else if (
+      scheduledDate.getDate() === tomorrow.getDate() &&
+      scheduledDate.getMonth() === tomorrow.getMonth() &&
+      scheduledDate.getFullYear() === tomorrow.getFullYear()
+    ) {
+      return `Mañana, ${format(scheduledDate, "HH:mm", { locale: es })}`;
+    } else {
+      return format(scheduledDate, "dd/MM/yyyy, HH:mm", { locale: es });
+    }
+  };
+
+  // Obtener las iniciales del lead
+  const getLeadInitials = (firstName: string, lastName: string) => {
+    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-10">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
+  if (tasks.length === 0) {
+    return (
+      <div className="text-center py-6">
+        <p className="text-gray-500 dark:text-gray-400">
+          No hay tareas pendientes
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -41,9 +145,8 @@ export function PendingTasks() {
         >
           <div className="flex items-start gap-3">
             <Avatar className="h-8 w-8 border border-gray-200 dark:border-gray-700">
-              <AvatarImage src={task.leadAvatar} />
               <AvatarFallback className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300">
-                {task.lead.substring(0, 2)}
+                {getLeadInitials(task.lead.firstName, task.lead.lastName)}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
@@ -51,26 +154,30 @@ export function PendingTasks() {
                 {task.title}
               </h4>
               <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                {task.lead}
+                {task.lead.firstName} {task.lead.lastName}
               </p>
               <div className="flex items-center gap-2 mt-2">
-                <Clock className="h-4 w-4 text-gray-400" />
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  {task.time}
-                </span>
+                {task.scheduledFor && (
+                  <>
+                    <Calendar className="h-4 w-4 text-gray-400" />
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      {formatScheduledTime(task.scheduledFor)}
+                    </span>
+                  </>
+                )}
                 <Badge
                   variant="secondary"
                   className={
-                    task.priority === "high"
+                    getTaskPriority(task) === "high"
                       ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                      : task.priority === "medium"
+                      : getTaskPriority(task) === "medium"
                         ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
                         : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                   }
                 >
-                  {task.priority === "high"
+                  {getTaskPriority(task) === "high"
                     ? "Alta"
-                    : task.priority === "medium"
+                    : getTaskPriority(task) === "medium"
                       ? "Media"
                       : "Baja"}
                 </Badge>
@@ -80,22 +187,14 @@ export function PendingTasks() {
               size="icon"
               variant="ghost"
               className="h-8 w-8 text-gray-400 hover:text-green-600 dark:hover:text-green-500"
+              onClick={() => handleCompleteTask(task.id, task.leadId)}
+              disabled={updateTaskStatusMutation.isPending}
             >
               <CheckCircle2 className="h-5 w-5" />
             </Button>
           </div>
         </Card>
       ))}
-
-      <div className="pt-4">
-        <Button
-          variant="outline"
-          className="w-full bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-        >
-          <Calendar className="h-4 w-4 mr-2" />
-          Ver todas las tareas
-        </Button>
-      </div>
     </div>
   );
 }

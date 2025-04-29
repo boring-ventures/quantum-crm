@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type {
-  Lead,
   LeadWithRelations,
   CreateLeadPayload,
   UpdateLeadPayload,
@@ -214,6 +213,42 @@ export const useUpdateLeadStatusMutation = () => {
           errorData.message ||
             errorData.error ||
             "Error al actualizar estado del lead"
+        );
+      }
+
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["leads", variables.leadId] });
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+    },
+  });
+};
+
+// Actualizar el estado de favorito de un lead
+export const useToggleFavoriteMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      leadId,
+      isFavorite,
+    }: {
+      leadId: string;
+      isFavorite: boolean;
+    }) => {
+      const response = await fetch(`/api/leads/${leadId}/favorite`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isFavorite }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message ||
+            errorData.error ||
+            "Error al actualizar estado de favorito"
         );
       }
 
