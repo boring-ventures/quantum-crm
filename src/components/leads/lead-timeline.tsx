@@ -40,7 +40,7 @@ interface TimelineEvent {
   paymentMethod?: string;
 }
 
-export function LeadTimeline({ lead, isFavorite = false }: LeadTimelineProps) {
+export function LeadTimeline({ lead }: LeadTimelineProps) {
   // Obtener tareas del lead usando el hook
   const { data: tasks, isLoading: tasksLoading } = useLeadTasks(lead.id);
 
@@ -235,7 +235,7 @@ export function LeadTimeline({ lead, isFavorite = false }: LeadTimelineProps) {
         </div>
       ) : (
         <div className="space-y-4">
-          {events.map((event, index) => (
+          {events.map((event) => (
             <div
               key={event.id}
               className="flex gap-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm"

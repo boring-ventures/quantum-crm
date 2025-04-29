@@ -182,6 +182,7 @@ export function TaskTypeDialog({
       // Cerrar el diálogo y resetear
       onOpenChange(false);
     } catch (error) {
+      console.error("Error al crear la tarea:", error);
       toast({
         title: "Error",
         description: "No se pudo crear la tarea. Inténtalo de nuevo.",

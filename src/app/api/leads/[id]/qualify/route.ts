@@ -45,7 +45,7 @@ export async function PATCH(
       const isArchived = qualification === "BAD_LEAD";
 
       // Actualizar el lead con la calificación usando prisma.lead.update
-      const updatedLead = await prisma.lead.update({
+      await prisma.lead.update({
         where: { id },
         data: {
           qualification,

@@ -42,7 +42,7 @@ export async function PATCH(
       const { isFavorite } = toggleFavoriteSchema.parse(body);
 
       // Actualizar el lead
-      const updatedLead = await prisma.lead.update({
+      await prisma.lead.update({
         where: { id },
         data: {
           isFavorite,

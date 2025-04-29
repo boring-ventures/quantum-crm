@@ -5,11 +5,10 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Loader2, CheckCircle2, Clock, Calendar } from "lucide-react";
+import { Loader2, CheckCircle2, Calendar } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import prisma from "@/lib/prisma";
 import { useUpdateTaskStatusMutation } from "@/lib/hooks";
 import { Task } from "@/types/lead";
 
@@ -64,6 +63,7 @@ export function PendingTasks() {
         description: "La tarea ha sido marcada como completada correctamente",
       });
     } catch (error) {
+      console.error("Error al completar la tarea:", error);
       toast({
         title: "Error",
         description: "No se pudo completar la tarea",

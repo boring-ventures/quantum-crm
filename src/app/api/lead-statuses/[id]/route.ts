@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
@@ -19,7 +19,7 @@ async function statusExists(id: string) {
   return count > 0;
 }
 
-export async function GET(req: Request, { params }: any) {
+export async function GET(_req: Request, { params }: any) {
   try {
     // Verificar autenticación
     const session = await auth();
@@ -133,7 +133,7 @@ export async function PUT(req: Request, { params }: any) {
   }
 }
 
-export async function DELETE(req: Request, { params }: any) {
+export async function DELETE(_req: Request, { params }: any) {
   try {
     // Verificar autenticación
     const session = await auth();

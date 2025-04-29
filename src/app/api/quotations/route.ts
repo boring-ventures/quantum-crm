@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       // Crear la cotización usando una transacción para asegurar consistencia
       const quotation = await prisma.$transaction(async (tx) => {
         // Crear la cotización
-        const newQuotation = await tx.$executeRaw`
+        await tx.$executeRaw`
           INSERT INTO quotations (
             id, lead_id, total_amount, proforma_url, additional_notes, status, created_at, updated_at
           ) VALUES (

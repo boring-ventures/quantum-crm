@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       const validatedData = createDocumentSchema.parse(body);
 
       // Crear el documento
-      const document = await prisma.$executeRaw`
+      await prisma.$executeRaw`
         INSERT INTO documents (
           id, lead_id, name, type, size, url, created_at, updated_at
         ) VALUES (

@@ -4,17 +4,12 @@ import { useState } from "react";
 import { useEffect } from "react";
 import {
   Star,
-  Phone,
-  Mail,
   CalendarClock,
   PenLine,
   MoreHorizontal,
   Loader2,
   X,
-  Plus,
   CheckCircle,
-  ShoppingCart,
-  ReceiptText,
   LockIcon,
   MessageCircle,
   Archive,
@@ -29,7 +24,6 @@ import { Badge } from "@/components/ui/badge";
 import { LeadWithRelations } from "@/types/lead";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { LeadDocuments } from "@/components/leads/sections/lead-documents";
 import { TaskList } from "@/components/leads/task-list";
 import { LeadTimeline } from "@/components/leads/lead-timeline";
 import { QuotationDialog } from "@/components/leads/sales/quotation-dialog";
@@ -46,7 +40,6 @@ import { useToast } from "@/components/ui/use-toast";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -83,16 +76,13 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
   const { toast } = useToast();
 
   // Reflejar el estado de la cotización y reserva en el proceso de venta
-  const { data: leadQuotation, isLoading: quotationLoading } = useLeadQuotation(
-    lead.id
-  );
+  const { data: leadQuotation } = useLeadQuotation(lead.id);
 
   // Reflejar el estado de la reserva en el proceso de venta
-  const { data: leadReservation, isLoading: reservationLoading } =
-    useLeadReservation(lead.id);
+  const { data: leadReservation } = useLeadReservation(lead.id);
 
   // Reflejar el estado de la venta en el proceso de venta
-  const { data: leadSale, isLoading: saleLoading } = useLeadSale(lead.id);
+  const { data: leadSale } = useLeadSale(lead.id);
 
   // Actualizar el estado del proceso si ya hay una cotización, reserva o venta
   useEffect(() => {
@@ -162,6 +152,7 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
         variant: "default",
       });
     } catch (error) {
+      console.error("Error al guardar comentarios:", error);
       toast({
         title: "Error al guardar",
         description: "No se pudieron guardar los comentarios",
@@ -255,6 +246,7 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
           : "El lead ha sido quitado de favoritos",
       });
     } catch (error) {
+      console.error("Error al actualizar el estado de favorito:", error);
       toast({
         title: "Error",
         description: "No se pudo actualizar el estado de favorito",

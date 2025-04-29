@@ -18,15 +18,13 @@ import { ImportLeadsDialog } from "@/components/leads/import-leads-dialog";
 import { Plus, Search, Download, Upload } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
-import { useLeadsQuery, useLeadTasks } from "@/lib/hooks";
-import { format } from "date-fns";
+import { useLeadsQuery } from "@/lib/hooks";
 
 export default function LeadsPage() {
   const [newLeadOpen, setNewLeadOpen] = useState(false);
   const [importLeadsOpen, setImportLeadsOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState("all");
   const [interestFilter, setInterestFilter] = useState("all-interests");
   const { toast } = useToast();
   const { data: leadsData } = useLeadsQuery();
@@ -200,11 +198,7 @@ export default function LeadsPage() {
           {/* Leads Tabs */}
           <Card className="border-gray-200 dark:border-gray-800">
             <CardContent className="p-4">
-              <Tabs
-                defaultValue="all"
-                className="w-full"
-                onValueChange={setActiveTab}
-              >
+              <Tabs defaultValue="all" className="w-full">
                 <TabsList className="bg-gray-100 dark:bg-gray-800 p-1 flex flex-wrap gap-1 mb-4">
                   <TabsTrigger
                     value="all"

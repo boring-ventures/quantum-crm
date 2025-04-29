@@ -75,6 +75,7 @@ export function TaskList({ leadId }: TaskListProps) {
         description: `Tarea marcada como ${getStatusText(newStatus).toLowerCase()}`,
       });
     } catch (error) {
+      console.error("Error al actualizar el estado de la tarea:", error);
       toast({
         title: "Error",
         description: "No se pudo actualizar el estado de la tarea",

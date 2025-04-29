@@ -1,6 +1,5 @@
 export default function LeadsLayout({
   children,
-  params,
 }: {
   children: React.ReactNode;
   params: any;

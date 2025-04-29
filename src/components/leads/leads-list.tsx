@@ -56,7 +56,6 @@ function LeadCard({ lead, onLeadUpdated }: LeadCardProps) {
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  const queryClient = useQueryClient();
   const toggleFavoriteMutation = useToggleFavoriteMutation();
   const { data: tasks } = useLeadTasks(lead.id);
 
@@ -89,20 +88,6 @@ function LeadCard({ lead, onLeadUpdated }: LeadCardProps) {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
-
-  // Color del badge según el interés
-  const getInterestColor = (interest?: string) => {
-    switch (interest) {
-      case "Alto":
-        return "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-900/50";
-      case "Medio":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-900/50";
-      case "Bajo":
-        return "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700";
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700";
-    }
-  };
 
   // Color del badge según el qualityScore
   const getQualityScoreColor = (score?: number) => {

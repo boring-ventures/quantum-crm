@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { CalendarIcon, CheckCircle2, Clock, AlertCircle } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CalendarIcon, CheckCircle2, Clock } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,7 +12,9 @@ import {
   useLeadTasks,
   useCreateTaskMutation,
   useUpdateTaskStatusMutation,
-} from "@/lib/hooks/use-leads";
+} from "@/lib/hooks";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/components/ui/use-toast";
 import {
   Dialog,
   DialogContent,
@@ -42,19 +44,33 @@ export function LeadTasks({ leadId }: LeadTasksProps) {
   const { data: tasks, isLoading } = useLeadTasks(leadId);
   const createTaskMutation = useCreateTaskMutation();
   const updateTaskStatusMutation = useUpdateTaskStatusMutation();
+  const { user } = useAuth();
+  const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!title.trim() || !dueDate) return;
+    if (!title.trim() || !dueDate || !user?.id) {
+      toast({
+        title: "Error",
+        description: "Falta información requerida para crear la tarea",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       await createTaskMutation.mutateAsync({
         leadId,
         title: title.trim(),
         description: description.trim() || undefined,
-        dueDate: dueDate.toISOString(),
-        priority: "MEDIUM",
+        assignedToId: user.id,
+        scheduledFor: dueDate,
+      });
+
+      toast({
+        title: "Tarea creada",
+        description: "La tarea se ha creado correctamente",
       });
 
       setTitle("");
@@ -63,10 +79,18 @@ export function LeadTasks({ leadId }: LeadTasksProps) {
       setOpen(false);
     } catch (error) {
       console.error("Error al crear tarea:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo crear la tarea. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
     }
   };
 
-  const handleStatusChange = async (taskId: string, status: string) => {
+  const handleStatusChange = async (
+    taskId: string,
+    status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
+  ) => {
     try {
       await updateTaskStatusMutation.mutateAsync({
         taskId,

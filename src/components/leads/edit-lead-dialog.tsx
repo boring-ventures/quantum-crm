@@ -80,7 +80,6 @@ export function EditLeadDialog({
     register,
     handleSubmit,
     formState: { errors },
-    reset,
     setValue,
     watch,
   } = useForm<FormData>({

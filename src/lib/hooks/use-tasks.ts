@@ -19,6 +19,7 @@ export const useLeadTasks = (leadId: string) => {
 
         return response.json();
       } catch (error) {
+        console.error("Error fetching lead tasks:", error);
         // Si el endpoint no existe, retornar array vacío
         return [];
       }
@@ -78,7 +79,6 @@ export const useUpdateTaskStatusMutation = () => {
   return useMutation({
     mutationFn: async ({
       taskId,
-      leadId,
       status,
     }: {
       taskId: string;
@@ -113,13 +113,7 @@ export const useDeleteTaskMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
-      taskId,
-      leadId,
-    }: {
-      taskId: string;
-      leadId: string;
-    }) => {
+    mutationFn: async ({ taskId }: { taskId: string; leadId: string }) => {
       const response = await fetch(`/api/tasks/${taskId}`, {
         method: "DELETE",
       });
