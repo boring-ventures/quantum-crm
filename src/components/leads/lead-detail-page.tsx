@@ -16,6 +16,9 @@ import {
   ShoppingCart,
   ReceiptText,
   LockIcon,
+  MessageCircle,
+  Archive,
+  Trash2,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -37,8 +40,18 @@ import {
   useLeadQuotation,
   useLeadReservation,
   useLeadSale,
+  useDeleteLeadMutation,
 } from "@/lib/hooks";
 import { useToast } from "@/components/ui/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { TaskTypeDialog } from "@/components/leads/task-type-dialog";
 
 interface LeadDetailPageProps {
   lead: LeadWithRelations;
@@ -60,7 +73,13 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
     sale: false,
   });
   const [openModal, setOpenModal] = useState<string | null>(null);
+  const [openTaskDialog, setOpenTaskDialog] = useState(false);
+  const [selectedTaskType, setSelectedTaskType] = useState<string | null>(null);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const updateLeadMutation = useUpdateLeadMutation();
+  const deleteLeadMutation = useDeleteLeadMutation();
   const { toast } = useToast();
 
   // Reflejar el estado de la cotización y reserva en el proceso de venta
@@ -242,6 +261,21 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
         variant: "destructive",
       });
     }
+  };
+
+  const handleContactLead = () => {
+    if (lead.phone) {
+      // Eliminar cualquier carácter no numérico del número de teléfono
+      const phoneNumber = lead.phone.replace(/\D/g, "");
+      // Abrir WhatsApp con el número de teléfono
+      window.open(`https://wa.me/${phoneNumber}`, "_blank");
+    }
+  };
+
+  const handleScheduleAppointment = () => {
+    // Abrir el diálogo de tareas directamente en el paso 2 con el tipo "client-visit"
+    setSelectedTaskType("client-visit");
+    setOpenTaskDialog(true);
   };
 
   return (
@@ -563,14 +597,16 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
               <Button
                 className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700"
                 variant="ghost"
+                onClick={handleContactLead}
               >
-                <Phone className="mr-3 h-5 w-5" />
-                Llamar
+                <MessageCircle className="mr-3 h-5 w-5" />
+                Contactar
               </Button>
 
               <Button
                 className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700"
                 variant="ghost"
+                onClick={handleScheduleAppointment}
               >
                 <CalendarClock className="mr-3 h-5 w-5" />
                 Agendar cita
@@ -588,10 +624,33 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
               <Button
                 className="w-full justify-start rounded-none py-3 h-auto font-normal text-base"
                 variant="ghost"
+                onClick={() => setShowActionsMenu(!showActionsMenu)}
               >
                 <MoreHorizontal className="mr-3 h-5 w-5" />
                 Más acciones
               </Button>
+
+              {showActionsMenu && (
+                <div className="border-t border-gray-200 dark:border-gray-700">
+                  <Button
+                    className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700"
+                    variant="ghost"
+                    onClick={() => setShowArchiveDialog(true)}
+                  >
+                    <Archive className="mr-3 h-5 w-5 text-gray-500" />
+                    Archivar lead
+                  </Button>
+
+                  <Button
+                    className="w-full justify-start rounded-none py-3 h-auto font-normal text-base text-red-500"
+                    variant="ghost"
+                    onClick={() => setShowDeleteDialog(true)}
+                  >
+                    <Trash2 className="mr-3 h-5 w-5" />
+                    Eliminar lead
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -646,6 +705,117 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
         leadName={`${lead.firstName} ${lead.lastName}`}
         leadId={lead.id}
         onComplete={handleCompleteSale}
+      />
+
+      {/* Diálogo de confirmación para archivar lead */}
+      <Dialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Archivar Lead</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p>
+              ¿Estás seguro que deseas archivar este lead? Esta acción no se
+              puede deshacer.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowArchiveDialog(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="default"
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={() => {
+                // Lógica para archivar lead
+                updateLeadMutation
+                  .mutateAsync({
+                    id: lead.id,
+                    data: {
+                      isArchived: true,
+                    },
+                  })
+                  .then(() => {
+                    setShowArchiveDialog(false);
+                    toast({
+                      title: "Lead archivado",
+                      description: "El lead ha sido archivado correctamente",
+                    });
+                    if (onBack) onBack();
+                  })
+                  .catch(() => {
+                    toast({
+                      title: "Error",
+                      description: "No se pudo archivar el lead",
+                      variant: "destructive",
+                    });
+                  });
+              }}
+            >
+              Archivar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo de confirmación para eliminar lead */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Eliminar Lead</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p>
+              ¿Estás seguro que deseas eliminar este lead? Esta acción es
+              permanente y no se puede deshacer.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                // Lógica para eliminar lead
+                deleteLeadMutation
+                  .mutateAsync(lead.id)
+                  .then(() => {
+                    toast({
+                      title: "Lead eliminado",
+                      description: "El lead ha sido eliminado correctamente",
+                    });
+                    setShowDeleteDialog(false);
+                    if (onBack) onBack();
+                  })
+                  .catch(() => {
+                    toast({
+                      title: "Error",
+                      description: "No se pudo eliminar el lead",
+                      variant: "destructive",
+                    });
+                  });
+              }}
+            >
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo de tarea */}
+      <TaskTypeDialog
+        open={openTaskDialog}
+        onOpenChange={setOpenTaskDialog}
+        leadId={lead.id}
+        initialStep={selectedTaskType ? 2 : 1}
+        preselectedTaskType={selectedTaskType}
       />
     </div>
   );

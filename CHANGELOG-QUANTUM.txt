@@ -38,3 +38,6 @@
 [2025-06-07] [Feature] - Implementado componente real de tareas pendientes con conexión a la API - [CL]
 [2025-06-07] [API] - Añadido endpoint para obtener tareas pendientes con información de leads - [CL]
 [2025-06-07] [Feature] - Añadida funcionalidad para completar tareas directamente desde el panel - [CL]
+[2025-06-10] [Feature] - Implementadas acciones de lead: Contactar por WhatsApp, Agendar cita directa, Archivar y Eliminar lead - [AB]
+[2025-06-10] [Feature] - Agregados diálogos de confirmación para operaciones permanentes (archivar/eliminar) de leads - [AB]
+[2025-06-10] [Feature] - Mejorada la integración de TaskTypeDialog para permitir selección de tipo de tarea - [AB]

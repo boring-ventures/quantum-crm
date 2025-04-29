@@ -93,12 +93,16 @@ interface TaskTypeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   leadId: string;
+  initialStep?: 1 | 2;
+  preselectedTaskType?: string | null;
 }
 
 export function TaskTypeDialog({
   open,
   onOpenChange,
   leadId,
+  initialStep = 1,
+  preselectedTaskType = null,
 }: TaskTypeDialogProps) {
   const [step, setStep] = useState<1 | 2>(1);
   const [selectedTaskType, setSelectedTaskType] = useState<string | null>(null);
@@ -117,8 +121,14 @@ export function TaskTypeDialog({
       setDescription("");
       setDate(undefined);
       setTime("12:00");
+    } else {
+      // Si se proporciona un paso inicial y un tipo de tarea preseleccionado
+      if (initialStep === 2 && preselectedTaskType) {
+        setStep(2);
+        setSelectedTaskType(preselectedTaskType);
+      }
     }
-  }, [open]);
+  }, [open, initialStep, preselectedTaskType]);
 
   const handleTaskTypeSelect = (taskType: TaskType) => {
     setSelectedTaskType(taskType.id);
