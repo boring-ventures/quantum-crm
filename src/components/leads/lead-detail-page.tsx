@@ -35,6 +35,8 @@ import {
   useLeadReservation,
   useLeadSale,
   useDeleteLeadMutation,
+  useToggleFavoriteMutation,
+  useLeadQuery,
 } from "@/lib/hooks";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -45,6 +47,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { TaskTypeDialog } from "@/components/leads/task-type-dialog";
+import { useQueryClient } from "@tanstack/react-query";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface LeadDetailPageProps {
   lead: LeadWithRelations;
@@ -73,16 +77,32 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const updateLeadMutation = useUpdateLeadMutation();
   const deleteLeadMutation = useDeleteLeadMutation();
+  const toggleFavoriteMutation = useToggleFavoriteMutation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Consulta para obtener datos actualizados del lead
+  const { data: updatedLeadData } = useLeadQuery(lead.id);
 
   // Reflejar el estado de la cotización y reserva en el proceso de venta
-  const { data: leadQuotation } = useLeadQuotation(lead.id);
+  const { data: leadQuotation, isLoading: isLoadingLeadQuotation } =
+    useLeadQuotation(lead.id);
 
   // Reflejar el estado de la reserva en el proceso de venta
-  const { data: leadReservation } = useLeadReservation(lead.id);
+  const { data: leadReservation, isLoading: isLoadingLeadReservation } =
+    useLeadReservation(lead.id);
 
   // Reflejar el estado de la venta en el proceso de venta
-  const { data: leadSale } = useLeadSale(lead.id);
+  const { data: leadSale, isLoading: isLoadingLeadSale } = useLeadSale(lead.id);
+
+  // Actualizar el estado local con los datos más recientes del lead
+  useEffect(() => {
+    if (updatedLeadData) {
+      setIsFavorite(updatedLeadData.isFavorite || false);
+      setComments(updatedLeadData.extraComments || "");
+      setOriginalComments(updatedLeadData.extraComments || "");
+    }
+  }, [updatedLeadData]);
 
   // Actualizar el estado del proceso si ya hay una cotización, reserva o venta
   useEffect(() => {
@@ -229,21 +249,25 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
   // Manejar el cambio de favorito
   const handleToggleFavorite = async () => {
     try {
-      await updateLeadMutation.mutateAsync({
-        id: lead.id,
-        data: {
-          isFavorite: !isFavorite,
-          favoriteAt: !isFavorite ? new Date() : undefined,
-        },
+      await toggleFavoriteMutation.mutateAsync({
+        leadId: lead.id,
+        isFavorite: !isFavorite,
       });
+
+      // Actualizar el estado local inmediatamente
       setIsFavorite(!isFavorite);
+
+      // Invalidar las queries para asegurar que todos los componentes se actualicen
+      queryClient.invalidateQueries({ queryKey: ["leads", lead.id] });
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+
       toast({
         title: !isFavorite
           ? "Lead marcado como favorito"
           : "Lead quitado de favoritos",
         description: !isFavorite
-          ? "El lead ha sido marcado como favorito"
-          : "El lead ha sido quitado de favoritos",
+          ? "El lead ha sido marcado como favorito\nEl cambio se reflejará en un momento."
+          : "El lead ha sido quitado de favoritos\nEl cambio se reflejará en un momento.",
       });
     } catch (error) {
       console.error("Error al actualizar el estado de favorito:", error);
@@ -489,97 +513,105 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
             <CardContent className="p-6">
               <h3 className="text-lg font-medium mb-6">Proceso de venta</h3>
 
-              <div className="space-y-1">
-                <button
-                  onClick={() => setOpenModal("quotation")}
-                  className="w-full flex items-center gap-3 mb-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md p-2 transition-colors"
-                >
-                  {salesProcess.quotation ? (
-                    <div className="rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 w-7 h-7 flex items-center justify-center">
-                      <CheckCircle className="h-4 w-4" />
-                    </div>
-                  ) : (
-                    <div className="rounded-full bg-blue-600 text-white w-7 h-7 flex items-center justify-center text-sm">
-                      1
-                    </div>
-                  )}
-                  <span
-                    className={`${salesProcess.quotation ? "text-green-600 dark:text-green-400" : "font-medium text-gray-800 dark:text-gray-200"}`}
+              {isLoadingLeadQuotation ||
+              isLoadingLeadReservation ||
+              isLoadingLeadSale ? (
+                <div className="flex items-center justify-center h-24">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <button
+                    onClick={() => setOpenModal("quotation")}
+                    className="w-full flex items-center gap-3 mb-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md p-2 transition-colors"
                   >
-                    Crear cotización
-                  </span>
-                </button>
+                    {salesProcess.quotation ? (
+                      <div className="rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 w-7 h-7 flex items-center justify-center">
+                        <CheckCircle className="h-4 w-4" />
+                      </div>
+                    ) : (
+                      <div className="rounded-full bg-blue-600 text-white w-7 h-7 flex items-center justify-center text-sm">
+                        1
+                      </div>
+                    )}
+                    <span
+                      className={`${salesProcess.quotation ? "text-green-600 dark:text-green-400" : "font-medium text-gray-800 dark:text-gray-200"}`}
+                    >
+                      Crear cotización
+                    </span>
+                  </button>
 
-                <div className="border-l-2 border-gray-200 dark:border-gray-700 h-5 ml-3.5"></div>
+                  <div className="border-l-2 border-gray-200 dark:border-gray-700 h-5 ml-3.5"></div>
 
-                <button
-                  onClick={() =>
-                    salesProcess.quotation && setOpenModal("reservation")
-                  }
-                  disabled={!salesProcess.quotation}
-                  className={`w-full flex items-center gap-3 mb-2 ${salesProcess.quotation ? "hover:bg-gray-50 dark:hover:bg-gray-800" : "cursor-not-allowed"} rounded-md p-2 transition-colors`}
-                >
-                  {salesProcess.reservation ? (
-                    <div className="rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 w-7 h-7 flex items-center justify-center">
-                      <CheckCircle className="h-4 w-4" />
-                    </div>
-                  ) : salesProcess.quotation ? (
-                    <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 w-7 h-7 flex items-center justify-center text-sm">
-                      2
-                    </div>
-                  ) : (
-                    <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 w-7 h-7 flex items-center justify-center text-sm">
-                      <LockIcon className="h-3 w-3" />
-                    </div>
-                  )}
-                  <span
-                    className={`${
-                      salesProcess.reservation
-                        ? "text-green-600 dark:text-green-400"
-                        : salesProcess.quotation
-                          ? "text-gray-600 dark:text-gray-300"
-                          : "text-gray-400 dark:text-gray-500"
-                    }`}
+                  <button
+                    onClick={() =>
+                      salesProcess.quotation && setOpenModal("reservation")
+                    }
+                    disabled={!salesProcess.quotation}
+                    className={`w-full flex items-center gap-3 mb-2 ${salesProcess.quotation ? "hover:bg-gray-50 dark:hover:bg-gray-800" : "cursor-not-allowed"} rounded-md p-2 transition-colors`}
                   >
-                    Registrar reserva
-                  </span>
-                </button>
+                    {salesProcess.reservation ? (
+                      <div className="rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 w-7 h-7 flex items-center justify-center">
+                        <CheckCircle className="h-4 w-4" />
+                      </div>
+                    ) : salesProcess.quotation ? (
+                      <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 w-7 h-7 flex items-center justify-center text-sm">
+                        2
+                      </div>
+                    ) : (
+                      <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 w-7 h-7 flex items-center justify-center text-sm">
+                        <LockIcon className="h-3 w-3" />
+                      </div>
+                    )}
+                    <span
+                      className={`${
+                        salesProcess.reservation
+                          ? "text-green-600 dark:text-green-400"
+                          : salesProcess.quotation
+                            ? "text-gray-600 dark:text-gray-300"
+                            : "text-gray-400 dark:text-gray-500"
+                      }`}
+                    >
+                      Registrar reserva
+                    </span>
+                  </button>
 
-                <div className="border-l-2 border-gray-200 dark:border-gray-700 h-5 ml-3.5"></div>
+                  <div className="border-l-2 border-gray-200 dark:border-gray-700 h-5 ml-3.5"></div>
 
-                <button
-                  onClick={() =>
-                    salesProcess.reservation && setOpenModal("sale")
-                  }
-                  disabled={!salesProcess.reservation}
-                  className={`w-full flex items-center gap-3 ${salesProcess.reservation ? "hover:bg-gray-50 dark:hover:bg-gray-800" : "cursor-not-allowed"} rounded-md p-2 transition-colors`}
-                >
-                  {salesProcess.sale ? (
-                    <div className="rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 w-7 h-7 flex items-center justify-center">
-                      <CheckCircle className="h-4 w-4" />
-                    </div>
-                  ) : salesProcess.reservation ? (
-                    <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 w-7 h-7 flex items-center justify-center text-sm">
-                      3
-                    </div>
-                  ) : (
-                    <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 w-7 h-7 flex items-center justify-center text-sm">
-                      <LockIcon className="h-3 w-3" />
-                    </div>
-                  )}
-                  <span
-                    className={`${
-                      salesProcess.sale
-                        ? "text-green-600 dark:text-green-400"
-                        : salesProcess.reservation
-                          ? "text-gray-600 dark:text-gray-300"
-                          : "text-gray-400 dark:text-gray-500"
-                    }`}
+                  <button
+                    onClick={() =>
+                      salesProcess.reservation && setOpenModal("sale")
+                    }
+                    disabled={!salesProcess.reservation}
+                    className={`w-full flex items-center gap-3 ${salesProcess.reservation ? "hover:bg-gray-50 dark:hover:bg-gray-800" : "cursor-not-allowed"} rounded-md p-2 transition-colors`}
                   >
-                    Registrar venta
-                  </span>
-                </button>
-              </div>
+                    {salesProcess.sale ? (
+                      <div className="rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 w-7 h-7 flex items-center justify-center">
+                        <CheckCircle className="h-4 w-4" />
+                      </div>
+                    ) : salesProcess.reservation ? (
+                      <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 w-7 h-7 flex items-center justify-center text-sm">
+                        3
+                      </div>
+                    ) : (
+                      <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 w-7 h-7 flex items-center justify-center text-sm">
+                        <LockIcon className="h-3 w-3" />
+                      </div>
+                    )}
+                    <span
+                      className={`${
+                        salesProcess.sale
+                          ? "text-green-600 dark:text-green-400"
+                          : salesProcess.reservation
+                            ? "text-gray-600 dark:text-gray-300"
+                            : "text-gray-400 dark:text-gray-500"
+                      }`}
+                    >
+                      Registrar venta
+                    </span>
+                  </button>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -608,14 +640,14 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
                 className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700 text-yellow-500"
                 variant="ghost"
                 onClick={handleToggleFavorite}
-                disabled={updateLeadMutation.isPending}
+                disabled={toggleFavoriteMutation.isPending}
               >
-                {updateLeadMutation.isPending ? (
+                {toggleFavoriteMutation.isPending ? (
                   <Loader2 className="mr-3 h-5 w-5 animate-spin" />
                 ) : (
                   <Star className="mr-3 h-5 w-5" />
                 )}
-                {updateLeadMutation.isPending
+                {toggleFavoriteMutation.isPending
                   ? "Actualizando..."
                   : isFavorite
                     ? "Quitar de favoritos"

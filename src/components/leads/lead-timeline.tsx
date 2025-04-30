@@ -137,12 +137,17 @@ export function LeadTimeline({ lead }: LeadTimelineProps) {
       });
     }
 
-    // Añadir evento de favorito solo si existe favoriteAt
+    // Añadir evento de favorito solo si existe favoriteAt o si está marcado como favorito
     if (lead.isFavorite) {
+      // Usar favoriteAt si existe, o updatedAt como respaldo
+      const favoriteDate = lead.favoriteAt
+        ? new Date(lead.favoriteAt)
+        : new Date(lead.updatedAt);
+
       allEvents.push({
         id: `lead-favorited-${lead.id}`,
         type: "lead_favorited",
-        date: new Date(lead.favoriteAt || lead.updatedAt),
+        date: favoriteDate,
         title: "Marcado como favorito",
         description: "Lead destacado para seguimiento prioritario",
       });

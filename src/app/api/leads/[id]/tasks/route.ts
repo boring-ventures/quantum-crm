@@ -14,8 +14,7 @@ export async function GET(
     }
 
     // Extraer id de forma segura
-    const leadId =
-      typeof params === "object" && params !== null ? params.id : "";
+    const leadId = params?.id ?? "";
 
     if (!leadId) {
       return NextResponse.json(
