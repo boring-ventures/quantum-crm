@@ -161,31 +161,40 @@ export function ReservationDialog({
     setIsUploading(true);
 
     try {
-      // Crear un array de promesas para subir documentos
-      const uploadPromises = [];
-      const documentUrls: {
-        reservationForm?: string;
-        depositReceipt?: string;
-        reservationContract?: string;
-      } = {};
+      // Variables para almacenar las URLs de los documentos
+      let reservationFormUrl = "";
+      let depositReceiptUrl = "";
+      let reservationContractUrl = "";
 
       // 1. Subir el formulario de reserva (requerido)
       if (formDocument) {
-        await uploadDocument(formDocument, leadId, "reservation-form");
+        const formDocUpload = await uploadDocument(
+          formDocument,
+          leadId,
+          "reservation-form"
+        );
+        reservationFormUrl = formDocUpload.url;
       }
 
       // 2. Subir el comprobante de depósito (requerido)
       if (depositDocument) {
-        uploadDocument(depositDocument, leadId, "deposit-receipt");
+        const depositDocUpload = await uploadDocument(
+          depositDocument,
+          leadId,
+          "deposit-receipt"
+        );
+        depositReceiptUrl = depositDocUpload.url;
       }
 
       // 3. Subir el contrato de reserva (opcional)
       if (contractDocument) {
-        await uploadDocument(contractDocument, leadId, "reservation-contract");
+        const contractDocUpload = await uploadDocument(
+          contractDocument,
+          leadId,
+          "reservation-contract"
+        );
+        reservationContractUrl = contractDocUpload.url;
       }
-
-      // Esperar a que todos los documentos se suban
-      await Promise.all(uploadPromises);
 
       // 4. Crear la reserva
       await createReservationMutation.mutateAsync({
@@ -194,9 +203,9 @@ export function ReservationDialog({
         amount: parseFloat(reservationAmount),
         paymentMethod: paymentMethod,
         deliveryDate: deliveryDate as Date,
-        reservationFormUrl: documentUrls.reservationForm,
-        depositReceiptUrl: documentUrls.depositReceipt,
-        reservationContractUrl: documentUrls.reservationContract,
+        reservationFormUrl,
+        depositReceiptUrl,
+        reservationContractUrl,
         vehicleDetails,
         additionalNotes: notes,
       });

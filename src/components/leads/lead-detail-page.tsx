@@ -608,9 +608,18 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
                 className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700 text-yellow-500"
                 variant="ghost"
                 onClick={handleToggleFavorite}
+                disabled={updateLeadMutation.isPending}
               >
-                <Star className="mr-3 h-5 w-5" />
-                {isFavorite ? "Quitar de favoritos" : "Marcar como favorito"}
+                {updateLeadMutation.isPending ? (
+                  <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                ) : (
+                  <Star className="mr-3 h-5 w-5" />
+                )}
+                {updateLeadMutation.isPending
+                  ? "Actualizando..."
+                  : isFavorite
+                    ? "Quitar de favoritos"
+                    : "Marcar como favorito"}
               </Button>
 
               <Button

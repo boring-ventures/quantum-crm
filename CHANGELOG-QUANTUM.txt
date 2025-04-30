@@ -42,3 +42,4 @@
 [2025-06-10] [Feature] - Agregados diálogos de confirmación para operaciones permanentes (archivar/eliminar) de leads - [AB]
 [2025-06-10] [Feature] - Mejorada la integración de TaskTypeDialog para permitir selección de tipo de tarea - [AB]
 [2025-06-10] [Fix] - Corregidos errores de importación en componente lead-tasks.tsx para usar hooks del módulo correcto - [AB]
+[2025-04-25] [Fix] - Corregida la subida de documentos en el diálogo de reservación para incluir correctamente las URLs en la solicitud - [QD]
