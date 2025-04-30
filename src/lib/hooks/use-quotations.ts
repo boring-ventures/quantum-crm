@@ -78,6 +78,7 @@ export function useCreateQuotationMutation() {
         queryKey: ["quotation", variables.leadId],
       });
       queryClient.invalidateQueries({ queryKey: ["lead", variables.leadId] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
     },
   });
 }

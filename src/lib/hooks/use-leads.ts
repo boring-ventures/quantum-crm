@@ -240,7 +240,10 @@ export const useToggleFavoriteMutation = () => {
       const response = await fetch(`/api/leads/${leadId}/favorite`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isFavorite }),
+        body: JSON.stringify({
+          isFavorite,
+          favoriteAt: isFavorite ? new Date().toISOString() : null,
+        }),
       });
 
       if (!response.ok) {

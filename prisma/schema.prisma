@@ -523,8 +523,9 @@ model Product {
   modelId String? @map("model_id")
   model   Model?  @relation(fields: [modelId], references: [id])
 
-  leads  Lead[]
-  images ProductImage[]
+  leads            Lead[]
+  images           ProductImage[]
+  QuotationProduct QuotationProduct[]
 
   @@index([code])
   @@index([name])
@@ -570,7 +571,7 @@ model Quotation {
   status          SalesProcessStatus @default(DRAFT)
 
   // Productos cotizados (para implementación futura)
-  // quotationProducts QuotationProduct[]
+  quotationProducts QuotationProduct[]
 
   // Relación con Reservations
   reservations Reservation[]
@@ -650,4 +651,27 @@ model Sale {
   @@index([status])
   @@index([createdAt])
   @@map("sales")
+}
+
+// Modelo para productos en cotizaciones
+model QuotationProduct {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relación con la cotización
+  quotationId String    @map("quotation_id")
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+
+  // Relación con el producto
+  productId String  @map("product_id")
+  product   Product @relation(fields: [productId], references: [id])
+
+  // Detalles del producto en la cotización
+  quantity Int
+  price    Decimal @db.Decimal(10, 2)
+
+  @@index([quotationId])
+  @@index([productId])
+  @@map("quotation_products")
 }

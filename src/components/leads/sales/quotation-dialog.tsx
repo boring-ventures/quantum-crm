@@ -178,7 +178,12 @@ export function QuotationDialog({
         totalAmount: total,
         proformaUrl: documentData.url,
         additionalNotes: notes,
-        products: productList,
+        products: productList.map((product) => ({
+          id: product.id,
+          name: product.name,
+          quantity: product.quantity,
+          price: product.price,
+        })),
       });
 
       // 4. Mostrar mensaje de éxito

@@ -9,6 +9,7 @@ import {
   useLeadsQuery,
   useToggleFavoriteMutation,
   useLeadTasks,
+  useLeadQuery,
 } from "@/lib/hooks";
 import type { LeadWithRelations } from "@/types/lead";
 import { formatDistanceToNow, format } from "date-fns";
@@ -50,6 +51,9 @@ interface LeadCardProps {
 }
 
 function LeadCard({ lead, onLeadUpdated }: LeadCardProps) {
+  const { data: updatedLead, isLoading: isLoadingUpdatedLead } = useLeadQuery(
+    lead.id
+  );
   const [isFavorite, setIsFavorite] = useState(lead.isFavorite || false);
   const [showQualifyDialog, setShowQualifyDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -58,6 +62,14 @@ function LeadCard({ lead, onLeadUpdated }: LeadCardProps) {
   const router = useRouter();
   const toggleFavoriteMutation = useToggleFavoriteMutation();
   const { data: tasks } = useLeadTasks(lead.id);
+  const queryClient = useQueryClient();
+
+  // Actualizar el estado local cuando cambia la información del lead
+  useEffect(() => {
+    if (updatedLead) {
+      setIsFavorite(updatedLead.isFavorite || false);
+    }
+  }, [updatedLead]);
 
   // Encontrar la próxima tarea pendiente
   const nextTask = useMemo(() => {
@@ -150,7 +162,13 @@ function LeadCard({ lead, onLeadUpdated }: LeadCardProps) {
         isFavorite: !isFavorite,
       });
 
+      // Actualizar el estado local inmediatamente
       setIsFavorite(!isFavorite);
+
+      // Asegurar que el queryClient invalide todas las consultas relacionadas
+      // para mantener la sincronización entre componentes
+      queryClient.invalidateQueries({ queryKey: ["leads", lead.id] });
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
     } catch (error) {
       console.error("Error al cambiar estado de favorito:", error);
     }
@@ -177,9 +195,16 @@ function LeadCard({ lead, onLeadUpdated }: LeadCardProps) {
   return (
     <>
       <div
-        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-4 mb-4 transition-all hover:-translate-y-1 hover:shadow-md cursor-pointer"
+        className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-4 mb-4 transition-all hover:-translate-y-1 hover:shadow-md cursor-pointer relative ${
+          isLoadingUpdatedLead ? "opacity-50" : ""
+        }`}
         onClick={handleCardClick}
       >
+        {isLoadingUpdatedLead && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          </div>
+        )}
         <div className="flex justify-between items-center mb-2">
           <div className="flex space-x-3">
             <Avatar className="h-14 w-14 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-700">
@@ -199,7 +224,6 @@ function LeadCard({ lead, onLeadUpdated }: LeadCardProps) {
                       ? "fill-yellow-400 text-yellow-400"
                       : "text-gray-400"
                   }`}
-                  onClick={handleToggleFavorite}
                 />
                 {lead.qualityScore && (
                   <Badge

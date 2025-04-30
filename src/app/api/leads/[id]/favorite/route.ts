@@ -6,6 +6,7 @@ import { z } from "zod";
 // Esquema de validación para marcar como favorito
 const toggleFavoriteSchema = z.object({
   isFavorite: z.boolean(),
+  favoriteAt: z.string().datetime().nullable().optional(),
 });
 
 export async function PATCH(
@@ -19,44 +20,39 @@ export async function PATCH(
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    // Obtener el ID del lead
-    const { id } = params;
+    // Obtener y validar el leadId
+    const { id: leadId } = params;
 
-    // Verificar si el lead existe
-    const leadExists = await prisma.lead.findUnique({
-      where: { id },
-      select: { id: true },
-    });
-
-    if (!leadExists) {
+    if (!leadId) {
       return NextResponse.json(
-        { error: "Lead no encontrado" },
-        { status: 404 }
+        { error: "ID de lead no proporcionado" },
+        { status: 400 }
       );
     }
 
-    // Obtener y validar el cuerpo de la solicitud
+    // Obtener y validar el cuerpo de la petición
     const body = await request.json();
 
     try {
-      const { isFavorite } = toggleFavoriteSchema.parse(body);
+      const { isFavorite, favoriteAt } = toggleFavoriteSchema.parse(body);
 
       // Actualizar el lead
-      await prisma.lead.update({
-        where: { id },
+      const updatedLead = await prisma.lead.update({
+        where: { id: leadId },
         data: {
           isFavorite,
+          favoriteAt: isFavorite ? favoriteAt || new Date() : null,
         },
       });
 
-      return NextResponse.json({
-        success: true,
-        isFavorite,
-      });
+      return NextResponse.json(updatedLead);
     } catch (validationError) {
       if (validationError instanceof z.ZodError) {
         return NextResponse.json(
-          { error: "Datos inválidos", details: validationError.format() },
+          {
+            error: "Datos de favorito inválidos",
+            details: validationError.format(),
+          },
           { status: 400 }
         );
       }
@@ -65,7 +61,7 @@ export async function PATCH(
   } catch (error) {
     console.error("Error al actualizar favorito:", error);
     return NextResponse.json(
-      { error: "Error al actualizar el estado de favorito" },
+      { error: "Error al actualizar estado de favorito" },
       { status: 500 }
     );
   }
