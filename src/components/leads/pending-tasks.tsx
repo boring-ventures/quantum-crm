@@ -30,7 +30,9 @@ export function PendingTasks() {
         }
 
         const data = await response.json();
-        setTasks(data);
+        // Filtrar tareas de leads no archivados
+        const filteredTasks = data.filter((task: any) => !task.lead.isArchived);
+        setTasks(filteredTasks);
       } catch (error) {
         console.error("Error cargando tareas:", error);
         toast({
