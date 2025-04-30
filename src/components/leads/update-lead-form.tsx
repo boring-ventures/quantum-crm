@@ -31,7 +31,7 @@ export function UpdateLeadForm({ lead, onSuccess }: UpdateLeadFormProps) {
     statusId: lead.statusId,
     sourceId: lead.sourceId,
     interest: lead.interest || "",
-    notes: lead.notes || "",
+    comments: lead.extraComments || "",
   });
 
   const { data: statuses, isLoading: isLoadingStatuses } = useLeadStatuses();
@@ -211,9 +211,9 @@ export function UpdateLeadForm({ lead, onSuccess }: UpdateLeadFormProps) {
           Notas
         </label>
         <Textarea
-          id="notes"
-          name="notes"
-          value={formData.notes}
+          id="comments"
+          name="comments"
+          value={formData.comments}
           onChange={handleChange}
           className="min-h-[100px]"
         />

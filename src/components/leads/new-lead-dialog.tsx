@@ -124,13 +124,12 @@ export function NewLeadDialog({ open, onOpenChange }: NewLeadDialogProps) {
     setIsPending(true);
 
     try {
-      // Limpiar valores "none" por vacíos antes de enviar
       const cleanedData = {
         ...data,
         companyId: data.companyId === "none" ? "" : data.companyId,
         productId: data.productId === "none" ? "" : data.productId,
         assignedToId: user?.id || "",
-        qualityScore: 1,
+        qualityScore: data.interest ? parseInt(data.interest) : 1,
         isArchived: false,
       };
 
@@ -395,9 +394,9 @@ export function NewLeadDialog({ open, onOpenChange }: NewLeadDialogProps) {
                 <SelectValue placeholder="Seleccionar grado de interés" />
               </SelectTrigger>
               <SelectContent className="bg-gray-800 border-gray-700">
-                <SelectItem value="Alto">Alto</SelectItem>
-                <SelectItem value="Medio">Medio</SelectItem>
-                <SelectItem value="Bajo">Bajo</SelectItem>
+                <SelectItem value="3">Alto</SelectItem>
+                <SelectItem value="2">Medio</SelectItem>
+                <SelectItem value="1">Bajo</SelectItem>
               </SelectContent>
             </Select>
           </div>

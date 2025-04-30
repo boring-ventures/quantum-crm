@@ -74,6 +74,8 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const updateLeadMutation = useUpdateLeadMutation();
   const deleteLeadMutation = useDeleteLeadMutation();
   const toggleFavoriteMutation = useToggleFavoriteMutation();
@@ -279,9 +281,9 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
   };
 
   const handleContactLead = () => {
-    if (lead.phone) {
+    if (lead.cellphone) {
       // Eliminar cualquier carácter no numérico del número de teléfono
-      const phoneNumber = lead.phone.replace(/\D/g, "");
+      const phoneNumber = lead.cellphone.replace(/\D/g, "");
       // Abrir WhatsApp con el número de teléfono
       window.open(`https://wa.me/${phoneNumber}`, "_blank");
     }
@@ -755,38 +757,41 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
             <Button
               variant="outline"
               onClick={() => setShowArchiveDialog(false)}
+              disabled={isArchiving}
             >
               Cancelar
             </Button>
             <Button
               variant="default"
               className="bg-blue-600 hover:bg-blue-700"
-              onClick={() => {
-                // Lógica para archivar lead
-                updateLeadMutation
-                  .mutateAsync({
+              onClick={async () => {
+                setIsArchiving(true);
+                try {
+                  await updateLeadMutation.mutateAsync({
                     id: lead.id,
                     data: {
                       isArchived: true,
                     },
-                  })
-                  .then(() => {
-                    setShowArchiveDialog(false);
-                    toast({
-                      title: "Lead archivado",
-                      description: "El lead ha sido archivado correctamente",
-                    });
-                    if (onBack) onBack();
-                  })
-                  .catch(() => {
-                    toast({
-                      title: "Error",
-                      description: "No se pudo archivar el lead",
-                      variant: "destructive",
-                    });
                   });
+                  setShowArchiveDialog(false);
+                  toast({
+                    title: "Lead archivado",
+                    description: "El lead ha sido archivado correctamente",
+                  });
+                  if (onBack) onBack();
+                } catch (error) {
+                  toast({
+                    title: "Error",
+                    description: "No se pudo archivar el lead",
+                    variant: "destructive",
+                  });
+                } finally {
+                  setIsArchiving(false);
+                }
               }}
+              disabled={isArchiving}
             >
+              {isArchiving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Archivar
             </Button>
           </DialogFooter>
@@ -801,40 +806,43 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
           </DialogHeader>
           <div className="py-4">
             <p>
-              ¿Estás seguro que deseas eliminar este lead? Esta acción es
-              permanente y no se puede deshacer.
+              ¿Estás seguro que deseas eliminar este lead? Esta acción no se
+              puede deshacer.
             </p>
           </div>
           <DialogFooter>
             <Button
               variant="outline"
               onClick={() => setShowDeleteDialog(false)}
+              disabled={isDeleting}
             >
               Cancelar
             </Button>
             <Button
               variant="destructive"
-              onClick={() => {
-                // Lógica para eliminar lead
-                deleteLeadMutation
-                  .mutateAsync(lead.id)
-                  .then(() => {
-                    toast({
-                      title: "Lead eliminado",
-                      description: "El lead ha sido eliminado correctamente",
-                    });
-                    setShowDeleteDialog(false);
-                    if (onBack) onBack();
-                  })
-                  .catch(() => {
-                    toast({
-                      title: "Error",
-                      description: "No se pudo eliminar el lead",
-                      variant: "destructive",
-                    });
+              onClick={async () => {
+                setIsDeleting(true);
+                try {
+                  await deleteLeadMutation.mutateAsync(lead.id);
+                  setShowDeleteDialog(false);
+                  toast({
+                    title: "Lead eliminado",
+                    description: "El lead ha sido eliminado correctamente",
                   });
+                  if (onBack) onBack();
+                } catch (error) {
+                  toast({
+                    title: "Error",
+                    description: "No se pudo eliminar el lead",
+                    variant: "destructive",
+                  });
+                } finally {
+                  setIsDeleting(false);
+                }
               }}
+              disabled={isDeleting}
             >
+              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Eliminar
             </Button>
           </DialogFooter>

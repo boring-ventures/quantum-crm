@@ -27,23 +27,28 @@ export default function LeadsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [interestFilter, setInterestFilter] = useState("all-interests");
   const { toast } = useToast();
-  const { data: leadsData } = useLeadsQuery();
+  const { data: rawLeadsData } = useLeadsQuery();
 
   // Contador de leads para cada categoría
+  let leadsData =
+    rawLeadsData?.items?.filter(
+      (lead) => lead.qualification !== "BAD_LEAD" && !lead.isArchived
+    ) || [];
+
   const leadCounts = {
-    all: leadsData?.items.length || 0,
+    all: leadsData?.length || 0,
     noManagement:
-      leadsData?.items.filter(
+      leadsData?.filter(
         (lead) =>
           (!lead.quotations || lead.quotations.length === 0) &&
           (!lead.reservations || lead.reservations.length === 0) &&
           (!lead.sales || lead.sales.length === 0)
       ).length || 0,
     noTasks:
-      leadsData?.items.filter((lead) => !lead.tasks || lead.tasks.length === 0)
+      leadsData?.filter((lead) => !lead.tasks || lead.tasks.length === 0)
         .length || 0,
     todayTasks:
-      leadsData?.items.filter((lead) => {
+      leadsData?.filter((lead) => {
         if (!lead.tasks || lead.tasks.length === 0) return false;
         return lead.tasks.some((task) => {
           if (!task.scheduledFor) return false;
@@ -58,7 +63,7 @@ export default function LeadsPage() {
         });
       }).length || 0,
     overdueTasks:
-      leadsData?.items.filter((lead) => {
+      leadsData?.filter((lead) => {
         if (!lead.tasks || lead.tasks.length === 0) return false;
         return lead.tasks.some((task) => {
           if (!task.scheduledFor) return false;
@@ -67,7 +72,7 @@ export default function LeadsPage() {
           return taskDate < today && task.status === "PENDING";
         });
       }).length || 0,
-    favorites: leadsData?.items.filter((lead) => lead.isFavorite).length || 0,
+    favorites: leadsData?.filter((lead) => lead.isFavorite).length || 0,
   };
 
   const handleExportLeads = async () => {
