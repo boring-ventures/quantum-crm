@@ -37,31 +37,37 @@ export async function POST(request: NextRequest) {
       // Crear la cotización usando una transacción para asegurar consistencia
       const quotation = await prisma.$transaction(async (tx) => {
         // Crear la cotización
-        await tx.$executeRaw`
-          INSERT INTO quotations (
-            id, lead_id, total_amount, proforma_url, additional_notes, status, created_at, updated_at
-          ) VALUES (
-            uuid_generate_v4(), 
-            ${validatedData.leadId}, 
-            ${validatedData.totalAmount}, 
-            ${validatedData.proformaUrl || null}, 
-            ${validatedData.additionalNotes || null}, 
-            'COMPLETED', 
-            NOW(), 
-            NOW()
-          )
-          RETURNING *;
-        `;
+        const createdQuotation = await tx.quotation.create({
+          data: {
+            leadId: validatedData.leadId,
+            totalAmount: validatedData.totalAmount,
+            proformaUrl: validatedData.proformaUrl,
+            additionalNotes: validatedData.additionalNotes,
+            status: "COMPLETED",
+          },
+        });
 
-        // Consultar la cotización recién creada
-        const result = await tx.$queryRaw`
-          SELECT * FROM quotations 
-          WHERE lead_id = ${validatedData.leadId}
-          ORDER BY created_at DESC 
-          LIMIT 1;
-        `;
+        // Si hay productos, crear los registros de QuotationProduct manualmente
+        if (validatedData.products && validatedData.products.length > 0) {
+          // Crear un array de consultas SQL para insertar los productos
+          for (const product of validatedData.products) {
+            await tx.$executeRaw`
+              INSERT INTO quotation_products (
+                id, quotation_id, product_id, quantity, price, created_at, updated_at
+              ) VALUES (
+                uuid_generate_v4(),
+                ${createdQuotation.id},
+                ${product.id},
+                ${product.quantity},
+                ${product.price},
+                NOW(),
+                NOW()
+              );
+            `;
+          }
+        }
 
-        return Array.isArray(result) ? result[0] : result;
+        return createdQuotation;
       });
 
       // Responder con la cotización creada

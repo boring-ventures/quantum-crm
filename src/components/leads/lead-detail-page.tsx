@@ -48,7 +48,6 @@ import {
 } from "@/components/ui/dialog";
 import { TaskTypeDialog } from "@/components/leads/task-type-dialog";
 import { useQueryClient } from "@tanstack/react-query";
-import { Skeleton } from "@/components/ui/skeleton";
 
 interface LeadDetailPageProps {
   lead: LeadWithRelations;
