@@ -43,8 +43,11 @@ function isPublicRoute(pathname: string): boolean {
 
 // Función para obtener el permiso requerido para una ruta
 function getRequiredPermission(pathname: string): string | null {
+  console.log(`[MIDDLEWARE] Checking permission for path: ${pathname}`);
+
   // Primero intentamos una coincidencia exacta
   if (protectedRoutes[pathname]) {
+    console.log(`[MIDDLEWARE] Exact match found: ${protectedRoutes[pathname]}`);
     return protectedRoutes[pathname];
   }
 
@@ -56,10 +59,54 @@ function getRequiredPermission(pathname: string): string | null {
     if (pathname.startsWith(route) && route.length > matchedRoute.length) {
       matchedRoute = route;
       matchedPermission = protectedRoutes[route];
+      console.log(
+        `[MIDDLEWARE] Found matching prefix: ${route} -> ${matchedPermission}`
+      );
     }
   }
 
   return matchedPermission;
+}
+
+// Agregar una función auxiliar para verificar permisos en estructuras anidadas
+function checkPermission(permissions: any, permissionKey: string): boolean {
+  // Si es un permiso simple (no anidado)
+  if (!permissionKey.includes(".")) {
+    return permissions.sections?.[permissionKey]?.view === true;
+  }
+
+  // Para permisos anidados como 'admin.roles'
+  const [parent, child] = permissionKey.split(".");
+
+  // Verificar si existe la estructura anidada correcta
+  if (permissions.sections?.[parent]?.[child]?.view === true) {
+    console.log(`[MIDDLEWARE] Found nested permission ${parent}.${child}`);
+    return true;
+  }
+
+  // Si no existe la estructura anidada, verificar si el padre tiene permisos
+  if (permissions.sections?.[parent]?.view === true) {
+    console.log(`[MIDDLEWARE] Found parent permission ${parent}`);
+    return true;
+  }
+
+  // Mostrar todas las rutas y permisos disponibles para ayudar con el debug
+  console.log(`[MIDDLEWARE] Permission check details for ${permissionKey}:`);
+  console.log(`  - Parent key: ${parent}`);
+  console.log(`  - Child key: ${child}`);
+  console.log(`  - Parent exists: ${Boolean(permissions.sections?.[parent])}`);
+
+  if (permissions.sections?.[parent]) {
+    console.log(`  - Parent keys:`, Object.keys(permissions.sections[parent]));
+  }
+
+  // Listar todas las secciones y permisos disponibles para el usuario
+  console.log(`[MIDDLEWARE] All available permissions:`);
+  Object.keys(permissions.sections || {}).forEach((section) => {
+    console.log(`  - ${section}:`, permissions.sections[section]);
+  });
+
+  return false;
 }
 
 export async function middleware(request: NextRequest) {
@@ -138,6 +185,11 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL("/access-denied", request.url));
     }
 
+    console.log(
+      `[MIDDLEWARE] Permission object:`,
+      JSON.stringify(permissions, null, 2)
+    );
+
     // Obtener el permiso requerido para esta ruta
     const requiredPermission = getRequiredPermission(pathname);
 
@@ -153,11 +205,12 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL("/access-denied", request.url));
     }
 
-    // Verificar si el usuario tiene permisos
-    const hasPermission =
-      permissions.sections?.[requiredPermission]?.view === true;
+    // Reemplazar la verificación de permisos actual con la nueva función
+    const hasPermission = checkPermission(permissions, requiredPermission);
 
-    console.log(`[MIDDLEWARE] User has permission: ${hasPermission}`);
+    console.log(
+      `[MIDDLEWARE] User has permission for ${requiredPermission}: ${hasPermission}`
+    );
 
     if (!hasPermission) {
       console.log(`[MIDDLEWARE] Access denied for ${pathname}, redirecting`);

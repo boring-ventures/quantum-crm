@@ -178,3 +178,16 @@
 - Implementada construcción de URL segura con protocolo y host dinámicos
 - Mejorado el manejo de permisos para soportar formato de string JSON o objeto
 - Optimizado sistema de logging para mejor diagnóstico de problemas de permisos
+
+[2023-11-21] [Fix] - Corregido acceso a rutas anidadas de administración como /admin/roles - [AI]
+- Mejorado algoritmo de verificación de permisos para reconocer correctamente permisos anidados
+- Implementada verificación en dos niveles: permiso directo y permiso padre
+- Añadido soporte explícito para notación con punto (admin.roles)
+- Extendido sistema de logging para facilitar depuración de problemas de permisos específicos
+
+[2023-11-22] [Fix] - Solucionado problema con estructura anidada de permisos para secciones de administración - [AI]
+- Implementada función auxiliar checkPermission para manejar estructuras de permisos complejas
+- Añadido soporte para permisos con formato de anidamiento múltiple (sections.admin.roles.view)
+- Mejorada detección de permisos tanto en formato plano como en formato anidado
+- Agregado sistema de logs detallado que muestra todas las secciones disponibles y sus permisos
+- Implementado diagnóstico avanzado para identificar problemas en la estructura de permisos
