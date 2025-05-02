@@ -55,6 +55,30 @@ export function useRolePermissions() {
     (sectionKey: string): boolean => {
       if (!permissions || !permissions.sections) return false;
 
+      // Manejar keys con notación de punto (admin.roles)
+      if (sectionKey.includes(".")) {
+        const [parentKey, childKey] = sectionKey.split(".");
+
+        // Verificar si existe el permiso anidado
+        const parentSection = permissions.sections[parentKey];
+
+        if (
+          parentSection &&
+          typeof parentSection === "object" &&
+          childKey in parentSection
+        ) {
+          const childSection = parentSection[childKey];
+          return (
+            childSection &&
+            typeof childSection === "object" &&
+            childSection.view === true
+          );
+        }
+
+        return false;
+      }
+
+      // Manejar sección simple
       const sectionPermission = permissions.sections[sectionKey];
 
       // Si es un objeto directo de permisos

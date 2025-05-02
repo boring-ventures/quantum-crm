@@ -134,3 +134,47 @@
 - Corregido error de tipado en settings-form.tsx para manejar errores correctamente
 - Actualizado componente NavUser para usar useCurrentUser en lugar de useAuth
 - Traducidos textos del menú de usuario en NavUser a español
+
+[2023-11-19] [Fix] - Corregido sistema de permisos anidados para mostrar correctamente secciones como "Administración" - [AI]
+- Mejorada función filterSidebarByPermissions para detectar correctamente permisos de secciones anidadas
+- Actualizado hook useRolePermissions para manejar notación con punto (admin.roles) en verificación de permisos
+- Optimizada lógica de filtrado para verificar tanto permisos del padre como del elemento hijo anidado
+
+[2023-11-16] [Refactor] - Mejorado sistema de control de acceso basado en roles. Redireccionamiento a /access-denied en lugar de /dashboard cuando el usuario no tiene permisos. - [AI]
+
+[2023-11-17] [Feature] - Actualizado middleware para implementar verificación de permisos basada en datos del usuario - [AI]
+- Reemplazado sistema de roles estático por verificación dinámica usando el campo permissions
+- Implementada normalización de rutas para extraer secciones principales (/admin/roles -> admin)
+- Añadida verificación contra la tabla dashboard_sections para validar secciones
+- Mejorado soporte para secciones anidadas con verificación de permisos padre-hijo
+- Optimizado manejo de errores con redirección a /access-denied
+
+[2023-11-18] [Fix] - Mejorada experiencia de usuario en la barra lateral durante carga de permisos - [AI]
+- Añadido estado de carga con esqueletos (skeletons) para mantener estructura consistente
+- Eliminada desaparición repentina de secciones al cargar permisos
+- Implementada transición suave entre estado de carga y sidebar con permisos aplicados
+
+[2023-11-18] [Fix] - Corregido y mejorado sistema de protección de rutas en el middleware - [AI]
+- Implementado mapeo explícito entre rutas y claves de permisos para evitar errores
+- Añadida verificación más estricta de rutas protegidas como /users
+- Mejorada detección de rutas anidadas como /admin/roles
+- Agregado registro de verificaciones para facilitar diagnóstico de problemas de permisos
+
+[2023-11-19] [Fix] - Solucionado problema crítico con las rutas protegidas en el middleware - [AI]
+- Separada explícitamente la verificación de rutas API de las rutas de navegación
+- Añadidos logs detallados para detectar problemas de intercepción de rutas
+- Mejorado el matcher de rutas para incluir explícitamente /users y otras rutas críticas
+- Refactorizada la lógica de verificación de rutas anidadas para mayor claridad
+- Optimizado tratamiento de permisos para evitar condiciones de carrera
+
+[2023-11-20] [Fix] - Corregido error crítico en middleware que detectaba incorrectamente rutas como públicas - [AI]
+- Modificada la función isPublicRoute para tratar la ruta raíz "/" como caso especial
+- Actualizado el matcher para excluir explícitamente las rutas /api/
+- Implementado manejo específico para evitar que todas las rutas se consideren públicas
+- Mejorado el sistema de logging para facilitar la depuración de problemas de middleware
+
+[2023-11-21] [Fix] - Solucionado error "permission denied for schema public" en middleware - [AI]
+- Reemplazado acceso directo a la base de datos con llamada a API existente
+- Implementada construcción de URL segura con protocolo y host dinámicos
+- Mejorado el manejo de permisos para soportar formato de string JSON o objeto
+- Optimizado sistema de logging para mejor diagnóstico de problemas de permisos

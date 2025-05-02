@@ -38,14 +38,14 @@ export function ProtectedRoute({
       const authorized = accessAllowed && roleCheck;
       setIsAuthorized(authorized);
 
-      // Redirigir si no está autorizado
+      // Redirigir a página de acceso denegado si no está autorizado
       if (!authorized) {
-        router.push("/dashboard");
+        router.push("/access-denied");
       }
     } catch (error) {
       console.error("Error al verificar autorización:", error);
       setIsAuthorized(false);
-      router.push("/dashboard");
+      router.push("/access-denied");
     }
   }, [pathname, router, requiredRoles]);
 

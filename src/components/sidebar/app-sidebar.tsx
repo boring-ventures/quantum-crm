@@ -16,32 +16,51 @@ import {
 } from "./data/sidebar-data";
 import type { NavGroupProps } from "./types";
 import { useRolePermissions } from "@/lib/hooks/useRolePermissions";
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { canViewSection, loading } = useRolePermissions();
+  const [showSidebar, setShowSidebar] = useState(false);
 
-  // Usar useMemo para filtrar los datos del sidebar solo cuando canViewSection o loading cambien
+  // Datos del sidebar filtrados por permisos
   const sidebarData = useMemo(() => {
-    return loading
-      ? sidebarDataStatic
-      : filterSidebarByPermissions(canViewSection);
-  }, [canViewSection, loading]);
+    return filterSidebarByPermissions(canViewSection);
+  }, [canViewSection]);
 
-  // Si la carga está en progreso, se podría mostrar un indicador o versión simplificada
-  if (loading) {
-    // Opcional: mostrar un loader o una versión reducida del sidebar
-  }
+  // Esperar un breve momento antes de mostrar el sidebar para evitar parpadeos
+  useEffect(() => {
+    if (!loading) {
+      // Solo mostrar el sidebar cuando los permisos estén cargados
+      setShowSidebar(true);
+    }
+  }, [loading]);
 
+  // Estructura compartida para ambos estados (cargando y cargado)
   return (
     <Sidebar collapsible="icon" variant="floating" {...props}>
       <SidebarHeader>
-        <TeamSwitcher teams={sidebarData.teams} />
+        <TeamSwitcher teams={sidebarDataStatic.teams} />
       </SidebarHeader>
       <SidebarContent>
-        {sidebarData.navGroups.map((props: NavGroupProps) => (
-          <NavGroup key={props.title} {...props} />
-        ))}
+        {loading
+          ? // Mostrar esqueletos durante la carga con la misma estructura que tendrá el sidebar
+            sidebarDataStatic.navGroups.map((group, index) => (
+              <div key={index} className="mb-6">
+                <div className="mb-2 px-4">
+                  <Skeleton className="h-5 w-24" />
+                </div>
+                {group.items.map((_, itemIndex) => (
+                  <div key={itemIndex} className="mb-1 px-4 py-2">
+                    <Skeleton className="h-6 w-full" />
+                  </div>
+                ))}
+              </div>
+            ))
+          : // Mostrar los elementos filtrados cuando termine la carga
+            sidebarData.navGroups.map((props: NavGroupProps) => (
+              <NavGroup key={props.title} {...props} />
+            ))}
       </SidebarContent>
       <SidebarFooter>
         <NavUser />

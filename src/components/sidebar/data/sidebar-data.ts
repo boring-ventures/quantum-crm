@@ -101,11 +101,19 @@ export function filterSidebarByPermissions(
           // Asegurarse de que key existe
           const itemKey = item.key || "";
 
-          // Comprobar si el usuario tiene permisos para ver esta sección
+          // Para secciones con estructura anidada como "admin.roles"
           if (item.parentKey) {
-            // Para elementos anidados, usar la notación con punto
-            return canViewSection(`${item.parentKey}.${itemKey}`);
+            // Verificar si tiene permiso para el elemento parent
+            const parentHasAccess = canViewSection(item.parentKey);
+            // Verificar si tiene permiso para el elemento anidado
+            const itemHasAccess = canViewSection(
+              `${item.parentKey}.${itemKey}`
+            );
+
+            // Mostrar el elemento si tiene acceso al padre o al elemento específico
+            return parentHasAccess || itemHasAccess;
           }
+
           return canViewSection(itemKey);
         } catch (error) {
           console.error("Error al filtrar elemento del sidebar:", error);
