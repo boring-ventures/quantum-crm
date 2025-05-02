@@ -34,6 +34,43 @@ model Profile {
   @@map("profiles")
 }
 
+// Modelo para secciones del dashboard
+model DashboardSection {
+  id           String   @id @default(uuid())
+  key          String   @unique // Identificador único como "leads", "sales", etc.
+  name         String // Nombre para mostrar
+  description  String?
+  icon         String? // Nombre del icono (Lucide)
+  url          String // URL de la ruta
+  parentKey    String? // Para subsecciones como "admin.roles"
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([key])
+  @@index([parentKey])
+  @@index([isActive])
+  @@index([displayOrder])
+  @@map("dashboard_sections")
+}
+
+// Modelo para roles de usuario en el sistema
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  permissions Json // JSON con permisos del rol
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relaciones
+  users User[]
+
+  @@index([isActive])
+  @@map("roles")
+}
+
 // Enumeraciones para el sistema de leads
 enum CommunicationType {
   EMAIL
@@ -299,6 +336,10 @@ model User {
   role     String
   isActive Boolean @default(true) @map("is_active")
 
+  // Nueva relación con el modelo Role
+  roleId   String? @map("role_id")
+  userRole Role?   @relation(fields: [roleId], references: [id])
+
   // Relationships
   assignedLeads  Lead[]
   communications Communication[]
@@ -312,6 +353,7 @@ model User {
   @@index([email])
   @@index([role])
   @@index([isActive])
+  @@index([roleId])
   @@map("users")
 }
 
