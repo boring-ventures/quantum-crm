@@ -126,3 +126,11 @@
 - Corregida la construcción de URL en auth.ts usando URL API para crear URLs completas y válidas
 - Refactorizado manejo de parámetros en endpoint de usuarios para evitar errores de acceso sincrónico
 - Mejorada la compatibilidad entre entornos locales y de producción mediante variables de entorno
+
+[2023-11-18] [Fix] - Corregidos errores de obtención de perfil de usuario y adaptado hook useCurrentUser - [AI]
+- Modificado hook useCurrentUser para usar /api/users/[id] en lugar de /api/profile que fallaba
+- Adaptado formato de datos entre API de usuarios y modelo de perfil esperado por la aplicación
+- Corregida URL de cerrar sesión en ProfileDropdown para usar endpoint funcional 
+- Corregido error de tipado en settings-form.tsx para manejar errores correctamente
+- Actualizado componente NavUser para usar useCurrentUser en lugar de useAuth
+- Traducidos textos del menú de usuario en NavUser a español

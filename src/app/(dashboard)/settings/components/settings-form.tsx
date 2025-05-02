@@ -85,7 +85,7 @@ export function SettingsForm() {
       let success = false;
       let retryCount = 0;
       const maxRetries = 3;
-      let lastError = null;
+      let lastError: Error | null = null;
 
       while (!success && retryCount < maxRetries) {
         try {
@@ -94,7 +94,7 @@ export function SettingsForm() {
           );
 
           // Use the main profile endpoint - it will get the user ID from the session
-          const response = await fetch(`/api/profile`, {
+          const response = await fetch(`/api/users/${user.id}`, {
             method: "PUT",
             headers: {
               "Content-Type": "application/json",
@@ -117,7 +117,11 @@ export function SettingsForm() {
           success = true;
         } catch (error) {
           console.error(`Attempt ${retryCount + 1} failed:`, error);
-          lastError = error;
+          if (error instanceof Error) {
+            lastError = error;
+          } else {
+            lastError = new Error(String(error));
+          }
           retryCount++;
 
           if (retryCount < maxRetries) {
@@ -136,7 +140,9 @@ export function SettingsForm() {
       if (!success) {
         throw (
           lastError ||
-          new Error("Failed to update profile after multiple attempts")
+          new Error(
+            "Error al actualizar el perfil después de múltiples intentos"
+          )
         );
       }
 
