@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Sidebar,
   SidebarContent,
@@ -8,10 +10,29 @@ import {
 import { NavGroup } from "./nav-group";
 import { NavUser } from "./nav-user";
 import { TeamSwitcher } from "./team-switcher";
-import { sidebarData } from "./data/sidebar-data";
+import {
+  sidebarDataStatic,
+  filterSidebarByPermissions,
+} from "./data/sidebar-data";
 import type { NavGroupProps } from "./types";
+import { useRolePermissions } from "@/lib/hooks/useRolePermissions";
+import { useMemo } from "react";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { canViewSection, loading } = useRolePermissions();
+
+  // Usar useMemo para filtrar los datos del sidebar solo cuando canViewSection o loading cambien
+  const sidebarData = useMemo(() => {
+    return loading
+      ? sidebarDataStatic
+      : filterSidebarByPermissions(canViewSection);
+  }, [canViewSection, loading]);
+
+  // Si la carga está en progreso, se podría mostrar un indicador o versión simplificada
+  if (loading) {
+    // Opcional: mostrar un loader o una versión reducida del sidebar
+  }
+
   return (
     <Sidebar collapsible="icon" variant="floating" {...props}>
       <SidebarHeader>

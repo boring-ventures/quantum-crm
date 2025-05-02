@@ -1,3 +1,9 @@
+[2023-11-17] [Fix] - Corregidos múltiples errores de runtime relacionados con manejo de cookies y URLs relativas - [AI]
+- Actualizado endpoint de user-permissions para usar URL absoluta en fetch
+- Corregido endpoint de roles/permissions para usar roleId en lugar de roleName
+- Mejorado manejo de cookies en auth/callback/route.ts
+- Resueltos problemas de acceso asíncrono a context.params
+
 [2025-05-21] [Feature] - Re-añadidos los selects de Producto y Empresa en el formulario de creación de Leads - [XX] 
 [2025-05-21] [Fix] - Corregido error de Radix UI con valores vacíos en selects de Producto y Empresa - [XX] 
 [2025-05-21] [Fix] - Mejorada validación en API de leads para verificar email único y eliminar campo notas innecesario - [XX]
@@ -61,3 +67,62 @@
 [2024-05-16] [Util] - Creado hook usePermissions para gestión de permisos en el frontend - [Dev]
 [2024-05-16] [Util] - Creadas utilidades para generar estructuras de permisos predefinidas - [Dev]
 [2024-05-16] [API] - Implementados endpoints para sembrado de datos iniciales de secciones y roles - [Dev]
+[2025-04-26] [Feature] - Implementación de sistema de control de acceso basado en roles - [AI]
+- Creado middleware para proteger rutas basado en roles
+- Desarrollado hook useRolePermissions para obtener y verificar permisos
+- Modificado sidebar para mostrar sólo elementos autorizados por rol
+- Creado componente ProtectedRoute para envolver rutas protegidas
+- Implementado API endpoint para obtener permisos por nombre de rol
+- Actualizado auth.ts para incluir funciones de verificación de roles
+[2025-04-27] [Fix] - Corregido error "Maximum update depth exceeded" en sistema de permisos - [AI]
+- Implementada memorización (useCallback, useMemo) en hooks y componentes relacionados con permisos
+- Optimizado AppSidebar para evitar bucles de actualización con useMemo
+- Protección contra condiciones de carrera en useRolePermissions con flag isMounted
+- Mejorada función filterSidebarByPermissions para manejar casos de error
+[2025-06-19] [Refactor] - Migrado sistema de autenticación de tabla profiles a tabla users - [AI]
+- Actualizado AuthProvider para usar users en lugar de profiles
+- Modificado endpoint de API /profile/[id] para obtener datos de users
+- Implementado endpoint para creación de usuarios con roles obligatorios
+- Eliminado registro público de usuarios (solo admins pueden crear usuarios)
+[2023-08-01] [Fix] - Corregido sistema de autenticación completo para evitar ciclos de redirección y mejorar validación - [AI]
+- Implementada validación de roles y estado activo de usuario en auth-provider
+- Actualizado componente UserAuthForm para mostrar errores específicos
+- Mejorados mensajes de error en español para mejor experiencia de usuario
+[2023-08-02] [Fix] - Eliminadas redirecciones problemáticas en el layout para evitar errores NEXT_REDIRECT - [AI]
+- Reemplazada redirección en el layout por componente estático
+- Mantenida limpieza de sesión en auth.ts al detectar problemas
+- Corregido manejo de cookies asíncronas en componentes del servidor
+[2023-09-15] [Fix] - Corregido error de modificación de cookies en layout, trasladando la limpieza de sesión a una API dedicada - [AI]
+[2023-09-16] [Fix] - Creada API para acceso seguro a datos de usuario desde el cliente, evitando consultas directas a la tabla 'users' - [AI]
+[2023-09-17] [Feature] - Implementado proceso completo de registro con asignación automática del rol de Super Administrator - [AI]
+[2023-09-18] [Fix] - Mejorado endpoint de usuarios para funcionar con y sin autenticación mediante parámetro requireAuth - [AI]
+[2023-09-19] [Refactor] - Unificado proceso de autenticación para usar exclusivamente la API de usuarios, eliminando consultas directas a Supabase - [AI]
+[2023-11-13] [Fix] - Implementado nuevo sistema de autenticación con Supabase para componentes de servidor - [AI]
+- Reemplazada la función createClient por createServerComponentClient para manejo correcto de cookies
+- Mejorada la validación de sesiones usando getUser() en lugar de getSession()
+- Corregido el manejo de redirecciones en el layout del dashboard para prevenir errores NEXT_REDIRECT
+- Optimizada la detección de sesiones inválidas sin causar errores en el servidor
+
+[2023-11-14] [Fix] - Corregido error de construcción causado por importar next/headers en componentes cliente - [AI]
+- Añadida directiva "use server" a auth.ts para marcar el módulo como solo para el servidor
+- Creados endpoints API seguros en /api/auth para verificar roles y acceso a rutas
+- Implementada librería server-auth.ts con funciones seguras para componentes cliente
+- Refactorizados componentes protected-route.tsx y useRolePermissions.ts para usar las nuevas APIs seguras
+- Eliminadas importaciones directas a auth.ts desde componentes cliente
+
+[2023-11-15] [Fix] - Solucionado problema de redirecciones infinitas en pantallas de autenticación - [AI]
+- Corregido getSupabase() para usar cookies de forma asíncrona con createServerComponentClient
+- Mejorado layout de dashboard para mostrar error estático en lugar de redirigir con sesiones inválidas
+- Optimizados endpoints de autenticación API para retornar respuestas vacías en vez de errores
+- Implementado mejor manejo de errores en el hook useRolePermissions
+
+[2023-11-16] [Fix] - Corregido error de relación entre users y roles que impedía la autenticación - [AI]
+- Reemplazada consulta directa a Supabase en auth.ts por uso de API /api/users/[id]
+- Actualizado endpoint de usuarios para manejar correctamente parámetros de forma asíncrona
+- Solucionado problema de sincronización entre el schema de Prisma y la estructura de Supabase
+- Implementado manejo robusto de errores en el flujo de autenticación
+
+[2023-11-16] [Fix] - Solucionado error de URL inválida en la autenticación - [AI]
+- Corregida la construcción de URL en auth.ts usando URL API para crear URLs completas y válidas
+- Refactorizado manejo de parámetros en endpoint de usuarios para evitar errores de acceso sincrónico
+- Mejorada la compatibilidad entre entornos locales y de producción mediante variables de entorno

@@ -1,33 +1,48 @@
-import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { auth } from "./lib/auth";
 
-export async function middleware(req: NextRequest) {
-  const res = NextResponse.next();
-  const supabase = createMiddlewareClient({ req, res });
+// Rutas públicas que no requieren autenticación
+const publicRoutes = ["/sign-in", "/sign-up", "/", "/api/auth"];
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+// Rutas protegidas y sus roles permitidos
+const protectedRoutes = {
+  "/admin": ["Administrador", "Super Administrador"],
+  "/admin/roles": ["Super Administrador"],
+  "/reportes": ["Gerente", "Administrador", "Super Administrador"],
+  "/users": ["Gerente", "Administrador", "Super Administrador"],
+};
 
-  // If there's no session and the user is trying to access a protected route
-  if (!session && req.nextUrl.pathname.startsWith("/dashboard")) {
-    const redirectUrl = req.nextUrl.clone();
-    redirectUrl.pathname = "/sign-in";
-    redirectUrl.searchParams.set("redirectTo", req.nextUrl.pathname);
-    return NextResponse.redirect(redirectUrl);
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Permitir acceso a rutas públicas
+  if (publicRoutes.some((route) => pathname.startsWith(route))) {
+    return NextResponse.next();
   }
 
-  // If there's a session and the user is trying to access auth routes
-  if (session && (req.nextUrl.pathname.startsWith("/sign-in") || req.nextUrl.pathname.startsWith("/sign-up"))) {
-    const redirectUrl = req.nextUrl.clone();
-    redirectUrl.pathname = "/dashboard";
-    return NextResponse.redirect(redirectUrl);
+  // Verificar sesión de usuario
+  const session = await auth();
+  if (!session?.user) {
+    // Redirigir a login si no hay sesión
+    return NextResponse.redirect(new URL("/sign-in", request.url));
   }
 
-  return res;
+  // Verificar permisos para rutas protegidas específicas
+  for (const [route, allowedRoles] of Object.entries(protectedRoutes)) {
+    if (
+      pathname.startsWith(route) &&
+      !allowedRoles.includes(session.user.role || "")
+    ) {
+      // Redirigir a dashboard si no tiene permiso
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+  }
+
+  return NextResponse.next();
 }
 
+// Configurar el middleware para que se ejecute en las rutas especificadas
 export const config = {
-  matcher: ["/dashboard/:path*", "/sign-in", "/sign-up"],
-}; 
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.png$).*)"],
+};

@@ -1,25 +1,17 @@
-// Definiciones de tipos para usuarios
-export interface User {
-  id: string;
-  email: string;
-  name?: string;
-  avatarUrl?: string;
-  createdAt: Date;
-  updatedAt: Date;
-  isActive: boolean;
-  role?: string;
-  roleId?: string;
-  userRole?: Role;
-}
+import type { Role } from "@/types/role";
 
-export interface Role {
+// Definiciones de tipos para usuarios
+export type User = {
   id: string;
   name: string;
-  permissions: Record<string, boolean>;
+  email: string;
+  roleId?: string;
+  role?: string;
   isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
+  userRole?: Role;
+  createdAt?: string;
+  updatedAt?: string;
+};
 
 export type CreateUserPayload = Omit<User, "id" | "createdAt" | "updatedAt">;
 export type UpdateUserPayload = Partial<CreateUserPayload>;

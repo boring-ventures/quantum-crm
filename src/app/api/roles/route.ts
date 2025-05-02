@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
 
 // Esquema de validación para crear un rol
 const createRoleSchema = z.object({
@@ -17,15 +19,33 @@ const createRoleSchema = z.object({
 // GET /api/roles - Obtener todos los roles
 export async function GET() {
   try {
+    const supabase = createRouteHandlerClient({ cookies });
+
+    // Verificar autenticación
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
+
+    if (sessionError || !session) {
+      return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+    }
+
+    // Obtener todos los roles activos
     const roles = await prisma.role.findMany({
-      orderBy: { name: "asc" },
+      where: {
+        isActive: true,
+      },
+      orderBy: {
+        name: "asc",
+      },
     });
 
-    return NextResponse.json({ success: true, data: roles }, { status: 200 });
+    return NextResponse.json({ roles });
   } catch (error) {
-    console.error("Error fetching roles:", error);
+    console.error("Error al obtener roles:", error);
     return NextResponse.json(
-      { success: false, error: "Error al obtener los roles" },
+      { error: "Error al obtener roles" },
       { status: 500 }
     );
   }

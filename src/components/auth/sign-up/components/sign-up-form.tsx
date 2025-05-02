@@ -13,6 +13,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/utils/password-input";
@@ -23,6 +24,26 @@ import { toast } from "@/components/ui/use-toast";
 import Image from "next/image";
 import { uploadAvatar } from "@/lib/supabase/upload-avatar";
 import { useRouter } from "next/navigation";
+import { z } from "zod";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { Loader2 } from "lucide-react";
+
+// Schema para validación de formulario
+const formSchema = z
+  .object({
+    name: z.string().min(2, "El nombre es requerido"),
+    email: z.string().email("Ingresa un email válido"),
+    password: z
+      .string()
+      .min(8, "La contraseña debe tener al menos 8 caracteres"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Las contraseñas no coinciden",
+    path: ["confirmPassword"],
+  });
+
+type FormData = z.infer<typeof formSchema>;
 
 export function SignUpForm({ className, ...props }: SignUpFormProps) {
   const [isLoading, setIsLoading] = useState(false);
@@ -31,13 +52,14 @@ export function SignUpForm({ className, ...props }: SignUpFormProps) {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const router = useRouter();
+  const supabase = createClientComponentClient();
+  const [error, setError] = useState("");
 
-  const form = useForm<SignUpFormData>({
-    resolver: zodResolver(signUpFormSchema),
+  const form = useForm<FormData>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
+      name: "",
       email: "",
-      firstName: "",
-      lastName: "",
       password: "",
       confirmPassword: "",
     },
@@ -56,96 +78,70 @@ export function SignUpForm({ className, ...props }: SignUpFormProps) {
     }
   };
 
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPassword(e.target.value);
-    form.setValue("password", e.target.value);
-  };
+  async function onSubmit(data: FormData) {
+    setIsLoading(true);
+    setError("");
 
-  async function onSubmit(data: SignUpFormData) {
     try {
-      setIsLoading(true);
-
-      const { success, user, session, error } = await signUp(
-        data.email,
-        data.password
-      );
-
-      if (!success || error || !session) {
-        throw error || new Error("Failed to sign up");
-      }
-
-      if (user) {
-        let avatarUrl = null;
-        if (avatarFile) {
-          try {
-            avatarUrl = await uploadAvatar(avatarFile, user.id);
-          } catch (error) {
-            console.error("Avatar upload failed:", error);
-            toast({
-              title: "Warning",
-              description:
-                "Failed to upload avatar, you can add it later from your profile.",
-              variant: "default",
-            });
-          }
-        }
-
-        const response = await fetch("/api/profile", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+      // 1. Registrar usuario en Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+        options: {
+          data: {
+            name: data.name,
           },
-          body: JSON.stringify({
-            userId: user.id,
-            firstName: data.firstName,
-            lastName: data.lastName,
-            birthDate: data.birthDate,
-            avatarUrl,
-          }),
-        });
+        },
+      });
 
-        let result: Record<string, unknown>;
-        let text = ""; // Define text outside the try block
-
-        try {
-          text = await response.text(); // Assign value inside try
-          result = text ? JSON.parse(text) : {};
-
-          if (!response.ok) {
-            throw new Error(
-              typeof result.error === "string"
-                ? result.error
-                : `Server responded with status ${response.status}`
-            );
-          }
-        } catch (parseError) {
-          console.error(
-            "Response parsing error:",
-            parseError,
-            "Response text:",
-            text
-          );
-          throw new Error("Invalid server response");
-        }
-
-        toast({
-          title: "Success",
-          description: "Your account has been created successfully!",
-        });
-
-        router.push("/dashboard");
+      if (authError || !authData.user) {
+        throw new Error(authError?.message || "Error al crear usuario");
       }
-    } catch (error) {
-      console.error("Sign up error:", error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "Something went wrong. Please try again.";
+
+      // 2. Crear usuario en la tabla users con el rol de Super Administrator
+      const response = await fetch("/api/users/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: authData.user.id,
+          email: data.email,
+          name: data.name,
+          roleId: "d8cf1df6-1702-44bc-8c5a-755a6fa49fad", // ID del rol Super Administrator
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Error al crear perfil de usuario");
+      }
 
       toast({
-        title: "Error",
-        description: errorMessage,
+        title: "Registro exitoso",
+        description: "Tu cuenta ha sido creada correctamente",
+      });
+
+      // Inicia sesión automática
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
+
+      if (signInError) {
+        throw new Error(signInError.message);
+      }
+
+      router.push("/dashboard");
+      router.refresh();
+    } catch (error: any) {
+      console.error("Error de registro:", error);
+      setError(error.message || "Error al crear la cuenta");
+
+      toast({
         variant: "destructive",
+        title: "Error de registro",
+        description: error.message || "No se pudo crear la cuenta",
       });
     } finally {
       setIsLoading(false);
@@ -154,6 +150,12 @@ export function SignUpForm({ className, ...props }: SignUpFormProps) {
 
   return (
     <div className={cn("grid gap-6", className)} {...props}>
+      {error && (
+        <div className="p-3 bg-red-100 border border-red-300 text-red-700 rounded">
+          {error}
+        </div>
+      )}
+
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="flex flex-col items-center gap-4">
@@ -181,61 +183,55 @@ export function SignUpForm({ className, ...props }: SignUpFormProps) {
 
           <FormField
             control={form.control}
-            name="email"
+            name="name"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Email</FormLabel>
+                <FormLabel>Nombre completo</FormLabel>
                 <FormControl>
-                  <Input placeholder="name@example.com" {...field} />
+                  <Input
+                    placeholder="John Doe"
+                    {...field}
+                    disabled={isLoading}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
 
-          <div className="grid grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="firstName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>First Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="John" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="lastName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Last Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Doe" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="ejemplo@correo.com"
+                    type="email"
+                    {...field}
+                    disabled={isLoading}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
           <FormField
             control={form.control}
             name="password"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Password</FormLabel>
+                <FormLabel>Contraseña</FormLabel>
                 <FormControl>
                   <PasswordInput
-                    placeholder="********"
+                    placeholder="••••••••"
                     {...field}
-                    onChange={handlePasswordChange}
+                    disabled={isLoading}
                   />
                 </FormControl>
-                <PasswordStrengthIndicator password={password} />
+                <FormDescription>Mínimo 8 caracteres</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -246,17 +242,22 @@ export function SignUpForm({ className, ...props }: SignUpFormProps) {
             name="confirmPassword"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Confirm Password</FormLabel>
+                <FormLabel>Confirmar contraseña</FormLabel>
                 <FormControl>
-                  <PasswordInput placeholder="********" {...field} />
+                  <PasswordInput
+                    placeholder="••••••••"
+                    {...field}
+                    disabled={isLoading}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
 
-          <Button className="w-full" disabled={isLoading}>
-            Create Account
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Crear cuenta
           </Button>
         </form>
       </Form>

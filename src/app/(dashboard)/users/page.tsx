@@ -1,7 +1,8 @@
 "use client";
 
 import { UserCog, Search, Plus, Filter, Pencil, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { toast } from "@/components/ui/use-toast";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,48 +23,73 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-
-// Demo data - esto se reemplazará con datos reales de la API
-const USERS_DATA = [
-  {
-    id: "1",
-    name: "Carlos Rodríguez",
-    email: "carlos@quantum.com",
-    role: "Administrador",
-    isActive: true,
-  },
-  {
-    id: "2",
-    name: "María López",
-    email: "maria@quantum.com",
-    role: "Gerente",
-    isActive: true,
-  },
-  {
-    id: "3",
-    name: "Juan Pérez",
-    email: "juan@quantum.com",
-    role: "Vendedor",
-    isActive: true,
-  },
-  {
-    id: "4",
-    name: "Ana Martínez",
-    email: "ana@quantum.com",
-    role: "Soporte",
-    isActive: false,
-  },
-];
+import { CreateUserForm } from "./components/create-user-form";
+import type { User } from "@/types/user";
 
 export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [users, setUsers] = useState<User[]>([]);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  // Cargar usuarios
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch("/api/users");
+
+        if (!response.ok) {
+          throw new Error("Error al obtener usuarios");
+        }
+
+        const data = await response.json();
+        setUsers(data.users || []);
+      } catch (error) {
+        console.error("Error al obtener usuarios:", error);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los usuarios",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, []);
+
+  // Refrescar lista de usuarios
+  const refreshUsers = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch("/api/users");
+
+      if (!response.ok) {
+        throw new Error("Error al obtener usuarios");
+      }
+
+      const data = await response.json();
+      setUsers(data.users || []);
+    } catch (error) {
+      console.error("Error al obtener usuarios:", error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los usuarios",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Filtrar usuarios por búsqueda
-  const filteredUsers = USERS_DATA.filter(
+  const filteredUsers = users.filter(
     (user) =>
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.role.toLowerCase().includes(searchTerm.toLowerCase())
+      user.role?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -92,7 +118,7 @@ export default function UsersPage() {
             <Filter className="mr-2 h-4 w-4" />
             Filtrar
           </Button>
-          <Button size="sm">
+          <Button size="sm" onClick={() => setIsCreateModalOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Nuevo Usuario
           </Button>
@@ -112,7 +138,13 @@ export default function UsersPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredUsers.length === 0 ? (
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={5} className="h-32 text-center">
+                  Cargando usuarios...
+                </TableCell>
+              </TableRow>
+            ) : filteredUsers.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="h-32 text-center">
                   No se encontraron usuarios
@@ -123,7 +155,7 @@ export default function UsersPage() {
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">{user.name}</TableCell>
                   <TableCell>{user.email}</TableCell>
-                  <TableCell>{user.role}</TableCell>
+                  <TableCell>{user.userRole?.name || user.role}</TableCell>
                   <TableCell>
                     <Badge
                       variant={user.isActive ? "default" : "destructive"}
@@ -165,6 +197,13 @@ export default function UsersPage() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Modal de creación de usuario */}
+      <CreateUserForm
+        open={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onCreated={refreshUsers}
+      />
     </div>
   );
 }
