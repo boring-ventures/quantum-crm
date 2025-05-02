@@ -6,6 +6,7 @@ import {
   BarChart3,
   User,
   CalendarCheck,
+  UserCog,
 } from "lucide-react";
 import type { SidebarData } from "../types";
 
@@ -55,6 +56,16 @@ export const sidebarData: SidebarData = {
           title: "Usuarios",
           url: "/users",
           icon: Users,
+        },
+      ],
+    },
+    {
+      title: "Administración",
+      items: [
+        {
+          title: "Roles y Permisos",
+          url: "/admin/roles",
+          icon: UserCog,
         },
       ],
     },
