@@ -17,6 +17,8 @@ interface BaseNavItem {
   icon?: LucideIcon;
   badge?: string;
   subtitle?: string;
+  key?: string;
+  parentKey?: string;
 }
 
 export interface NavLink extends BaseNavItem {
@@ -30,6 +32,7 @@ export interface NavCollapsible extends BaseNavItem {
 }
 
 export type NavItem = NavLink | NavCollapsible;
+export type SidebarNavItem = NavLink;
 
 export interface NavGroup {
   title: string;

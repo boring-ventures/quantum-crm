@@ -43,15 +43,30 @@ export function useCurrentUser(): CurrentUserData {
 
       setUser(session.user);
 
-      // Fetch the user's profile from our API
-      const response = await fetch("/api/profile");
+      // Fetch the user's profile from our API usando el ID del usuario
+      const response = await fetch(
+        `/api/users/${session.user.id}?requireAuth=false`
+      );
 
       if (!response.ok) {
-        throw new Error("Failed to fetch profile");
+        const errorData = await response.text();
+        throw new Error(`Error al obtener perfil: ${errorData}`);
       }
 
-      const profileData = await response.json();
-      setProfile(profileData);
+      const { profile: profileData } = await response.json();
+      // Convertimos los datos del perfil al formato que espera la aplicación
+      const adaptedProfile = {
+        userId: profileData.id,
+        firstName: profileData.name?.split(" ")[0] || "",
+        lastName: profileData.name?.split(" ")[1] || "",
+        role: profileData.role || "USER",
+        active: profileData.isActive ?? true,
+        avatarUrl: profileData.avatarUrl || "",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as Profile;
+
+      setProfile(adaptedProfile);
     } catch (err) {
       console.error("Error fetching user data:", err);
       setError(err instanceof Error ? err : new Error(String(err)));
@@ -72,10 +87,23 @@ export function useCurrentUser(): CurrentUserData {
 
             // Fetch the user's profile when auth state changes
             try {
-              const response = await fetch("/api/profile");
+              const response = await fetch(
+                `/api/users/${session.user.id}?requireAuth=false`
+              );
               if (response.ok) {
-                const profileData = await response.json();
-                setProfile(profileData);
+                const { profile: profileData } = await response.json();
+                // Adaptamos los datos al formato esperado
+                const adaptedProfile = {
+                  userId: profileData.id,
+                  firstName: profileData.name?.split(" ")[0] || "",
+                  lastName: profileData.name?.split(" ")[1] || "",
+                  role: profileData.role || "USER",
+                  active: profileData.isActive ?? true,
+                  avatarUrl: profileData.avatarUrl || "",
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                } as Profile;
+                setProfile(adaptedProfile);
               }
             } catch (err) {
               console.error("Error fetching profile:", err);

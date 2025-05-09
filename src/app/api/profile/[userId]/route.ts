@@ -18,35 +18,47 @@ export async function GET(
     } = await supabase.auth.getSession();
 
     if (sessionError || !session) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+      return NextResponse.json({ error: "No autenticado" }, { status: 401 });
     }
 
     // Only allow users to view their own profile (or admin users to view any profile)
     const currentUser = session.user;
-    const userProfile = await prisma.profile.findUnique({
-      where: { userId: currentUser.id },
+
+    // Consultar usuario actual desde la tabla users
+    const currentAppUser = await prisma.user.findUnique({
+      where: { id: currentUser.id },
+      include: { userRole: true },
     });
 
-    if (userId !== currentUser.id && userProfile?.role !== "SUPERADMIN") {
+    if (
+      userId !== currentUser.id &&
+      currentAppUser?.userRole?.name !== "SUPERADMIN"
+    ) {
       return NextResponse.json(
-        { error: "Unauthorized to view this profile" },
+        { error: "No autorizado para ver este perfil" },
         { status: 403 }
       );
     }
 
-    const profile = await prisma.profile.findUnique({
-      where: { userId },
+    // Consultar el usuario solicitado desde la tabla users
+    const userWithRole = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { userRole: true },
     });
 
-    if (!profile) {
-      return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+    if (!userWithRole) {
+      return NextResponse.json(
+        { error: "Usuario no encontrado" },
+        { status: 404 }
+      );
     }
 
-    return NextResponse.json({ profile });
+    // Devolver el usuario con el mismo formato que antes se usaba para profile
+    return NextResponse.json({ profile: userWithRole });
   } catch (error) {
-    console.error("Error fetching profile:", error);
+    console.error("Error al obtener usuario:", error);
     return NextResponse.json(
-      { error: "Failed to fetch profile" },
+      { error: "Error al obtener datos de usuario" },
       { status: 500 }
     );
   }
@@ -67,39 +79,42 @@ export async function PATCH(
     } = await supabase.auth.getSession();
 
     if (sessionError || !session) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+      return NextResponse.json({ error: "No autenticado" }, { status: 401 });
     }
 
     // Only allow users to update their own profile (or admin users to update any profile)
     const currentUser = session.user;
-    const userProfile = await prisma.profile.findUnique({
-      where: { userId: currentUser.id },
+    const currentAppUser = await prisma.user.findUnique({
+      where: { id: currentUser.id },
+      include: { userRole: true },
     });
 
-    if (userId !== currentUser.id && userProfile?.role !== "SUPERADMIN") {
+    if (
+      userId !== currentUser.id &&
+      currentAppUser?.userRole?.name !== "SUPERADMIN"
+    ) {
       return NextResponse.json(
-        { error: "Unauthorized to update this profile" },
+        { error: "No autorizado para actualizar este perfil" },
         { status: 403 }
       );
     }
 
     const json = await request.json();
 
-    const updatedProfile = await prisma.profile.update({
-      where: { userId },
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
       data: {
-        firstName: json.firstName || undefined,
-        lastName: json.lastName || undefined,
-        avatarUrl: json.avatarUrl || undefined,
-        active: json.active !== undefined ? json.active : undefined,
+        name: json.name || undefined,
+        isActive: json.isActive !== undefined ? json.isActive : undefined,
+        roleId: json.roleId || undefined,
       },
     });
 
-    return NextResponse.json({ profile: updatedProfile });
+    return NextResponse.json({ profile: updatedUser });
   } catch (error) {
-    console.error("Error updating profile:", error);
+    console.error("Error al actualizar usuario:", error);
     return NextResponse.json(
-      { error: "Failed to update profile" },
+      { error: "Error al actualizar datos de usuario" },
       { status: 500 }
     );
   }

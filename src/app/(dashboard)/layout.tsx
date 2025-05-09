@@ -1,21 +1,50 @@
-import { cookies } from "next/headers";
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
-import { redirect } from "next/navigation";
 import { DashboardLayoutClient } from "@/components/dashboard/dashboard-layout-client";
+import { auth } from "@/lib/auth";
+import Link from "next/link";
+
+// Componente estático para errores de autenticación - sin redirecciones
+function AuthError() {
+  return (
+    <div className="flex items-center justify-center h-screen bg-gray-900">
+      <div className="p-6 max-w-sm mx-auto bg-white rounded-xl shadow-md">
+        <div className="text-xl font-medium text-black mb-2">
+          Error de autenticación
+        </div>
+        <p className="text-gray-500 mb-4">
+          Ha ocurrido un error con tu sesión. Por favor, intenta iniciar sesión
+          nuevamente.
+        </p>
+        <Link
+          href="/sign-in"
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          Iniciar sesión
+        </Link>
+      </div>
+    </div>
+  );
+}
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = createServerComponentClient({ cookies });
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  try {
+    // Obtener sesión
+    const session = await auth();
 
-  if (!session) {
-    redirect("/sign-in");
+    // Si no hay sesión o el usuario no tiene un rol asignado, mostrar pantalla de error
+    // en lugar de redirigir para evitar bucles
+    if (!session?.user?.roleId) {
+      console.log("No hay sesión válida, mostrando error de autenticación");
+      return <AuthError />;
+    }
+
+    // Si llegamos aquí, la sesión es válida
+    return <DashboardLayoutClient>{children}</DashboardLayoutClient>;
+  } catch (error) {
+    console.error("Error al obtener sesión:", error);
+    return <AuthError />;
   }
-
-  return <DashboardLayoutClient>{children}</DashboardLayoutClient>;
 }
