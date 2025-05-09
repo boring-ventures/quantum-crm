@@ -212,3 +212,11 @@
 [2025-05-05] [Fix] - Ajustado diseño de diálogos de credenciales para mantener consistencia con el tema oscuro de la aplicación - [QL]
 [2025-05-05] [Feature] - Implementado formulario de edición de usuarios con gestión de estado activo y cambio de rol - [QL]
 
+[2025-05-08] [Feature] - Implementada sección de Administración de Leads con configuraciones dinámicas - [BR]
+- Creada estructura de UI para Estados de Lead, Categorías de Fuente, Fuentes de Lead y Motivos de Cierre
+- Añadida estructura de carpetas bajo src/app/(dashboard)/admin/leads/ con todas las subsecciones
+- Implementadas tablas responsivas con vista previa de datos, búsqueda y filtros
+- Añadida funcionalidad visual para reordenación de estados de lead
+- Configurada estructura para la integración posterior con la base de datos
+- Preparada la sección leads-settings para incorporación al sidebar
+
