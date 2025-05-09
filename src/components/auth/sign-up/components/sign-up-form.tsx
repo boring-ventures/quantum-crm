@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { UploadCloud } from "lucide-react";
@@ -17,16 +17,20 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/utils/password-input";
-import { PasswordStrengthIndicator } from "@/components/utils/password-strength-indicator";
-import type { SignUpFormProps, SignUpFormData } from "@/types/auth/sign-up";
-import { signUpFormSchema } from "@/types/auth/sign-up";
+import type { SignUpFormProps } from "@/types/auth/sign-up";
 import { toast } from "@/components/ui/use-toast";
 import Image from "next/image";
-import { uploadAvatar } from "@/lib/supabase/upload-avatar";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Loader2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Schema para validación de formulario
 const formSchema = z
@@ -37,6 +41,7 @@ const formSchema = z
       .string()
       .min(8, "La contraseña debe tener al menos 8 caracteres"),
     confirmPassword: z.string(),
+    roleId: z.string({ required_error: "Selecciona un rol" }),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Las contraseñas no coinciden",
@@ -47,10 +52,9 @@ type FormData = z.infer<typeof formSchema>;
 
 export function SignUpForm({ className, ...props }: SignUpFormProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const { signUp } = useAuth();
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const [password, setPassword] = useState("");
+  const [roles, setRoles] = useState<{ id: string; name: string }[]>([]);
   const router = useRouter();
   const supabase = createClientComponentClient();
   const [error, setError] = useState("");
@@ -62,8 +66,28 @@ export function SignUpForm({ className, ...props }: SignUpFormProps) {
       email: "",
       password: "",
       confirmPassword: "",
+      roleId: "",
     },
   });
+
+  // Cargar roles disponibles cuando se monta el componente
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const response = await fetch("/api/roles");
+        if (response.ok) {
+          const data = await response.json();
+          setRoles(data.roles || []);
+        } else {
+          console.error("Error al cargar roles:", await response.text());
+        }
+      } catch (error) {
+        console.error("Error al obtener roles:", error);
+      }
+    };
+
+    fetchRoles();
+  }, []);
 
   const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -98,7 +122,7 @@ export function SignUpForm({ className, ...props }: SignUpFormProps) {
         throw new Error(authError?.message || "Error al crear usuario");
       }
 
-      // 2. Crear usuario en la tabla users con el rol de Super Administrator
+      // 2. Crear usuario en la tabla users con el rol seleccionado
       const response = await fetch("/api/users/create", {
         method: "POST",
         headers: {
@@ -108,7 +132,7 @@ export function SignUpForm({ className, ...props }: SignUpFormProps) {
           id: authData.user.id,
           email: data.email,
           name: data.name,
-          roleId: "d8cf1df6-1702-44bc-8c5a-755a6fa49fad", // ID del rol Super Administrator
+          roleId: data.roleId,
         }),
       });
 
@@ -213,6 +237,35 @@ export function SignUpForm({ className, ...props }: SignUpFormProps) {
                     disabled={isLoading}
                   />
                 </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="roleId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Rol</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                  disabled={isLoading}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona un rol" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {roles.map((role) => (
+                      <SelectItem key={role.id} value={role.id}>
+                        {role.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}

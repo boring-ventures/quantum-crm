@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -12,11 +6,6 @@ datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
-}
-
-enum UserRole {
-  USER
-  SUPERADMIN
 }
 
 model Profile {
@@ -34,15 +23,14 @@ model Profile {
   @@map("profiles")
 }
 
-// Modelo para secciones del dashboard
 model DashboardSection {
   id           String   @id @default(uuid())
-  key          String   @unique // Identificador único como "leads", "sales", etc.
-  name         String // Nombre para mostrar
+  key          String   @unique
+  name         String
   description  String?
-  icon         String? // Nombre del icono (Lucide)
-  url          String // URL de la ruta
-  parentKey    String? // Para subsecciones como "admin.roles"
+  icon         String?
+  url          String
+  parentKey    String?
   displayOrder Int      @default(0)
   isActive     Boolean  @default(true) @map("is_active")
   createdAt    DateTime @default(now()) @map("created_at")
@@ -55,23 +43,485 @@ model DashboardSection {
   @@map("dashboard_sections")
 }
 
-// Modelo para roles de usuario en el sistema
 model Role {
   id          String   @id @default(uuid())
   name        String   @unique
-  permissions Json // JSON con permisos del rol
+  permissions Json
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
-
-  // Relaciones
-  users User[]
+  users       User[]
 
   @@index([isActive])
   @@map("roles")
 }
 
-// Enumeraciones para el sistema de leads
+model Company {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  name      String   @unique
+  website   String?
+  isActive  Boolean  @default(true) @map("is_active")
+  logo      String?
+  brands    Brand[]
+  leads     Lead[]
+
+  @@index([name])
+  @@index([isActive])
+  @@map("companies")
+}
+
+model BusinessType {
+  id        String    @id @default(uuid())
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  name      String    @unique
+  isActive  Boolean   @default(true) @map("is_active")
+  products  Product[]
+
+  @@index([name])
+  @@index([isActive])
+  @@map("business_types")
+}
+
+model Brand {
+  id        String    @id @default(uuid())
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  name      String
+  isActive  Boolean   @default(true) @map("is_active")
+  companyId String    @map("company_id")
+  company   Company   @relation(fields: [companyId], references: [id])
+  models    Model[]
+  products  Product[]
+
+  @@unique([name, companyId])
+  @@index([name])
+  @@index([companyId])
+  @@index([isActive])
+  @@map("brands")
+}
+
+model Model {
+  id        String    @id @default(uuid())
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  name      String
+  isActive  Boolean   @default(true) @map("is_active")
+  brandId   String    @map("brand_id")
+  brand     Brand     @relation(fields: [brandId], references: [id])
+  products  Product[]
+
+  @@unique([name, brandId])
+  @@index([name])
+  @@index([brandId])
+  @@index([isActive])
+  @@map("models")
+}
+
+model Lead {
+  id               String            @id @default(uuid())
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  firstName        String            @map("first_name")
+  lastName         String            @map("last_name")
+  email            String?           @unique
+  phone            String?
+  qualityScore     Int?              @map("quality_score")
+  statusId         String            @map("status_id")
+  sourceId         String            @map("source_id")
+  assignedToId     String            @map("assigned_to_id")
+  lastContactedAt  DateTime?         @map("last_contacted_at")
+  nextFollowUpDate DateTime?         @map("next_follow_up_date")
+  convertedAt      DateTime?         @map("converted_at")
+  isArchived       Boolean           @default(false) @map("is_archived")
+  cellphone        String?
+  companyId        String?           @map("company_id")
+  productId        String?           @map("product_id")
+  extraComments    String?           @map("extra_comments")
+  qualification    LeadQualification @default(NOT_QUALIFIED) @map("qualification")
+  isFavorite       Boolean           @default(false) @map("is_favorite")
+  favoriteAt       DateTime?         @map("favorite_at")
+  communications   Communication[]
+  documents        Document[]
+  tags             LeadTag[]
+  assignedTo       User              @relation(fields: [assignedToId], references: [id])
+  company          Company?          @relation(fields: [companyId], references: [id])
+  product          Product?          @relation(fields: [productId], references: [id])
+  source           LeadSource        @relation(fields: [sourceId], references: [id])
+  status           LeadStatus        @relation(fields: [statusId], references: [id])
+  notes            Note[]
+  quotations       Quotation[]
+  reservations     Reservation[]
+  sales            Sale[]
+  tasks            Task[]
+
+  @@index([statusId])
+  @@index([sourceId])
+  @@index([assignedToId])
+  @@index([companyId])
+  @@index([productId])
+  @@index([createdAt])
+  @@index([qualityScore])
+  @@index([isArchived])
+  @@index([isFavorite])
+  @@index([favoriteAt])
+  @@index([nextFollowUpDate])
+  @@map("leads")
+}
+
+model LeadStatus {
+  id             String   @id @default(uuid())
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  name           String   @unique
+  description    String?
+  color          String
+  displayOrder   Int      @map("display_order")
+  conversionRate Float?   @map("conversion_rate")
+  leads          Lead[]
+
+  @@index([displayOrder])
+  @@map("lead_statuses")
+}
+
+model SourceCategory {
+  id          String       @id @default(uuid())
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  name        String       @unique
+  description String?
+  color       String?
+  isActive    Boolean      @default(true) @map("is_active")
+  sources     LeadSource[]
+
+  @@index([isActive])
+  @@map("source_categories")
+}
+
+model LeadSource {
+  id          String          @id @default(uuid())
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  name        String          @unique
+  description String?
+  categoryId  String?         @map("category_id")
+  costPerLead Decimal?        @map("cost_per_lead") @db.Decimal(10, 2)
+  isActive    Boolean         @default(true) @map("is_active")
+  category    SourceCategory? @relation(fields: [categoryId], references: [id])
+  leads       Lead[]
+
+  @@index([categoryId])
+  @@index([isActive])
+  @@map("lead_sources")
+}
+
+model User {
+  id             String          @id @default(uuid())
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  email          String          @unique
+  name           String
+  role           String
+  isActive       Boolean         @default(true) @map("is_active")
+  isDeleted      Boolean         @default(false) @map("is_deleted")
+  deletedAt      DateTime?       @map("deleted_at")
+  deletedBy      String?         @map("deleted_by")
+  conversionRate Float?          @map("conversion_rate")
+  responseTime   Int?            @map("response_time")
+  roleId         String?         @map("role_id")
+  communications Communication[]
+  assignedLeads  Lead[]
+  notes          Note[]
+  tasks          Task[]
+  userRole       Role?           @relation(fields: [roleId], references: [id])
+
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
+  @@index([isDeleted])
+  @@index([roleId])
+  @@map("users")
+}
+
+model Tag {
+  id          String    @id @default(uuid())
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  name        String    @unique
+  description String?
+  color       String
+  leadTags    LeadTag[]
+
+  @@map("tags")
+}
+
+model LeadTag {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  leadId    String   @map("lead_id")
+  tagId     String   @map("tag_id")
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([leadId, tagId])
+  @@index([leadId])
+  @@index([tagId])
+  @@map("lead_tags")
+}
+
+model Communication {
+  id             String                 @id @default(uuid())
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+  type           CommunicationType
+  direction      CommunicationDirection
+  subject        String?
+  content        String
+  sentAt         DateTime               @map("sent_at")
+  deliveryStatus String?                @map("delivery_status")
+  openedAt       DateTime?              @map("opened_at")
+  clickedAt      DateTime?              @map("clicked_at")
+  leadId         String                 @map("lead_id")
+  userId         String                 @map("user_id")
+  templateId     String?                @map("template_id")
+  lead           Lead                   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user           User                   @relation(fields: [userId], references: [id])
+
+  @@index([leadId])
+  @@index([userId])
+  @@index([type])
+  @@index([sentAt])
+  @@map("communications")
+}
+
+model Note {
+  id          String   @id @default(uuid())
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  content     String
+  isPinned    Boolean  @default(false) @map("is_pinned")
+  leadId      String   @map("lead_id")
+  createdById String   @map("created_by_id")
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@index([createdById])
+  @@index([isPinned])
+  @@map("notes")
+}
+
+model Task {
+  id           String     @id @default(uuid())
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  title        String
+  status       TaskStatus @default(PENDING)
+  leadId       String     @map("lead_id")
+  assignedToId String     @map("assigned_to_id")
+  completedAt  DateTime?  @map("completed_at")
+  description  String?    @map("description")
+  scheduledFor DateTime?  @map("scheduled_for")
+  assignedTo   User       @relation(fields: [assignedToId], references: [id])
+  lead         Lead       @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@index([assignedToId])
+  @@index([status])
+  @@map("tasks")
+}
+
+model Document {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  name      String
+  type      String
+  size      Int
+  url       String
+  leadId    String   @map("lead_id")
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@index([type])
+  @@map("documents")
+}
+
+model EmailTemplate {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  name      String
+  subject   String
+  content   String
+  category  String?
+  isActive  Boolean  @default(true) @map("is_active")
+
+  @@index([category])
+  @@index([isActive])
+  @@map("email_templates")
+}
+
+model ActivityLog {
+  id            String   @id @default(uuid())
+  createdAt     DateTime @default(now()) @map("created_at")
+  entityType    String   @map("entity_type")
+  entityId      String   @map("entity_id")
+  action        String
+  description   String
+  changes       Json?
+  performedById String   @map("performed_by_id")
+
+  @@index([entityType, entityId])
+  @@index([performedById])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+model DashboardSettings {
+  id               String   @id @default(uuid())
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  userId           String   @unique @map("user_id")
+  leadTableColumns Json     @map("lead_table_columns")
+  defaultFilters   Json?    @map("default_filters")
+  defaultSort      Json?    @map("default_sort")
+
+  @@map("dashboard_settings")
+}
+
+model Product {
+  id                 String             @id @default(uuid())
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+  name               String             @unique
+  price              Decimal?           @db.Decimal(10, 2)
+  isActive           Boolean            @default(true) @map("is_active")
+  brandId            String?            @map("brand_id")
+  businessTypeId     String?            @map("business_type_id")
+  code               String             @unique
+  descriptionProduct String?
+  modelId            String?            @map("model_id")
+  nameProduct        String
+  leads              Lead[]
+  images             ProductImage[]
+  brand              Brand?             @relation(fields: [brandId], references: [id])
+  businessType       BusinessType?      @relation(fields: [businessTypeId], references: [id])
+  model              Model?             @relation(fields: [modelId], references: [id])
+  QuotationProduct   QuotationProduct[]
+
+  @@index([code])
+  @@index([name])
+  @@index([businessTypeId])
+  @@index([brandId])
+  @@index([modelId])
+  @@index([isActive])
+  @@map("products")
+}
+
+model ProductImage {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  url       String
+  isMain    Boolean  @default(false) @map("is_main")
+  productId String   @map("product_id")
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([isMain])
+  @@map("product_images")
+}
+
+model Quotation {
+  id                String             @id @default(uuid())
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+  leadId            String             @map("lead_id")
+  totalAmount       Decimal            @map("total_amount") @db.Decimal(10, 2)
+  proformaUrl       String?            @map("proforma_url")
+  additionalNotes   String?            @map("additional_notes")
+  status            SalesProcessStatus @default(DRAFT)
+  quotationProducts QuotationProduct[]
+  lead              Lead               @relation(fields: [leadId], references: [id])
+  reservations      Reservation[]
+
+  @@index([leadId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("quotations")
+}
+
+model Reservation {
+  id                     String             @id @default(uuid())
+  createdAt              DateTime           @default(now()) @map("created_at")
+  updatedAt              DateTime           @updatedAt @map("updated_at")
+  leadId                 String             @map("lead_id")
+  quotationId            String?            @map("quotation_id")
+  amount                 Decimal            @db.Decimal(10, 2)
+  paymentMethod          PaymentMethod      @map("payment_method")
+  deliveryDate           DateTime           @map("delivery_date")
+  reservationFormUrl     String?            @map("reservation_form_url")
+  depositReceiptUrl      String?            @map("deposit_receipt_url")
+  reservationContractUrl String?            @map("reservation_contract_url")
+  vehicleDetails         String?            @map("vehicle_details")
+  additionalNotes        String?            @map("additional_notes")
+  status                 SalesProcessStatus @default(DRAFT)
+  lead                   Lead               @relation(fields: [leadId], references: [id])
+  quotation              Quotation?         @relation(fields: [quotationId], references: [id])
+  sales                  Sale[]
+
+  @@index([leadId])
+  @@index([quotationId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("reservations")
+}
+
+model Sale {
+  id              String             @id @default(uuid())
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+  leadId          String             @map("lead_id")
+  reservationId   String?            @map("reservation_id")
+  amount          Decimal            @db.Decimal(10, 2)
+  paymentMethod   PaymentMethod      @map("payment_method")
+  saleContractUrl String?            @map("sale_contract_url")
+  additionalNotes String?            @map("additional_notes")
+  status          SalesProcessStatus @default(DRAFT)
+  lead            Lead               @relation(fields: [leadId], references: [id])
+  reservation     Reservation?       @relation(fields: [reservationId], references: [id])
+
+  @@index([leadId])
+  @@index([reservationId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("sales")
+}
+
+model QuotationProduct {
+  id          String    @id @default(uuid())
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  quotationId String    @map("quotation_id")
+  productId   String    @map("product_id")
+  quantity    Int
+  price       Decimal   @db.Decimal(10, 2)
+  product     Product   @relation(fields: [productId], references: [id])
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+
+  @@index([quotationId])
+  @@index([productId])
+  @@map("quotation_products")
+}
+
+enum UserRole {
+  USER
+  SUPERADMIN
+}
+
 enum CommunicationType {
   EMAIL
   PHONE
@@ -93,627 +543,22 @@ enum TaskStatus {
   CANCELLED
 }
 
-// Enum para los estados de los procesos de venta
 enum SalesProcessStatus {
   DRAFT
   COMPLETED
   CANCELLED
 }
 
-// Enum para la calificación de leads
 enum LeadQualification {
   NOT_QUALIFIED
   GOOD_LEAD
   BAD_LEAD
 }
 
-// Enum para los métodos de pago
 enum PaymentMethod {
-  CASH // Efectivo
-  CARD // Tarjeta de crédito/débito
-  TRANSFER // Transferencia bancaria
-  CHECK // Cheque
-  FINANCING // Financiamiento
-}
-
-// Company model - for managing companies
-model Company {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  name     String  @unique
-  website  String?
-  logo     String?
-  isActive Boolean @default(true) @map("is_active")
-
-  // Relationships
-  leads  Lead[]
-  brands Brand[]
-
-  @@index([name])
-  @@index([isActive])
-  @@map("companies")
-}
-
-// Business Type model
-model BusinessType {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  name     String  @unique
-  isActive Boolean @default(true) @map("is_active")
-
-  // Relationships
-  products Product[]
-
-  @@index([name])
-  @@index([isActive])
-  @@map("business_types")
-}
-
-// Brand model
-model Brand {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  name     String
-  isActive Boolean @default(true) @map("is_active")
-
-  // Relationships
-  companyId String    @map("company_id")
-  company   Company   @relation(fields: [companyId], references: [id])
-  models    Model[]
-  products  Product[]
-
-  @@unique([name, companyId])
-  @@index([name])
-  @@index([companyId])
-  @@index([isActive])
-  @@map("brands")
-}
-
-// Model model
-model Model {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  name     String
-  isActive Boolean @default(true) @map("is_active")
-
-  // Relationships
-  brandId  String    @map("brand_id")
-  brand    Brand     @relation(fields: [brandId], references: [id])
-  products Product[]
-
-  @@unique([name, brandId])
-  @@index([name])
-  @@index([brandId])
-  @@index([isActive])
-  @@map("models")
-}
-
-// Main Lead model - core entity for lead management
-model Lead {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // Basic lead information
-  firstName String   @map("first_name")
-  lastName  String   @map("last_name")
-  email     String?  @unique
-  phone     String? // Teléfono fijo
-  cellphone String? // Teléfono móvil
-  companyId String?  @map("company_id")
-  company   Company? @relation(fields: [companyId], references: [id])
-
-  // Lead qualification and scoring
-  qualityScore  Int?              @map("quality_score")
-  qualification LeadQualification @default(NOT_QUALIFIED) @map("qualification")
-  productId     String?           @map("product_id")
-  product       Product?          @relation(fields: [productId], references: [id])
-  extraComments String?           @map("extra_comments") // Comentarios adicionales del lead
-
-  // Relationships
-  statusId String     @map("status_id")
-  status   LeadStatus @relation(fields: [statusId], references: [id])
-
-  sourceId String     @map("source_id")
-  source   LeadSource @relation(fields: [sourceId], references: [id])
-
-  assignedToId String @map("assigned_to_id")
-  assignedTo   User   @relation(fields: [assignedToId], references: [id])
-
-  // Related records
-  communications Communication[]
-  notes          Note[]
-  tasks          Task[]
-  documents      Document[]
-
-  // Many-to-many relationships
-  tags LeadTag[]
-
-  // Metadata
-  lastContactedAt  DateTime? @map("last_contacted_at")
-  nextFollowUpDate DateTime? @map("next_follow_up_date")
-  convertedAt      DateTime? @map("converted_at")
-  isArchived       Boolean   @default(false) @map("is_archived")
-  isFavorite       Boolean   @default(false) @map("is_favorite")
-  favoriteAt       DateTime? @map("favorite_at")
-
-  // Nuevas relaciones para el proceso de venta
-  quotations   Quotation[]
-  reservations Reservation[]
-  sales        Sale[]
-
-  @@index([statusId])
-  @@index([sourceId])
-  @@index([assignedToId])
-  @@index([companyId])
-  @@index([productId])
-  @@index([createdAt])
-  @@index([qualityScore])
-  @@index([isArchived])
-  @@index([isFavorite])
-  @@index([favoriteAt])
-  @@index([nextFollowUpDate])
-  @@map("leads")
-}
-
-// Lead Status model - represents stages in the sales pipeline
-model LeadStatus {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  name         String  @unique
-  description  String?
-  color        String // Color code for visual representation
-  displayOrder Int     @map("display_order")
-
-  // Conversion metrics
-  conversionRate Float? @map("conversion_rate")
-
-  // Relationships
-  leads Lead[]
-
-  @@index([displayOrder])
-  @@map("lead_statuses")
-}
-
-// Lead Source Category model - for categorizing lead sources
-model SourceCategory {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  name        String  @unique
-  description String?
-  color       String?
-  isActive    Boolean @default(true) @map("is_active")
-
-  // Relationships
-  sources LeadSource[]
-
-  @@index([isActive])
-  @@map("source_categories")
-}
-
-// Lead Source model - tracks where leads come from
-model LeadSource {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  name        String          @unique
-  description String?
-  // Replacing category String? with relation to SourceCategory
-  categoryId  String?         @map("category_id")
-  category    SourceCategory? @relation(fields: [categoryId], references: [id])
-  costPerLead Decimal?        @map("cost_per_lead") @db.Decimal(10, 2)
-  isActive    Boolean         @default(true) @map("is_active")
-
-  // Relationships
-  leads Lead[]
-
-  @@index([categoryId])
-  @@index([isActive])
-  @@map("lead_sources")
-}
-
-// User model - for team members who interact with leads
-model User {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  email    String  @unique
-  name     String
-  role     String
-  isActive Boolean @default(true) @map("is_active")
-
-  // Nueva relación con el modelo Role
-  roleId   String? @map("role_id")
-  userRole Role?   @relation(fields: [roleId], references: [id])
-
-  // Relationships
-  assignedLeads  Lead[]
-  communications Communication[]
-  notes          Note[]
-  tasks          Task[]
-
-  // Performance metrics
-  conversionRate Float? @map("conversion_rate")
-  responseTime   Int?   @map("response_time")
-
-  @@index([email])
-  @@index([role])
-  @@index([isActive])
-  @@index([roleId])
-  @@map("users")
-}
-
-// Tag model - for categorizing leads
-model Tag {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  name        String  @unique
-  description String?
-  color       String
-
-  // Relationships
-  leadTags LeadTag[]
-
-  @@map("tags")
-}
-
-// Junction table for many-to-many relationship between Lead and Tag
-model LeadTag {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
-
-  leadId String @map("lead_id")
-  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
-
-  tagId String @map("tag_id")
-  tag   Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
-
-  @@unique([leadId, tagId])
-  @@index([leadId])
-  @@index([tagId])
-  @@map("lead_tags")
-}
-
-// Communication model - tracks all interactions with leads
-model Communication {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  type      CommunicationType
-  direction CommunicationDirection
-  subject   String?
-  content   String
-  sentAt    DateTime               @map("sent_at")
-
-  // Metadata
-  deliveryStatus String?   @map("delivery_status")
-  openedAt       DateTime? @map("opened_at")
-  clickedAt      DateTime? @map("clicked_at")
-
-  // Relationships
-  leadId String @map("lead_id")
-  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
-
-  userId String @map("user_id")
-  user   User   @relation(fields: [userId], references: [id])
-
-  // For email templates
-  templateId String? @map("template_id")
-
-  @@index([leadId])
-  @@index([userId])
-  @@index([type])
-  @@index([sentAt])
-  @@map("communications")
-}
-
-// Note model - for adding context and information about leads
-model Note {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  content  String
-  isPinned Boolean @default(false) @map("is_pinned")
-
-  // Relationships
-  leadId String @map("lead_id")
-  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
-
-  createdById String @map("created_by_id")
-  createdBy   User   @relation(fields: [createdById], references: [id])
-
-  @@index([leadId])
-  @@index([createdById])
-  @@index([isPinned])
-  @@map("notes")
-}
-
-// Task model - for follow-ups and activities related to leads
-model Task {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  title        String
-  status       TaskStatus @default(PENDING)
-  description  String?    @map("description")
-  scheduledFor DateTime?  @map("scheduled_for")
-
-  // Relationships
-  leadId String @map("lead_id")
-  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
-
-  assignedToId String @map("assigned_to_id")
-  assignedTo   User   @relation(fields: [assignedToId], references: [id])
-
-  completedAt DateTime? @map("completed_at")
-
-  @@index([leadId])
-  @@index([assignedToId])
-  @@index([status])
-  @@map("tasks")
-}
-
-// Document model - for files attached to leads
-model Document {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  name String
-  type String
-  size Int
-  url  String
-
-  // Relationships
-  leadId String @map("lead_id")
-  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
-
-  @@index([leadId])
-  @@index([type])
-  @@map("documents")
-}
-
-// Email Template model - for standardized communications
-model EmailTemplate {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  name     String
-  subject  String
-  content  String
-  category String?
-  isActive Boolean @default(true) @map("is_active")
-
-  @@index([category])
-  @@index([isActive])
-  @@map("email_templates")
-}
-
-// Activity Log model - for tracking all changes to leads
-model ActivityLog {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
-
-  entityType  String @map("entity_type")
-  entityId    String @map("entity_id")
-  action      String
-  description String
-  changes     Json?
-
-  performedById String @map("performed_by_id")
-
-  @@index([entityType, entityId])
-  @@index([performedById])
-  @@index([createdAt])
-  @@map("activity_logs")
-}
-
-// Dashboard Settings model - for user preferences
-model DashboardSettings {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  userId           String @unique @map("user_id")
-  leadTableColumns Json   @map("lead_table_columns")
-  defaultFilters   Json?  @map("default_filters")
-  defaultSort      Json?  @map("default_sort")
-
-  @@map("dashboard_settings")
-}
-
-// Product model - for managing products
-model Product {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  code               String   @unique
-  name               String   @unique
-  nameProduct        String
-  descriptionProduct String?
-  price              Decimal? @db.Decimal(10, 2)
-  isActive           Boolean  @default(true) @map("is_active")
-
-  // Relationships
-  businessTypeId String?       @map("business_type_id")
-  businessType   BusinessType? @relation(fields: [businessTypeId], references: [id])
-
-  brandId String? @map("brand_id")
-  brand   Brand?  @relation(fields: [brandId], references: [id])
-
-  modelId String? @map("model_id")
-  model   Model?  @relation(fields: [modelId], references: [id])
-
-  leads            Lead[]
-  images           ProductImage[]
-  QuotationProduct QuotationProduct[]
-
-  @@index([code])
-  @@index([name])
-  @@index([businessTypeId])
-  @@index([brandId])
-  @@index([modelId])
-  @@index([isActive])
-  @@map("products")
-}
-
-// Product Image model
-model ProductImage {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  url    String
-  isMain Boolean @default(false) @map("is_main")
-
-  // Relationships
-  productId String  @map("product_id")
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  @@index([productId])
-  @@index([isMain])
-  @@map("product_images")
-}
-
-// Model para cotizaciones (Quotation)
-model Quotation {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // Relación con el Lead
-  leadId String @map("lead_id")
-  lead   Lead   @relation(fields: [leadId], references: [id])
-
-  // Datos de la cotización
-  totalAmount     Decimal            @map("total_amount") @db.Decimal(10, 2)
-  proformaUrl     String?            @map("proforma_url") // URL del documento de proforma
-  additionalNotes String?            @map("additional_notes")
-  status          SalesProcessStatus @default(DRAFT)
-
-  // Productos cotizados (para implementación futura)
-  quotationProducts QuotationProduct[]
-
-  // Relación con Reservations
-  reservations Reservation[]
-
-  @@index([leadId])
-  @@index([status])
-  @@index([createdAt])
-  @@map("quotations")
-}
-
-// Model para reservas (Reservation)
-model Reservation {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // Relación con el Lead
-  leadId String @map("lead_id")
-  lead   Lead   @relation(fields: [leadId], references: [id])
-
-  // Relación con la Cotización
-  quotationId String?    @map("quotation_id")
-  quotation   Quotation? @relation(fields: [quotationId], references: [id])
-
-  // Datos de la reserva
-  amount        Decimal       @db.Decimal(10, 2)
-  paymentMethod PaymentMethod @map("payment_method")
-  deliveryDate  DateTime      @map("delivery_date")
-
-  // Documentos
-  reservationFormUrl     String? @map("reservation_form_url")
-  depositReceiptUrl      String? @map("deposit_receipt_url")
-  reservationContractUrl String? @map("reservation_contract_url")
-
-  // Otros datos
-  vehicleDetails  String?            @map("vehicle_details")
-  additionalNotes String?            @map("additional_notes")
-  status          SalesProcessStatus @default(DRAFT)
-
-  // Relación con Sales
-  sales Sale[]
-
-  @@index([leadId])
-  @@index([quotationId])
-  @@index([status])
-  @@index([createdAt])
-  @@map("reservations")
-}
-
-// Model para ventas (Sale)
-model Sale {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // Relación con el Lead
-  leadId String @map("lead_id")
-  lead   Lead   @relation(fields: [leadId], references: [id])
-
-  // Relación con la Reserva
-  reservationId String?      @map("reservation_id")
-  reservation   Reservation? @relation(fields: [reservationId], references: [id])
-
-  // Datos de la venta
-  amount        Decimal       @db.Decimal(10, 2)
-  paymentMethod PaymentMethod @map("payment_method")
-
-  // Documentos
-  saleContractUrl String? @map("sale_contract_url")
-
-  // Otros datos
-  additionalNotes String?            @map("additional_notes")
-  status          SalesProcessStatus @default(DRAFT)
-
-  @@index([leadId])
-  @@index([reservationId])
-  @@index([status])
-  @@index([createdAt])
-  @@map("sales")
-}
-
-// Modelo para productos en cotizaciones
-model QuotationProduct {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // Relación con la cotización
-  quotationId String    @map("quotation_id")
-  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
-
-  // Relación con el producto
-  productId String  @map("product_id")
-  product   Product @relation(fields: [productId], references: [id])
-
-  // Detalles del producto en la cotización
-  quantity Int
-  price    Decimal @db.Decimal(10, 2)
-
-  @@index([quotationId])
-  @@index([productId])
-  @@map("quotation_products")
+  CASH
+  CARD
+  TRANSFER
+  CHECK
+  FINANCING
 }

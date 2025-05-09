@@ -191,3 +191,24 @@
 - Mejorada detección de permisos tanto en formato plano como en formato anidado
 - Agregado sistema de logs detallado que muestra todas las secciones disponibles y sus permisos
 - Implementado diagnóstico avanzado para identificar problemas en la estructura de permisos
+[2024-09-18] [Feature] - Modificado sistema de registro de usuarios para usar supabase.auth.signUp en lugar de admin.createUser - [QCM]
+[2024-09-18] [Feature] - Añadida selección dinámica de roles en el formulario de registro - [QCM]
+
+[2023-11-17] [API] - Implementado CRUD completo para el módulo de usuarios - roles, permisos y validación -[QS]
+
+[2023-11-17] [Fix] - Mejorada la verificación de permisos en API usuarios utilizando roleId y JSON permissions -[QS]
+
+[2023-11-17] [Fix] - Se actualizó la verificación de permisos en módulo de usuarios para usar roleId y permisos JSON en lugar de nombres de rol -[QS]
+
+[2024-09-18] [Feature] - Actualizada página de usuarios para usar TanStack Table y añadida visualización de contraseñas - [QCM]
+[2024-09-18] [Fix] - Modificado API de usuarios para usar supabaseAdmin en operaciones de administración - [QCM]
+
+[2024-09-18] [Feature] - Implementado sistema de generación automática de contraseñas para nuevos usuarios - [QCM]
+[2024-09-18] [API] - Creado endpoint para recuperar contraseñas almacenadas en memoria del servidor - [QCM]
+
+[2024-09-18] [API] - Restaurado endpoint para recuperar contraseñas desencriptadas desde la base de datos - [QCM]
+
+[2025-05-05] [Fix] - Mejorada seguridad en manejo de contraseñas: eliminado campo encPassword de User model, implementado sistema de restablecimiento de contraseñas - [QL]
+[2025-05-05] [Fix] - Ajustado diseño de diálogos de credenciales para mantener consistencia con el tema oscuro de la aplicación - [QL]
+[2025-05-05] [Feature] - Implementado formulario de edición de usuarios con gestión de estado activo y cambio de rol - [QL]
+
