@@ -19,6 +19,7 @@ interface User {
   role?: string;
   roleId?: string;
   isActive?: boolean;
+  isDeleted?: boolean;
 }
 
 interface Session {
@@ -90,9 +91,21 @@ async function _authImplementation(): Promise<Session | null> {
 
       const { profile } = await response.json();
 
+      // Verificar si el usuario está eliminado
+      if (profile && profile.isDeleted) {
+        console.log("Usuario ha sido eliminado");
+        await supabase.auth.signOut();
+
+        // Limpiar cookie de autenticación (se maneja automáticamente por Supabase)
+        return null;
+      }
+
+      // Verificar si el usuario está activo
       if (!profile || !profile.isActive) {
         console.log("Usuario no encontrado o inactivo");
         await supabase.auth.signOut();
+
+        // Limpiar cookie de autenticación (se maneja automáticamente por Supabase)
         return null;
       }
 
@@ -109,6 +122,7 @@ async function _authImplementation(): Promise<Session | null> {
           roleId: profile.roleId,
           role: profile.role,
           isActive: profile.isActive,
+          isDeleted: profile.isDeleted,
         },
         expires: expiryDate,
       };

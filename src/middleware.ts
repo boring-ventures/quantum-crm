@@ -166,8 +166,41 @@ export async function middleware(request: NextRequest) {
 
     const { profile } = await apiResponse.json();
 
-    if (!profile || !profile.permissions) {
-      console.error(`[MIDDLEWARE] No user profile or permissions found`);
+    if (!profile) {
+      console.error(`[MIDDLEWARE] No user profile found`);
+      return NextResponse.redirect(new URL("/access-denied", request.url));
+    }
+
+    // Verificar si el usuario está eliminado
+    if (profile.isDeleted) {
+      console.log(`[MIDDLEWARE] User is deleted, signing out and redirecting`);
+
+      // Cerrar sesión del usuario
+      await supabase.auth.signOut();
+
+      // Redirigir a sign-in con mensaje
+      const signInUrl = new URL("/sign-in", request.url);
+      signInUrl.searchParams.set("reason", "deleted");
+
+      return NextResponse.redirect(signInUrl);
+    }
+
+    // Verificar si el usuario está activo
+    if (!profile.isActive) {
+      console.log(`[MIDDLEWARE] User is inactive, signing out and redirecting`);
+
+      // Cerrar sesión del usuario
+      await supabase.auth.signOut();
+
+      // Redirigir a sign-in con mensaje
+      const signInUrl = new URL("/sign-in", request.url);
+      signInUrl.searchParams.set("reason", "inactive");
+
+      return NextResponse.redirect(signInUrl);
+    }
+
+    if (!profile.permissions) {
+      console.error(`[MIDDLEWARE] No permissions found`);
       return NextResponse.redirect(new URL("/access-denied", request.url));
     }
 

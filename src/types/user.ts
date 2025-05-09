@@ -11,6 +11,8 @@ export type User = {
   userRole?: Role;
   createdAt?: string;
   updatedAt?: string;
+  deletedAt?: string;
+  isDeleted?: boolean;
 };
 
 export type CreateUserPayload = Omit<User, "id" | "createdAt" | "updatedAt">;
