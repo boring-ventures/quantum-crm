@@ -16,7 +16,7 @@ const createRoleSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
-// GET /api/roles - Obtener todos los roles
+// GET - Obtener todos los roles disponibles
 export async function GET() {
   try {
     const supabase = createRouteHandlerClient({ cookies });
@@ -31,8 +31,12 @@ export async function GET() {
       return NextResponse.json({ error: "No autenticado" }, { status: 401 });
     }
 
-    // Obtener todos los roles activos
+    // Obtener todos los roles
     const roles = await prisma.role.findMany({
+      select: {
+        id: true,
+        name: true,
+      },
       where: {
         isActive: true,
       },
