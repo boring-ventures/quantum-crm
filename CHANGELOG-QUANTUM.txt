@@ -229,3 +229,7 @@
 [2023-10-20] [Feature] - Creación de componentes y rutas de API para administrar categorías de fuente - [QD]
 [2023-10-20] [Feature] - Implementación de interfaz de usuario para categorías de fuente con funcionalidad de búsqueda - [QD]
 
+[2023-10-21] [Schema] - Implementación del CRUD completo para fuentes de lead (LeadSource) - [QD]
+[2023-10-21] [Feature] - Creación de componentes y rutas de API para administrar fuentes de lead - [QD]
+[2023-10-21] [Feature] - Implementación de interfaz de usuario para fuentes de lead con funcionalidad de búsqueda y selección de categorías - [QD]
+

@@ -31,11 +31,11 @@ const LEAD_CONFIG_OPTIONS = [
       "Gestiona las fuentes específicas como Facebook, Instagram, Google Ads",
     href: "/admin/leads/sources",
   },
-  {
-    title: "Motivos de Cierre",
-    description: "Gestiona los motivos de cierre para tus leads",
-    href: "/admin/leads/closure-reasons",
-  },
+  // {
+  //   title: "Motivos de Cierre",
+  //   description: "Gestiona los motivos de cierre para tus leads",
+  //   href: "/admin/leads/closure-reasons",
+  // },
 ];
 
 export default function LeadsConfigPage() {
