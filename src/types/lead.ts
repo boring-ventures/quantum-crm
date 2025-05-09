@@ -32,6 +32,17 @@ export interface LeadStatus {
   isActive: boolean;
 }
 
+export interface SourceCategory {
+  id: string;
+  name: string;
+  description?: string;
+  color?: string;
+  isActive: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+  sources?: LeadSource[];
+}
+
 export interface LeadSource {
   id: string;
   name: string;

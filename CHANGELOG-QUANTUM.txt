@@ -225,3 +225,7 @@
 [2023-02-17] [Fix] - Implementada asignación automática de displayOrder en nuevos estados - [QS]
 [2023-02-17] [UX] - Mejorada UX de estados de lead: eliminado campo de orden del formulario, solo se permite modificación mediante flechas en tabla - [QS]
 
+[2023-10-20] [Schema] - Implementación del CRUD completo para categorías de fuente (SourceCategory) - [QD]
+[2023-10-20] [Feature] - Creación de componentes y rutas de API para administrar categorías de fuente - [QD]
+[2023-10-20] [Feature] - Implementación de interfaz de usuario para categorías de fuente con funcionalidad de búsqueda - [QD]
+
