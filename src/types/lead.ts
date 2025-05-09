@@ -25,8 +25,11 @@ export interface Lead {
 export interface LeadStatus {
   id: string;
   name: string;
+  description?: string;
   color: string;
   displayOrder: number;
+  conversionRate?: number;
+  isActive: boolean;
 }
 
 export interface LeadSource {

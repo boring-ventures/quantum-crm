@@ -220,3 +220,8 @@
 - Configurada estructura para la integración posterior con la base de datos
 - Preparada la sección leads-settings para incorporación al sidebar
 
+[2023-02-16] [Schema] - Añadido campo isActive a modelo LeadStatus - [QS]
+[2023-02-17] [Fix] - Corregido autocompletado de valores en formulario de edición de estados - [QS]
+[2023-02-17] [Fix] - Implementada asignación automática de displayOrder en nuevos estados - [QS]
+[2023-02-17] [UX] - Mejorada UX de estados de lead: eliminado campo de orden del formulario, solo se permite modificación mediante flechas en tabla - [QS]
+

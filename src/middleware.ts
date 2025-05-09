@@ -23,6 +23,7 @@ const protectedRoutes = {
   "/users": "users",
   "/admin": "admin",
   "/admin/roles": "admin.roles",
+  "/admin/leads": "admin.leads-settings",
 };
 
 // Función para comprobar si una ruta es pública
@@ -52,16 +53,40 @@ function getRequiredPermission(pathname: string): string | null {
   }
 
   // Si no hay coincidencia exacta, buscamos el prefijo más largo que coincida
-  let matchedRoute = "";
+  let matchedPrefix = "";
   let matchedPermission = null;
 
   for (const route in protectedRoutes) {
-    if (pathname.startsWith(route) && route.length > matchedRoute.length) {
-      matchedRoute = route;
+    if (pathname.startsWith(route) && route.length > matchedPrefix.length) {
+      matchedPrefix = route;
       matchedPermission = protectedRoutes[route];
       console.log(
         `[MIDDLEWARE] Found matching prefix: ${route} -> ${matchedPermission}`
       );
+    }
+  }
+
+  // Para rutas como /admin/leads, si no tenemos una coincidencia específica,
+  // extraemos el subpath y construimos un permiso compuesto
+  if (matchedPrefix && !protectedRoutes[pathname]) {
+    const rootKey = matchedPermission;
+    const pathParts = pathname.split("/").filter(Boolean);
+
+    if (pathParts.length > 1) {
+      const subPath = pathParts[1];
+      console.log(
+        `[MIDDLEWARE] Extracted subpath: ${subPath} from ${pathname}`
+      );
+
+      // Si es una ruta como /admin/leads, intentamos un permiso compuesto admin.leads
+      if (subPath && subPath !== "roles") {
+        // Para /admin/roles ya tenemos una coincidencia explícita
+        const composedPermission = `${rootKey}.${subPath}`;
+        console.log(
+          `[MIDDLEWARE] Created composed permission: ${composedPermission}`
+        );
+        return composedPermission;
+      }
     }
   }
 
@@ -72,7 +97,44 @@ function getRequiredPermission(pathname: string): string | null {
 function checkPermission(permissions: any, permissionKey: string): boolean {
   // Si es un permiso simple (no anidado)
   if (!permissionKey.includes(".")) {
-    return permissions.sections?.[permissionKey]?.view === true;
+    // Extraer componentes de la ruta para verificación anidada
+    const parts = permissionKey.split(".");
+    const rootKey = parts[0];
+    const subPath = parts.length > 1 ? parts[1] : null;
+
+    // Verificar si hay un permiso específico para la subruta
+    let hasAccess = false;
+
+    if (subPath) {
+      hasAccess = permissions.sections?.[rootKey]?.[subPath]?.view === true;
+      console.log(
+        `[MIDDLEWARE] Checking specific permission ${rootKey}.${subPath}.view: ${hasAccess}`
+      );
+    }
+
+    // Si no hay permiso específico, verificar si hay permiso general para la ruta raíz
+    if (!hasAccess && permissions.sections?.[rootKey]?.view === true) {
+      hasAccess = true;
+      console.log(
+        `[MIDDLEWARE] Falling back to parent permission ${rootKey}.view: true`
+      );
+    }
+
+    // Verificar si hay permiso en la estructura anidada
+    if (!hasAccess && permissions.sections?.[rootKey]) {
+      // Verificar si hay un permiso 'leads-settings' para casos como admin.leads-settings
+      if (
+        permissionKey === "admin" &&
+        permissions.sections?.admin?.["leads-settings"]?.view === true
+      ) {
+        hasAccess = true;
+        console.log(
+          `[MIDDLEWARE] Found nested permission admin.leads-settings.view: true`
+        );
+      }
+    }
+
+    return hasAccess;
   }
 
   // Para permisos anidados como 'admin.roles'

@@ -180,9 +180,11 @@ model LeadStatus {
   color          String
   displayOrder   Int      @map("display_order")
   conversionRate Float?   @map("conversion_rate")
+  isActive       Boolean  @default(true) @map("is_active")
   leads          Lead[]
 
   @@index([displayOrder])
+  @@index([isActive])
   @@map("lead_statuses")
 }
 
