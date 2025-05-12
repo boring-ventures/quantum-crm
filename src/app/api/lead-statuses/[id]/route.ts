@@ -9,6 +9,7 @@ const updateLeadStatusSchema = z.object({
   description: z.string().optional().nullable(),
   color: z.string().min(1, "El color es requerido").optional(),
   displayOrder: z.number().int().nonnegative().optional(),
+  isActive: z.boolean().optional(),
 });
 
 // Función para verificar si un estado existe
@@ -133,7 +134,7 @@ export async function PUT(req: Request, { params }: any) {
   }
 }
 
-export async function DELETE(_req: Request, { params }: any) {
+export async function DELETE(req: Request, { params }: any) {
   try {
     // Verificar autenticación
     const session = await auth();
@@ -151,31 +152,17 @@ export async function DELETE(_req: Request, { params }: any) {
       );
     }
 
-    // Verificar si hay leads usando este estado
-    const leadsCount = await prisma.lead.count({
-      where: { statusId: id },
-    });
-
-    if (leadsCount > 0) {
-      return NextResponse.json(
-        {
-          error: "No se puede eliminar el estado porque hay leads asociados",
-          leadsCount,
-        },
-        { status: 400 }
-      );
-    }
-
-    // Eliminar el estado si no tiene leads asociados
-    await prisma.leadStatus.delete({
+    // Realizar soft delete (actualizar isActive a false)
+    const updatedStatus = await prisma.leadStatus.update({
       where: { id },
+      data: { isActive: false },
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json(updatedStatus);
   } catch (error) {
-    console.error("Error deleting lead status:", error);
+    console.error("Error deactivating lead status:", error);
     return NextResponse.json(
-      { error: "Error al eliminar el estado" },
+      { error: "Error al desactivar el estado" },
       { status: 500 }
     );
   }

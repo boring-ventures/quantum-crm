@@ -1,3 +1,9 @@
+[2023-11-17] [Fix] - Corregidos múltiples errores de runtime relacionados con manejo de cookies y URLs relativas - [AI]
+- Actualizado endpoint de user-permissions para usar URL absoluta en fetch
+- Corregido endpoint de roles/permissions para usar roleId en lugar de roleName
+- Mejorado manejo de cookies en auth/callback/route.ts
+- Resueltos problemas de acceso asíncrono a context.params
+
 [2025-05-21] [Feature] - Re-añadidos los selects de Producto y Empresa en el formulario de creación de Leads - [XX] 
 [2025-05-21] [Fix] - Corregido error de Radix UI con valores vacíos en selects de Producto y Empresa - [XX] 
 [2025-05-21] [Fix] - Mejorada validación en API de leads para verificar email único y eliminar campo notas innecesario - [XX]
@@ -49,3 +55,191 @@
 [2024-04-29] [Schema] - Activada la relación quotationProducts entre Quotation y Product para guardar productos en cotizaciones - [CP]
 [2024-04-29] [Feature] - Actualizado componente quotation-dialog.tsx para guardar los productos seleccionados en la cotización - [CP]
 [2024-04-29] [API] - Modificada la API de creación de cotizaciones para guardar los productos relacionados - [CP]
+[2024-05-15] [Schema] - Añadido modelo Role para gestión de roles y permisos - [Dev]
+[2024-05-15] [Schema] - Actualizado modelo User con relación a Role - [Dev]
+[2024-05-15] [Feature] - Creada interfaz para gestión de usuarios - [Dev]
+[2024-05-15] [Feature] - Creada interfaz para gestión de roles y permisos - [Dev]
+[2024-05-15] [Feature] - Actualizada navegación del sidebar con sección de roles - [Dev]
+[2024-05-16] [Schema] - Añadido modelo DashboardSection para gestión dinámica de secciones - [Dev]
+[2024-05-16] [API] - Implementados endpoints para CRUD de secciones del dashboard - [Dev]
+[2024-05-16] [API] - Implementados endpoints para CRUD de roles - [Dev]
+[2024-05-16] [Feature] - Implementada estructura de permisos por secciones anidadas - [Dev]
+[2024-05-16] [Util] - Creado hook usePermissions para gestión de permisos en el frontend - [Dev]
+[2024-05-16] [Util] - Creadas utilidades para generar estructuras de permisos predefinidas - [Dev]
+[2024-05-16] [API] - Implementados endpoints para sembrado de datos iniciales de secciones y roles - [Dev]
+[2025-04-26] [Feature] - Implementación de sistema de control de acceso basado en roles - [AI]
+- Creado middleware para proteger rutas basado en roles
+- Desarrollado hook useRolePermissions para obtener y verificar permisos
+- Modificado sidebar para mostrar sólo elementos autorizados por rol
+- Creado componente ProtectedRoute para envolver rutas protegidas
+- Implementado API endpoint para obtener permisos por nombre de rol
+- Actualizado auth.ts para incluir funciones de verificación de roles
+[2025-04-27] [Fix] - Corregido error "Maximum update depth exceeded" en sistema de permisos - [AI]
+- Implementada memorización (useCallback, useMemo) en hooks y componentes relacionados con permisos
+- Optimizado AppSidebar para evitar bucles de actualización con useMemo
+- Protección contra condiciones de carrera en useRolePermissions con flag isMounted
+- Mejorada función filterSidebarByPermissions para manejar casos de error
+[2025-06-19] [Refactor] - Migrado sistema de autenticación de tabla profiles a tabla users - [AI]
+- Actualizado AuthProvider para usar users en lugar de profiles
+- Modificado endpoint de API /profile/[id] para obtener datos de users
+- Implementado endpoint para creación de usuarios con roles obligatorios
+- Eliminado registro público de usuarios (solo admins pueden crear usuarios)
+[2023-08-01] [Fix] - Corregido sistema de autenticación completo para evitar ciclos de redirección y mejorar validación - [AI]
+- Implementada validación de roles y estado activo de usuario en auth-provider
+- Actualizado componente UserAuthForm para mostrar errores específicos
+- Mejorados mensajes de error en español para mejor experiencia de usuario
+[2023-08-02] [Fix] - Eliminadas redirecciones problemáticas en el layout para evitar errores NEXT_REDIRECT - [AI]
+- Reemplazada redirección en el layout por componente estático
+- Mantenida limpieza de sesión en auth.ts al detectar problemas
+- Corregido manejo de cookies asíncronas en componentes del servidor
+[2023-09-15] [Fix] - Corregido error de modificación de cookies en layout, trasladando la limpieza de sesión a una API dedicada - [AI]
+[2023-09-16] [Fix] - Creada API para acceso seguro a datos de usuario desde el cliente, evitando consultas directas a la tabla 'users' - [AI]
+[2023-09-17] [Feature] - Implementado proceso completo de registro con asignación automática del rol de Super Administrator - [AI]
+[2023-09-18] [Fix] - Mejorado endpoint de usuarios para funcionar con y sin autenticación mediante parámetro requireAuth - [AI]
+[2023-09-19] [Refactor] - Unificado proceso de autenticación para usar exclusivamente la API de usuarios, eliminando consultas directas a Supabase - [AI]
+[2023-11-13] [Fix] - Implementado nuevo sistema de autenticación con Supabase para componentes de servidor - [AI]
+- Reemplazada la función createClient por createServerComponentClient para manejo correcto de cookies
+- Mejorada la validación de sesiones usando getUser() en lugar de getSession()
+- Corregido el manejo de redirecciones en el layout del dashboard para prevenir errores NEXT_REDIRECT
+- Optimizada la detección de sesiones inválidas sin causar errores en el servidor
+
+[2023-11-14] [Fix] - Corregido error de construcción causado por importar next/headers en componentes cliente - [AI]
+- Añadida directiva "use server" a auth.ts para marcar el módulo como solo para el servidor
+- Creados endpoints API seguros en /api/auth para verificar roles y acceso a rutas
+- Implementada librería server-auth.ts con funciones seguras para componentes cliente
+- Refactorizados componentes protected-route.tsx y useRolePermissions.ts para usar las nuevas APIs seguras
+- Eliminadas importaciones directas a auth.ts desde componentes cliente
+
+[2023-11-15] [Fix] - Solucionado problema de redirecciones infinitas en pantallas de autenticación - [AI]
+- Corregido getSupabase() para usar cookies de forma asíncrona con createServerComponentClient
+- Mejorado layout de dashboard para mostrar error estático en lugar de redirigir con sesiones inválidas
+- Optimizados endpoints de autenticación API para retornar respuestas vacías en vez de errores
+- Implementado mejor manejo de errores en el hook useRolePermissions
+
+[2023-11-16] [Fix] - Corregido error de relación entre users y roles que impedía la autenticación - [AI]
+- Reemplazada consulta directa a Supabase en auth.ts por uso de API /api/users/[id]
+- Actualizado endpoint de usuarios para manejar correctamente parámetros de forma asíncrona
+- Solucionado problema de sincronización entre el schema de Prisma y la estructura de Supabase
+- Implementado manejo robusto de errores en el flujo de autenticación
+
+[2023-11-16] [Fix] - Solucionado error de URL inválida en la autenticación - [AI]
+- Corregida la construcción de URL en auth.ts usando URL API para crear URLs completas y válidas
+- Refactorizado manejo de parámetros en endpoint de usuarios para evitar errores de acceso sincrónico
+- Mejorada la compatibilidad entre entornos locales y de producción mediante variables de entorno
+
+[2023-11-18] [Fix] - Corregidos errores de obtención de perfil de usuario y adaptado hook useCurrentUser - [AI]
+- Modificado hook useCurrentUser para usar /api/users/[id] en lugar de /api/profile que fallaba
+- Adaptado formato de datos entre API de usuarios y modelo de perfil esperado por la aplicación
+- Corregida URL de cerrar sesión en ProfileDropdown para usar endpoint funcional 
+- Corregido error de tipado en settings-form.tsx para manejar errores correctamente
+- Actualizado componente NavUser para usar useCurrentUser en lugar de useAuth
+- Traducidos textos del menú de usuario en NavUser a español
+
+[2023-11-19] [Fix] - Corregido sistema de permisos anidados para mostrar correctamente secciones como "Administración" - [AI]
+- Mejorada función filterSidebarByPermissions para detectar correctamente permisos de secciones anidadas
+- Actualizado hook useRolePermissions para manejar notación con punto (admin.roles) en verificación de permisos
+- Optimizada lógica de filtrado para verificar tanto permisos del padre como del elemento hijo anidado
+
+[2023-11-16] [Refactor] - Mejorado sistema de control de acceso basado en roles. Redireccionamiento a /access-denied en lugar de /dashboard cuando el usuario no tiene permisos. - [AI]
+
+[2023-11-17] [Feature] - Actualizado middleware para implementar verificación de permisos basada en datos del usuario - [AI]
+- Reemplazado sistema de roles estático por verificación dinámica usando el campo permissions
+- Implementada normalización de rutas para extraer secciones principales (/admin/roles -> admin)
+- Añadida verificación contra la tabla dashboard_sections para validar secciones
+- Mejorado soporte para secciones anidadas con verificación de permisos padre-hijo
+- Optimizado manejo de errores con redirección a /access-denied
+
+[2023-11-18] [Fix] - Mejorada experiencia de usuario en la barra lateral durante carga de permisos - [AI]
+- Añadido estado de carga con esqueletos (skeletons) para mantener estructura consistente
+- Eliminada desaparición repentina de secciones al cargar permisos
+- Implementada transición suave entre estado de carga y sidebar con permisos aplicados
+
+[2023-11-18] [Fix] - Corregido y mejorado sistema de protección de rutas en el middleware - [AI]
+- Implementado mapeo explícito entre rutas y claves de permisos para evitar errores
+- Añadida verificación más estricta de rutas protegidas como /users
+- Mejorada detección de rutas anidadas como /admin/roles
+- Agregado registro de verificaciones para facilitar diagnóstico de problemas de permisos
+
+[2023-11-19] [Fix] - Solucionado problema crítico con las rutas protegidas en el middleware - [AI]
+- Separada explícitamente la verificación de rutas API de las rutas de navegación
+- Añadidos logs detallados para detectar problemas de intercepción de rutas
+- Mejorado el matcher de rutas para incluir explícitamente /users y otras rutas críticas
+- Refactorizada la lógica de verificación de rutas anidadas para mayor claridad
+- Optimizado tratamiento de permisos para evitar condiciones de carrera
+
+[2023-11-20] [Fix] - Corregido error crítico en middleware que detectaba incorrectamente rutas como públicas - [AI]
+- Modificada la función isPublicRoute para tratar la ruta raíz "/" como caso especial
+- Actualizado el matcher para excluir explícitamente las rutas /api/
+- Implementado manejo específico para evitar que todas las rutas se consideren públicas
+- Mejorado el sistema de logging para facilitar la depuración de problemas de middleware
+
+[2023-11-21] [Fix] - Solucionado error "permission denied for schema public" en middleware - [AI]
+- Reemplazado acceso directo a la base de datos con llamada a API existente
+- Implementada construcción de URL segura con protocolo y host dinámicos
+- Mejorado el manejo de permisos para soportar formato de string JSON o objeto
+- Optimizado sistema de logging para mejor diagnóstico de problemas de permisos
+
+[2023-11-21] [Fix] - Corregido acceso a rutas anidadas de administración como /admin/roles - [AI]
+- Mejorado algoritmo de verificación de permisos para reconocer correctamente permisos anidados
+- Implementada verificación en dos niveles: permiso directo y permiso padre
+- Añadido soporte explícito para notación con punto (admin.roles)
+- Extendido sistema de logging para facilitar depuración de problemas de permisos específicos
+
+[2023-11-22] [Fix] - Solucionado problema con estructura anidada de permisos para secciones de administración - [AI]
+- Implementada función auxiliar checkPermission para manejar estructuras de permisos complejas
+- Añadido soporte para permisos con formato de anidamiento múltiple (sections.admin.roles.view)
+- Mejorada detección de permisos tanto en formato plano como en formato anidado
+- Agregado sistema de logs detallado que muestra todas las secciones disponibles y sus permisos
+- Implementado diagnóstico avanzado para identificar problemas en la estructura de permisos
+[2024-09-18] [Feature] - Modificado sistema de registro de usuarios para usar supabase.auth.signUp en lugar de admin.createUser - [QCM]
+[2024-09-18] [Feature] - Añadida selección dinámica de roles en el formulario de registro - [QCM]
+
+[2023-11-17] [API] - Implementado CRUD completo para el módulo de usuarios - roles, permisos y validación -[QS]
+
+[2023-11-17] [Fix] - Mejorada la verificación de permisos en API usuarios utilizando roleId y JSON permissions -[QS]
+
+[2023-11-17] [Fix] - Se actualizó la verificación de permisos en módulo de usuarios para usar roleId y permisos JSON en lugar de nombres de rol -[QS]
+
+[2024-09-18] [Feature] - Actualizada página de usuarios para usar TanStack Table y añadida visualización de contraseñas - [QCM]
+[2024-09-18] [Fix] - Modificado API de usuarios para usar supabaseAdmin en operaciones de administración - [QCM]
+
+[2024-09-18] [Feature] - Implementado sistema de generación automática de contraseñas para nuevos usuarios - [QCM]
+[2024-09-18] [API] - Creado endpoint para recuperar contraseñas almacenadas en memoria del servidor - [QCM]
+
+[2024-09-18] [API] - Restaurado endpoint para recuperar contraseñas desencriptadas desde la base de datos - [QCM]
+
+[2025-05-05] [Fix] - Mejorada seguridad en manejo de contraseñas: eliminado campo encPassword de User model, implementado sistema de restablecimiento de contraseñas - [QL]
+[2025-05-05] [Fix] - Ajustado diseño de diálogos de credenciales para mantener consistencia con el tema oscuro de la aplicación - [QL]
+[2025-05-05] [Feature] - Implementado formulario de edición de usuarios con gestión de estado activo y cambio de rol - [QL]
+
+[2025-05-08] [Feature] - Implementada sección de Administración de Leads con configuraciones dinámicas - [BR]
+- Creada estructura de UI para Estados de Lead, Categorías de Fuente, Fuentes de Lead y Motivos de Cierre
+- Añadida estructura de carpetas bajo src/app/(dashboard)/admin/leads/ con todas las subsecciones
+- Implementadas tablas responsivas con vista previa de datos, búsqueda y filtros
+- Añadida funcionalidad visual para reordenación de estados de lead
+- Configurada estructura para la integración posterior con la base de datos
+- Preparada la sección leads-settings para incorporación al sidebar
+
+[2023-02-16] [Schema] - Añadido campo isActive a modelo LeadStatus - [QS]
+[2023-02-17] [Fix] - Corregido autocompletado de valores en formulario de edición de estados - [QS]
+[2023-02-17] [Fix] - Implementada asignación automática de displayOrder en nuevos estados - [QS]
+[2023-02-17] [UX] - Mejorada UX de estados de lead: eliminado campo de orden del formulario, solo se permite modificación mediante flechas en tabla - [QS]
+
+[2023-10-20] [Schema] - Implementación del CRUD completo para categorías de fuente (SourceCategory) - [QD]
+[2023-10-20] [Feature] - Creación de componentes y rutas de API para administrar categorías de fuente - [QD]
+[2023-10-20] [Feature] - Implementación de interfaz de usuario para categorías de fuente con funcionalidad de búsqueda - [QD]
+
+[2023-10-21] [Schema] - Implementación del CRUD completo para fuentes de lead (LeadSource) - [QD]
+[2023-10-21] [Feature] - Creación de componentes y rutas de API para administrar fuentes de lead - [QD]
+[2023-10-21] [Feature] - Implementación de interfaz de usuario para fuentes de lead con funcionalidad de búsqueda y selección de categorías - [QD]
+
+[2025-05-09] [Feature] - Añadida sección de gestión de productos con funcionalidad CRUD completa - [AL]
+- Creado componente Products para administrar catálogo de productos
+- Implementada interfaz de usuario con 3 pestañas: Información Básica, Especificaciones, Precios
+- Añadidos componentes modales para la creación de BusinessTypes, Brands y Models in-line
+- Creados endpoints API para operaciones CRUD de productos
+- Actualizados permisos para SuperAdmin y Admin
+- Añadida entrada en sidebar "Productos" bajo sección "Administración"
+
+[2024-07-05] [Fix] - Corregido error de accesibilidad en ProductsEditDialog agregando DialogTitle al estado de carga - [QC]
+

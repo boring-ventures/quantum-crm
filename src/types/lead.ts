@@ -25,14 +25,34 @@ export interface Lead {
 export interface LeadStatus {
   id: string;
   name: string;
+  description?: string;
   color: string;
   displayOrder: number;
+  conversionRate?: number;
+  isActive: boolean;
+}
+
+export interface SourceCategory {
+  id: string;
+  name: string;
+  description?: string;
+  color?: string;
+  isActive: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+  sources?: LeadSource[];
 }
 
 export interface LeadSource {
   id: string;
   name: string;
-  displayOrder: number;
+  description?: string;
+  categoryId?: string;
+  costPerLead?: number | string;
+  isActive: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+  category?: SourceCategory;
 }
 
 export interface Tag {

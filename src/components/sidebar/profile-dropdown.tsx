@@ -85,13 +85,13 @@ export function ProfileDropdown() {
           <DropdownMenuItem asChild>
             <Link href="/profile">
               <User className="mr-2 h-4 w-4" />
-              Profile
+              Perfil
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
             <Link href="/settings">
               <Settings className="mr-2 h-4 w-4" />
-              Settings
+              Configuración
             </Link>
           </DropdownMenuItem>
           {profile.role && profile.role.toString() === "SUPERADMIN" && (
@@ -106,12 +106,12 @@ export function ProfileDropdown() {
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={async () => {
-            await fetch("/api/auth/signout", { method: "POST" });
-            window.location.href = "/login";
+            await fetch("/api/logout", { method: "GET" });
+            window.location.href = "/sign-in";
           }}
         >
           <LogOut className="mr-2 h-4 w-4" />
-          Log out
+          Cerrar sesión
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

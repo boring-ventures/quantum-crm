@@ -6,10 +6,14 @@ import {
   BarChart3,
   User,
   CalendarCheck,
+  UserCog,
+  Settings2,
+  PackageSearch,
 } from "lucide-react";
 import type { SidebarData } from "../types";
 
-export const sidebarData: SidebarData = {
+// Datos estáticos del sidebar
+export const sidebarDataStatic: SidebarData = {
   user: {
     name: "satnaing",
     email: "satnaingdev@gmail.com",
@@ -30,33 +34,115 @@ export const sidebarData: SidebarData = {
           title: "Dashboard",
           url: "/dashboard",
           icon: LayoutDashboard,
+          key: "dashboard",
         },
         {
           title: "Leads",
           url: "/leads",
           icon: User,
+          key: "leads",
         },
         {
           title: "Ventas",
           url: "/ventas",
           icon: ShoppingCart,
+          key: "sales",
         },
         {
           title: "Reportes",
           url: "/reportes",
           icon: BarChart3,
+          key: "reports",
         },
         {
           title: "Tareas",
           url: "/tareas",
           icon: CalendarCheck,
+          key: "tasks",
         },
         {
           title: "Usuarios",
           url: "/users",
           icon: Users,
+          key: "users",
+        },
+      ],
+    },
+    {
+      title: "Administración",
+      items: [
+        {
+          title: "Roles y Permisos",
+          url: "/admin/roles",
+          icon: UserCog,
+          key: "admin.roles",
+          parentKey: "admin",
+        },
+        {
+          title: "Leads",
+          url: "/admin/leads",
+          icon: Settings2,
+          key: "admin.leads-settings",
+          parentKey: "admin",
+        },
+        {
+          title: "Productos",
+          url: "/admin/products",
+          icon: PackageSearch,
+          key: "admin.products",
+          parentKey: "admin",
         },
       ],
     },
   ],
 };
+
+// Función para filtrar elementos del sidebar basado en permisos
+export function filterSidebarByPermissions(
+  canViewSection: (key: string) => boolean
+): SidebarData {
+  // Si la función canViewSection no es válida, devolver datos estáticos
+  if (typeof canViewSection !== "function") {
+    return { ...sidebarDataStatic };
+  }
+
+  const filteredData = { ...sidebarDataStatic };
+
+  // Filtrar los grupos de navegación
+  filteredData.navGroups = filteredData.navGroups
+    .map((group) => {
+      // Filtrar elementos en cada grupo
+      const filteredItems = group.items.filter((item) => {
+        try {
+          // Asegurarse de que key existe
+          const itemKey = item.key || "";
+
+          // Para secciones con estructura anidada como "admin.roles"
+          if (item.parentKey) {
+            // Verificar si tiene permiso para el elemento parent
+            const parentHasAccess = canViewSection(item.parentKey);
+            // Verificar si tiene permiso para el elemento anidado
+            const itemHasAccess = canViewSection(
+              `${item.parentKey}.${itemKey}`
+            );
+
+            // Mostrar el elemento si tiene acceso al padre o al elemento específico
+            return parentHasAccess || itemHasAccess;
+          }
+
+          return canViewSection(itemKey);
+        } catch (error) {
+          console.error("Error al filtrar elemento del sidebar:", error);
+          return false;
+        }
+      });
+
+      // Devolver el grupo sólo si aún tiene elementos después del filtrado
+      return filteredItems.length > 0
+        ? { ...group, items: filteredItems }
+        : null;
+    })
+    .filter(Boolean) as typeof filteredData.navGroups;
+
+  return filteredData;
+}

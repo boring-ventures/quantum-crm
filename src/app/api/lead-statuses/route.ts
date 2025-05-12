@@ -8,10 +8,11 @@ const createLeadStatusSchema = z.object({
   name: z.string().min(1, "El nombre es requerido"),
   description: z.string().optional().nullable(),
   color: z.string().min(1, "El color es requerido"),
-  displayOrder: z.number().int().nonnegative(),
+  displayOrder: z.number().int().nonnegative().optional(),
+  isActive: z.boolean().default(true),
 });
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     // Verificar autenticación
     const session = await auth();
@@ -19,8 +20,13 @@ export async function GET() {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
+    // Obtener parámetros de consulta
+    const url = new URL(request.url);
+    const showInactive = url.searchParams.get("showInactive") === "true";
+
     // Obtener todos los estados de leads ordenados por displayOrder
     const statuses = await prisma.leadStatus.findMany({
+      where: showInactive ? undefined : { isActive: true },
       orderBy: { displayOrder: "asc" },
     });
 
@@ -74,9 +80,24 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Preparar datos para Prisma, asegurando que displayOrder sea un número
+      const maxOrderStatus = await prisma.leadStatus.findFirst({
+        orderBy: { displayOrder: "desc" },
+      });
+
+      const prismaData = {
+        name: validatedData.name,
+        description: validatedData.description,
+        color: validatedData.color,
+        isActive: validatedData.isActive,
+        displayOrder:
+          validatedData.displayOrder ??
+          (maxOrderStatus ? maxOrderStatus.displayOrder + 1 : 0),
+      };
+
       // Crear el estado de lead
       const status = await prisma.leadStatus.create({
-        data: validatedData,
+        data: prismaData,
       });
 
       return NextResponse.json(status, { status: 201 });
