@@ -8,6 +8,7 @@ import {
   CalendarCheck,
   UserCog,
   Settings2,
+  PackageSearch,
 } from "lucide-react";
 import type { SidebarData } from "../types";
 
@@ -82,6 +83,13 @@ export const sidebarDataStatic: SidebarData = {
           url: "/admin/leads",
           icon: Settings2,
           key: "admin.leads-settings",
+          parentKey: "admin",
+        },
+        {
+          title: "Productos",
+          url: "/admin/products",
+          icon: PackageSearch,
+          key: "admin.products",
           parentKey: "admin",
         },
       ],

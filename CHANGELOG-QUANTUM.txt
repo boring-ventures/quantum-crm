@@ -233,3 +233,13 @@
 [2023-10-21] [Feature] - Creación de componentes y rutas de API para administrar fuentes de lead - [QD]
 [2023-10-21] [Feature] - Implementación de interfaz de usuario para fuentes de lead con funcionalidad de búsqueda y selección de categorías - [QD]
 
+[2025-05-09] [Feature] - Añadida sección de gestión de productos con funcionalidad CRUD completa - [AL]
+- Creado componente Products para administrar catálogo de productos
+- Implementada interfaz de usuario con 3 pestañas: Información Básica, Especificaciones, Precios
+- Añadidos componentes modales para la creación de BusinessTypes, Brands y Models in-line
+- Creados endpoints API para operaciones CRUD de productos
+- Actualizados permisos para SuperAdmin y Admin
+- Añadida entrada en sidebar "Productos" bajo sección "Administración"
+
+[2024-07-05] [Fix] - Corregido error de accesibilidad en ProductsEditDialog agregando DialogTitle al estado de carga - [QC]
+
