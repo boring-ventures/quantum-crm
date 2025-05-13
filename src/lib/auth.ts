@@ -60,6 +60,8 @@ async function _authImplementation(): Promise<Session | null> {
       error,
     } = await supabase.auth.getUser();
 
+    console.log("user", user);
+
     // Si hay error o no hay usuario, retornar null
     if (error || !user) {
       console.log("No hay usuario activo o error:", error);
