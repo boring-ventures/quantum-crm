@@ -101,8 +101,13 @@ export const sidebarDataStatic: SidebarData = {
 export function filterSidebarByPermissions(
   canViewSection: (key: string) => boolean
 ): SidebarData {
+  console.log("[sidebar-data] Iniciando filtro de sidebar por permisos");
+
   // Si la función canViewSection no es válida, devolver datos estáticos
   if (typeof canViewSection !== "function") {
+    console.log(
+      "[sidebar-data] canViewSection no es una función válida, usando datos estáticos"
+    );
     return { ...sidebarDataStatic };
   }
 
@@ -111,31 +116,55 @@ export function filterSidebarByPermissions(
   // Filtrar los grupos de navegación
   filteredData.navGroups = filteredData.navGroups
     .map((group) => {
+      console.log(`[sidebar-data] Procesando grupo: ${group.title}`);
+
       // Filtrar elementos en cada grupo
       const filteredItems = group.items.filter((item) => {
         try {
           // Asegurarse de que key existe
           const itemKey = item.key || "";
+          console.log(`[sidebar-data] Verificando permiso para: ${itemKey}`);
 
           // Para secciones con estructura anidada como "admin.roles"
           if (item.parentKey) {
             // Verificar si tiene permiso para el elemento parent
             const parentHasAccess = canViewSection(item.parentKey);
+            console.log(
+              `[sidebar-data] Permiso para ${item.parentKey}: ${parentHasAccess}`
+            );
+
             // Verificar si tiene permiso para el elemento anidado
-            const itemHasAccess = canViewSection(
-              `${item.parentKey}.${itemKey}`
+            const fullKey = `${item.parentKey}.${itemKey}`;
+            const itemHasAccess = canViewSection(fullKey);
+            console.log(
+              `[sidebar-data] Permiso para ${fullKey}: ${itemHasAccess}`
             );
 
             // Mostrar el elemento si tiene acceso al padre o al elemento específico
-            return parentHasAccess || itemHasAccess;
+            const hasAccess = parentHasAccess || itemHasAccess;
+            console.log(
+              `[sidebar-data] Acceso final para ${item.title}: ${hasAccess}`
+            );
+            return hasAccess;
           }
 
-          return canViewSection(itemKey);
+          const hasAccess = canViewSection(itemKey);
+          console.log(
+            `[sidebar-data] Acceso para ${item.title} (${itemKey}): ${hasAccess}`
+          );
+          return hasAccess;
         } catch (error) {
-          console.error("Error al filtrar elemento del sidebar:", error);
+          console.error(
+            `[sidebar-data] Error al filtrar elemento ${item.title}:`,
+            error
+          );
           return false;
         }
       });
+
+      console.log(
+        `[sidebar-data] Grupo ${group.title}: ${filteredItems.length} elementos después del filtrado`
+      );
 
       // Devolver el grupo sólo si aún tiene elementos después del filtrado
       return filteredItems.length > 0
@@ -144,5 +173,8 @@ export function filterSidebarByPermissions(
     })
     .filter(Boolean) as typeof filteredData.navGroups;
 
+  console.log(
+    `[sidebar-data] Resultado final: ${filteredData.navGroups.length} grupos en el sidebar`
+  );
   return filteredData;
 }
