@@ -10,6 +10,9 @@ const publicRoutes = [
   "/access-denied",
   "/_next",
   "/favicon.ico",
+  "/forgot-password",
+  "/privacy",
+  "/terms",
 ];
 
 // Lista específica de rutas protegidas y sus permisos
