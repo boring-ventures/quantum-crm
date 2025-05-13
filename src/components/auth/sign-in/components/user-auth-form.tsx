@@ -21,11 +21,9 @@ import type { SignInFormData, UserAuthFormProps } from "@/types/auth/sign-in";
 import { signInFormSchema } from "@/types/auth/sign-in";
 import { toast } from "@/components/ui/use-toast";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
 
 export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [authError, setAuthError] = useState("");
   const { signIn } = useAuth();
   const router = useRouter();
 
@@ -38,23 +36,18 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
   });
 
   async function onSubmit(data: SignInFormData) {
-    setIsLoading(true);
-    setAuthError("");
-
     try {
+      setIsLoading(true);
       await signIn(data.email, data.password);
       toast({
-        title: "Éxito",
-        description: "Has iniciado sesión correctamente.",
+        title: "Success",
+        description: "You have been signed in.",
       });
       router.push("/dashboard");
-    } catch (error: any) {
-      setAuthError(error.message || "Error al iniciar sesión");
+    } catch {
       toast({
-        title: "Error de autenticación",
-        description:
-          error.message ||
-          "Credenciales inválidas. Verifica tu email y contraseña.",
+        title: "Error",
+        description: "Invalid email or password.",
         variant: "destructive",
       });
     } finally {
@@ -64,12 +57,6 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
 
   return (
     <div className={cn("grid gap-6", className)} {...props}>
-      {authError && (
-        <div className="p-3 bg-red-100 border border-red-300 text-red-700 rounded">
-          {authError}
-        </div>
-      )}
-
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <div className="grid gap-2">
@@ -80,11 +67,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
                 <FormItem className="space-y-1">
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="name@example.com"
-                      {...field}
-                      disabled={isLoading}
-                    />
+                    <Input placeholder="name@example.com" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -96,28 +79,28 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
               render={({ field }) => (
                 <FormItem className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <FormLabel>Contraseña</FormLabel>
+                    <FormLabel>Password</FormLabel>
                     <Link
                       href="/forgot-password"
                       className="text-sm font-medium text-muted-foreground hover:opacity-75"
                     >
-                      ¿Olvidaste tu contraseña?
+                      Forgot password?
                     </Link>
                   </div>
                   <FormControl>
-                    <PasswordInput
-                      placeholder="********"
-                      {...field}
-                      disabled={isLoading}
-                    />
+                    <PasswordInput placeholder="********" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
             <Button className="mt-2" disabled={isLoading}>
+<<<<<<< HEAD
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isLoading ? "Iniciando sesión..." : "Iniciar sesión"}
+=======
+              Login
+>>>>>>> parent of 2bfa236 (Merge pull request #4 from boring-ventures/users_section)
             </Button>
           </div>
         </form>

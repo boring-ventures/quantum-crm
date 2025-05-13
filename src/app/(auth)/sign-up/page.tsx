@@ -9,7 +9,7 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Quantum CRM",
-  description: "Crear una nueva cuenta",
+  description: "Create a new account",
 };
 
 export default async function SignUpPage() {
@@ -27,34 +27,34 @@ export default async function SignUpPage() {
       <Card className="p-6">
         <div className="mb-2 flex flex-col space-y-2 text-left">
           <h1 className="text-lg font-semibold tracking-tight">
-            Crear una cuenta
+            Create an account
           </h1>
           <p className="text-sm text-muted-foreground">
-            Ingresa tu email y contraseña para crear una cuenta. <br />
-            ¿Ya tienes una cuenta?{" "}
+            Enter your email and password to create an account. <br />
+            Already have an account?{" "}
             <Link
               href="/sign-in"
               className="underline underline-offset-4 hover:text-primary"
             >
-              Iniciar sesión
+              Sign In
             </Link>
           </p>
         </div>
         <SignUpForm />
         <p className="mt-4 px-8 text-center text-sm text-muted-foreground">
-          Al crear una cuenta, aceptas nuestros{" "}
+          By creating an account, you agree to our{" "}
           <Link
             href="/terms"
             className="underline underline-offset-4 hover:text-primary"
           >
-            Términos de Servicio
+            Terms of Service
           </Link>{" "}
-          y{" "}
+          and{" "}
           <Link
             href="/privacy"
             className="underline underline-offset-4 hover:text-primary"
           >
-            Política de Privacidad
+            Privacy Policy
           </Link>
           .
         </p>

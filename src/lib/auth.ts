@@ -1,7 +1,6 @@
-"use server";
-
 // This is a placeholder implementation for authentication
 // In a real application, you would use a proper auth library like NextAuth.js
+<<<<<<< HEAD
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 
@@ -39,15 +38,14 @@ const getSupabase = async () => {
     throw error;
   }
 };
+=======
+>>>>>>> parent of 2bfa236 (Merge pull request #4 from boring-ventures/users_section)
 
 interface User {
   id: string;
   email?: string;
   name?: string;
   role?: string;
-  roleId?: string;
-  isActive?: boolean;
-  isDeleted?: boolean;
 }
 
 interface Session {
@@ -55,28 +53,26 @@ interface Session {
   expires: Date;
 }
 
-// Evitar consultas simultáneas para la misma sesión
-let authPromise: Promise<Session | null> | null = null;
-
-// Implementación para obtener la sesión del usuario
+// Mock implementation of auth function
 export async function auth(): Promise<Session | null> {
-  // Si ya hay una promesa en curso, reutilizarla para evitar múltiples llamadas en paralelo
-  if (authPromise) {
-    return authPromise;
-  }
+  // In a real app, this would check for a valid session
+  // For demo purposes, we're returning a mock session
 
-  // Crear una nueva promesa y almacenarla
-  authPromise = _authImplementation();
+  // If you're implementing a real auth system, replace this with actual auth logic
+  const mockUser: User = {
+    id: "user_123",
+    email: "user@example.com",
+    name: "Demo User",
+    role: "USER",
+  };
 
-  try {
-    // Esperar el resultado y devolverlo
-    return await authPromise;
-  } finally {
-    // Limpiar la promesa almacenada después de completar
-    authPromise = null;
-  }
+  return {
+    user: mockUser,
+    expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
+  };
 }
 
+<<<<<<< HEAD
 // Implementación real de la autenticación
 async function _authImplementation(): Promise<Session | null> {
   try {
@@ -227,4 +223,10 @@ export async function canAccess(path: string): Promise<boolean> {
   if (!session?.user?.roleId) return false;
 
   return true;
+=======
+// Function to get the current user (useful for client components)
+export async function getCurrentUser(): Promise<User | null> {
+  const session = await auth();
+  return session?.user || null;
+>>>>>>> parent of 2bfa236 (Merge pull request #4 from boring-ventures/users_section)
 }

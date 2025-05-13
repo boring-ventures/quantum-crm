@@ -6,14 +6,10 @@ import {
   BarChart3,
   User,
   CalendarCheck,
-  UserCog,
-  Settings2,
-  PackageSearch,
 } from "lucide-react";
 import type { SidebarData } from "../types";
 
-// Datos estáticos del sidebar
-export const sidebarDataStatic: SidebarData = {
+export const sidebarData: SidebarData = {
   user: {
     name: "satnaing",
     email: "satnaingdev@gmail.com",
@@ -34,68 +30,37 @@ export const sidebarDataStatic: SidebarData = {
           title: "Dashboard",
           url: "/dashboard",
           icon: LayoutDashboard,
-          key: "dashboard",
         },
         {
           title: "Leads",
           url: "/leads",
           icon: User,
-          key: "leads",
         },
         {
           title: "Ventas",
           url: "/ventas",
           icon: ShoppingCart,
-          key: "sales",
         },
         {
           title: "Reportes",
           url: "/reportes",
           icon: BarChart3,
-          key: "reports",
         },
         {
           title: "Tareas",
           url: "/tareas",
           icon: CalendarCheck,
-          key: "tasks",
         },
         {
           title: "Usuarios",
           url: "/users",
           icon: Users,
-          key: "users",
-        },
-      ],
-    },
-    {
-      title: "Administración",
-      items: [
-        {
-          title: "Roles y Permisos",
-          url: "/admin/roles",
-          icon: UserCog,
-          key: "admin.roles",
-          parentKey: "admin",
-        },
-        {
-          title: "Leads",
-          url: "/admin/leads",
-          icon: Settings2,
-          key: "admin.leads-settings",
-          parentKey: "admin",
-        },
-        {
-          title: "Productos",
-          url: "/admin/products",
-          icon: PackageSearch,
-          key: "admin.products",
-          parentKey: "admin",
         },
       ],
     },
   ],
 };
+<<<<<<< HEAD
 
 // Función para filtrar elementos del sidebar basado en permisos
 export function filterSidebarByPermissions(
@@ -178,3 +143,5 @@ export function filterSidebarByPermissions(
   );
   return filteredData;
 }
+=======
+>>>>>>> parent of 2bfa236 (Merge pull request #4 from boring-ventures/users_section)
