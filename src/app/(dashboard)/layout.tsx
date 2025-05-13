@@ -34,6 +34,8 @@ export default async function DashboardLayout({
     // Obtener sesión
     const session = await auth();
 
+    console.log("session", session);
+
     // Si no hay sesión o el usuario no tiene un rol asignado, mostrar pantalla de error
     // en lugar de redirigir para evitar bucles
     if (!session?.user?.roleId) {
