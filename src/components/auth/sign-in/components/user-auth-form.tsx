@@ -117,7 +117,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
             />
             <Button className="mt-2" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Iniciar sesión UserAuthForm
+              {isLoading ? "Iniciando sesión..." : "Iniciar sesión"}
             </Button>
           </div>
         </form>
