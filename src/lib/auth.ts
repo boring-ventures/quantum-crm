@@ -7,9 +7,37 @@ import { cookies } from "next/headers";
 
 // Crear cliente de Supabase para componentes del servidor
 const getSupabase = async () => {
-  // Asegurar que las cookies se obtengan de forma asíncrona
-  const cookieStore = cookies();
-  return createServerComponentClient({ cookies: () => cookieStore });
+  try {
+    // Asegurar que las cookies se obtengan de forma asíncrona
+    const cookieStore = cookies();
+
+    // En entorno de producción, imprimir un log de diagnóstico
+    if (process.env.NODE_ENV === "production") {
+      console.log("Inicializando Supabase en entorno de producción");
+    }
+
+    const supabase = createServerComponentClient({
+      cookies: () => cookieStore,
+    });
+
+    // Verificar inmediatamente si la sesión es válida para detectar problemas
+    const { data: sessionData, error: sessionError } =
+      await supabase.auth.getSession();
+
+    if (sessionError) {
+      console.error("Error al obtener sesión en getSupabase:", sessionError);
+    } else {
+      console.log(
+        "getSupabase - Sesión:",
+        sessionData.session ? "Válida" : "Inválida/Nula"
+      );
+    }
+
+    return supabase;
+  } catch (error) {
+    console.error("Error crítico en getSupabase:", error);
+    throw error;
+  }
 };
 
 interface User {
@@ -60,7 +88,10 @@ async function _authImplementation(): Promise<Session | null> {
       error,
     } = await supabase.auth.getUser();
 
-    console.log("user", user);
+    console.log(
+      "auth:_authImplementation - Usuario:",
+      user ? `ID: ${user.id}` : "No hay usuario"
+    );
 
     // Si hay error o no hay usuario, retornar null
     if (error || !user) {
@@ -94,6 +125,10 @@ async function _authImplementation(): Promise<Session | null> {
       }
 
       const { profile } = await response.json();
+      console.log(
+        "auth:_authImplementation - Perfil de API:",
+        profile ? `ID: ${profile.id}, Rol: ${profile.role}` : "No hay perfil"
+      );
 
       // Verificar si el usuario está eliminado
       if (profile && profile.isDeleted) {
@@ -117,8 +152,8 @@ async function _authImplementation(): Promise<Session | null> {
       const expiryDate = new Date();
       expiryDate.setHours(expiryDate.getHours() + 24);
 
-      // Retornar datos del usuario obtenidos a través de la API
-      return {
+      // Crear objeto de sesión
+      const session = {
         user: {
           id: profile.id,
           email: profile.email,
@@ -130,6 +165,12 @@ async function _authImplementation(): Promise<Session | null> {
         },
         expires: expiryDate,
       };
+
+      console.log(
+        "auth:_authImplementation - Sesión creada con roleId:",
+        profile.roleId
+      );
+      return session;
     } catch (apiError) {
       console.error("Error al obtener datos de usuario desde API:", apiError);
       await supabase.auth.signOut();
@@ -176,6 +217,8 @@ export async function canAccess(path: string): Promise<boolean> {
     "/sign-up",
     "/forgot-password",
     "/reset-password",
+    "/privacy",
+    "/terms",
   ];
   if (publicRoutes.includes(path)) return true;
 
