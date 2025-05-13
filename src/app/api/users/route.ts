@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
@@ -46,12 +47,12 @@ type UserPermissions = {
 };
 
 // Función auxiliar para verificar autorización
-async function checkAuthorization() {
-  // Verificar autenticación usando supabaseAdmin
+async function checkAuthorization(supabase: any) {
+  // Verificar autenticación
   const {
     data: { session },
     error: sessionError,
-  } = await supabaseAdmin.auth.getSession();
+  } = await supabase.auth.getSession();
 
   if (sessionError || !session) {
     return {
@@ -153,10 +154,11 @@ async function checkAuthorization() {
 // GET - Obtener todos los usuarios
 export async function GET(request: NextRequest) {
   try {
+    const supabase = createRouteHandlerClient({ cookies });
     const url = new URL(request.url);
 
     // Verificar autorización
-    const auth = await checkAuthorization();
+    const auth = await checkAuthorization(supabase);
     if (!auth.authorized) return auth.response;
 
     // Verificar si tiene permiso para ver usuarios
@@ -201,8 +203,10 @@ export async function GET(request: NextRequest) {
 // POST - Crear un nuevo usuario
 export async function POST(request: NextRequest) {
   try {
+    const supabase = createRouteHandlerClient({ cookies });
+
     // Verificar autorización
-    const auth = await checkAuthorization();
+    const auth = await checkAuthorization(supabase);
     if (!auth.authorized) return auth.response;
 
     // Verificar si tiene permiso para crear usuarios
@@ -314,8 +318,10 @@ export async function POST(request: NextRequest) {
 // PUT - Actualizar un usuario existente
 export async function PUT(request: NextRequest) {
   try {
+    const supabase = createRouteHandlerClient({ cookies });
+
     // Verificar autorización
-    const auth = await checkAuthorization();
+    const auth = await checkAuthorization(supabase);
     if (!auth.authorized) return auth.response;
 
     // Verificar si tiene permiso para editar usuarios
@@ -433,8 +439,10 @@ export async function PUT(request: NextRequest) {
 // DELETE - Eliminar un usuario
 export async function DELETE(request: NextRequest) {
   try {
+    const supabase = createRouteHandlerClient({ cookies });
+
     // Verificar autorización
-    const auth = await checkAuthorization();
+    const auth = await checkAuthorization(supabase);
     if (!auth.authorized) return auth.response;
 
     // Verificar si tiene permiso para eliminar usuarios
