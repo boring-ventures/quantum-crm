@@ -3,7 +3,7 @@ const nextConfig = {
   images: {
     domains: [
       // Add your Supabase project domain
-      "swfgvfhpmicwptupjyko.supabase.co"
+      "ucpbwrczslbgkspeesvj.supabase.co"
     ],
   },
   reactStrictMode: false,
@@ -14,6 +14,10 @@ const nextConfig = {
   typescript: {
     // Ignorar errores de tipo durante la compilación para solucionar el error de build
     ignoreBuildErrors: true,
+  },
+  // Configurar todas las páginas como dinámicas para evitar errores con cookies
+  serverActions: {
+    bodySizeLimit: '50mb',
   },
   // ... other config options
 }

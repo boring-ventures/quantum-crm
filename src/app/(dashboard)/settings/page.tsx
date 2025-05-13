@@ -6,6 +6,9 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import { Separator } from "@/components/ui/separator";
 
+// Forzar renderizado dinámico para evitar errores con cookies()
+export const dynamic = "force-dynamic";
+
 export default function SettingsPage() {
   const { profile, isLoading } = useCurrentUser();
 

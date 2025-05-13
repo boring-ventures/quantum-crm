@@ -12,8 +12,15 @@ export const metadata: Metadata = {
   description: "Create a new account",
 };
 
+// Forzar renderizado dinámico para evitar errores con cookies()
+export const dynamic = "force-dynamic";
+
 export default async function SignUpPage() {
-  const supabase = createServerComponentClient({ cookies });
+  // Obtener cookies primero, antes de cualquier operación asíncrona
+  const cookieStore = cookies();
+
+  // Luego crear el cliente y hacer operaciones asíncronas
+  const supabase = createServerComponentClient({ cookies: () => cookieStore });
   const {
     data: { session },
   } = await supabase.auth.getSession();

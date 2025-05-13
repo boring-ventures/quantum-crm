@@ -20,6 +20,9 @@ import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useLeadsQuery } from "@/lib/hooks";
 
+// Forzar renderizado dinámico para evitar errores con cookies()
+export const dynamic = "force-dynamic";
+
 export default function LeadsPage() {
   const [newLeadOpen, setNewLeadOpen] = useState(false);
   const [importLeadsOpen, setImportLeadsOpen] = useState(false);

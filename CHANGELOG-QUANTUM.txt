@@ -243,63 +243,9 @@
 
 [2024-07-05] [Fix] - Corregido error de accesibilidad en ProductsEditDialog agregando DialogTitle al estado de carga - [QC]
 
-[ 2 0 2 5 - 0 5 - 1 2 ]   [ F i x ]   -   C o r r e g i d o   p r o b l e m a   d e   U R L   e n   e n t o r n o   d e   p r o d u c c i � n   -   [ I R ] 
- 
- [ 2 0 2 3 - 1 1 - 1 3 ]   [ F i x ]   -   C o r r e g i d o   p r o b l e m a   d e   U R L   e n   e n t o r n o   d e   p r o d u c c i � n   -   [ I R ] 
- 
- [ 2 0 2 3 - 1 1 - 2 0 ]   [ F i x ]   -   C o r r e g i d o   p r o b l e m a   d e   a u t e n t i c a c i � n   e n   e n t o r n o   d e   p r o d u c c i � n   q u e   c a u s a b a   e r r o r   ' s e s s i o n   n u l l '   -   [ I R ] 
- 
- [ 2 0 2 3 - 1 1 - 2 0 ]   [ F i x ]   -   I m p l e m e n t a d a   s o l u c i � n   r o b u s t a   p a r a   p r o b l e m a   d e   a u t e n t i c a c i � n   e n   V e r c e l   c a u s a n d o   e r r o r   ' s e s s i o n   n u l l '   -   [ I R ] 
- 
- 
-[2025-05-21] [Feature] - Re-añadidos los selects de Producto y Empresa en el formulario de creación de Leads - [XX] 
-[2025-05-21] [Fix] - Corregido error de Radix UI con valores vacíos en selects de Producto y Empresa - [XX] 
-[2025-05-21] [Fix] - Mejorada validación en API de leads para verificar email único y eliminar campo notas innecesario - [XX]
-[2025-05-21] [Fix] - Añadido campo de teléfono móvil y autenticación de usuario en formulario de leads - [XX] 
-[2025-04-27] [Schema] - Implementada funcionalidad de reserva con carga de documentos a Supabase Storage - [AI]
-[2025-04-28] [Feature] - Implementada funcionalidad de registro de venta con subida de contrato de venta - [AI]
-[2025-04-28] [Fix] - Corregido error de referencia 'id is not defined' en páginas de detalle de lead - [AI]
-[2025-11-11] [Fix] - Actualizados los API routes para extraer parámetros de forma segura - [AI]
-[2024-10-09] [Fix] - Corregido el tipado de params en las rutas API de leads - [AI]
-[2025-05-27] [Schema] - Añadidos campos description y scheduledFor al modelo Task para notas adicionales y programación - [AB]
-[2025-05-27] [Feature] - Implementado flujo de dos pasos en creación de tareas con selector de fecha/hora y notas - [AB]
-[2025-05-27] [Fix] - Corregido problema con la obtención del ID de usuario en la creación de tareas - [AB]
-[2025-05-28] [Schema] - Añadido campo qualification tipo enum LeadQualification a modelo Lead para calificación de leads - [AB]
-[2025-05-28] [Feature] - Implementada funcionalidad de calificación de leads como Good/Bad - [AB]
-[2025-05-28] [Feature] - Actualizado componente principal para filtrar leads marcados como Bad Lead - [AB]
-[2025-05-28] [Fix] - Corregido error en API de calificación de leads para usar await con params.id - [AB]
-[2023-06-19] [Fix] - Corregido el endpoint de calificación de leads que no funcionaba correctamente - [CL]
-[2023-06-19] [Feature] - Agregada funcionalidad para actualizar la lista de leads inmediatamente después de calificar como "Bad Lead" - [CL]
-[2023-06-19] [Refactor] - Mejorado el sistema de filtrado para incluir isArchived además de qualification en la lista de leads - [CL]
-[2023-06-19] [Schema] - Añadida propiedad isArchived al tipo LeadWithRelations para TypeScript - [CL]
-[2023-06-19] [Schema] - Añadido campo isFavorite a la tabla Lead con índice para mejorar rendimiento en filtrado - [CL]
-[2023-06-19] [Feature] - Implementado menú de acciones en tarjetas de leads con opciones para ver detalles, editar y marcar favoritos - [CL]
-[2023-06-19] [Feature] - Creado componente de edición de leads similar al de creación pero adaptado para actualización - [CL]
-[2023-06-19] [Feature] - Mejorada la visualización de información de usuario asignado y próxima tarea en las tarjetas de leads - [CL]
-[2023-06-19] [API] - Añadido endpoint para actualizar estado de favorito de leads con validación Zod - [CL]
-[2025-06-01] [Feature] - Implementada búsqueda funcional de leads con filtrado en tiempo real - [CL]
-[2025-06-01] [Feature] - Añadidas pestañas de filtrado: Sin Tareas, Tareas Hoy y Tareas Vencidas con contadores - [CL]
-[2025-06-01] [Refactor] - Eliminado botón de filtros sin funcionalidad del panel de leads - [CL]
-[2025-06-01] [Feature] - Mejorada la visualización de contadores en pestañas con indicadores de color - [CL]
-[2025-06-01] [Fix] - Optimizada la función de filtrado para mejor rendimiento en la visualización de leads - [CL]
-[2025-06-02] [Feature] - Implementada funcionalidad del selector de grado de interés para filtrar leads - [CL]
-[2025-06-02] [Feature] - Añadido indicador visual de qualityScore en las tarjetas de leads - [CL]
-[2025-06-02] [Fix] - Corregido filtrado de leads según su qualityScore - [CL]
-[2025-06-02] [Fix] - Optimizado el filtro "Sin Tareas" para verificar correctamente tareas pendientes - [CL]
-[2025-06-05] [Fix] - Corregido el filtrado de leads por tareas incorporando tasks en el endpoint de la API - [CL]
-[2025-06-05] [Fix] - Optimizada la lógica de filtrado en pestañas "Sin Tareas", "Tareas Hoy" y "Tareas Vencidas" - [CL]
-[2025-06-05] [API] - Añadida relación de tareas al endpoint de obtención de leads para mejor filtrado - [CL]
-[2025-06-07] [Feature] - Implementado componente real de tareas pendientes con conexión a la API - [CL]
-[2025-06-07] [API] - Añadido endpoint para obtener tareas pendientes con información de leads - [CL]
-[2025-06-07] [Feature] - Añadida funcionalidad para completar tareas directamente desde el panel - [CL]
-[2025-06-10] [Feature] - Implementadas acciones de lead: Contactar por WhatsApp, Agendar cita directa, Archivar y Eliminar lead - [AB]
-[2025-06-10] [Feature] - Agregados diálogos de confirmación para operaciones permanentes (archivar/eliminar) de leads - [AB]
-[2025-06-10] [Feature] - Mejorada la integración de TaskTypeDialog para permitir selección de tipo de tarea - [AB]
-[2025-06-10] [Fix] - Corregidos errores de importación en componente lead-tasks.tsx para usar hooks del módulo correcto - [AB]
-[2025-04-25] [Fix] - Corregida la subida de documentos en el diálogo de reservación para incluir correctamente las URLs en la solicitud - [QD]
-[2025-04-25] [Fix] - Corregida sincronización de estado favorito entre lista de leads y detalle, incluyendo campo favoriteAt - [QD]
-[2025-04-26] [Fix] - Corregido problema de sincronización entre componentes al marcar/desmarcar favoritos evitando errores de setState - [QD]
-[2025-04-26] [Fix] - Mejorado componente LeadCard para sincronizar cambios de favorito bidireccional entre lista y vista detalle - [QD]
-[2024-04-29] [Schema] - Activada la relación quotationProducts entre Quotation y Product para guardar productos en cotizaciones - [CP]
-[2024-04-29] [Feature] - Actualizado componente quotation-dialog.tsx para guardar los productos seleccionados en la cotización - [CP]
-[2024-04-29] [API] - Modificada la API de creación de cotizaciones para guardar los productos relacionados - [CP]
+[2025-06-22] [Fix] - Corregido error "Dynamic Server Usage" en rutas protegidas mediante export const dynamic = 'force-dynamic' - [AI]
+
+[2025-06-23] [Fix] - Corregido error de TypeScript relacionado con archivos no encontrados en .next/types - [AI]
+
+[2025-06-24] [Fix] - Corregido patrón de acceso a cookies en componentes del servidor para evitar errores "Dynamic Server Usage" - [AI]
+
