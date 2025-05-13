@@ -12,6 +12,8 @@ export async function GET(
     // Verificar que el ID solicitado es válido
     const userId = context.params.id;
 
+    console.log("API GET /users/[id] - ID solicitado:", userId);
+
     if (!userId) {
       return NextResponse.json(
         { error: "ID de usuario requerido" },
@@ -22,6 +24,9 @@ export async function GET(
     // Verificar si es una petición que requiere validación de autenticación
     const url = new URL(request.url);
     const requireAuth = url.searchParams.get("requireAuth") !== "false";
+
+    console.log("API URL completa:", request.url);
+    console.log("requireAuth:", requireAuth);
 
     // Si se requiere autenticación, verificarla
     if (requireAuth) {
@@ -66,6 +71,11 @@ export async function GET(
         },
       },
     });
+
+    console.log(
+      "Resultado de consulta a DB:",
+      user ? "Usuario encontrado" : "Usuario no encontrado"
+    );
 
     if (!user) {
       return NextResponse.json(

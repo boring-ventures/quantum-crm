@@ -71,10 +71,12 @@ async function _authImplementation(): Promise<Session | null> {
       // Construir la URL absoluta para la API de usuarios
       const baseUrl =
         process.env.NEXTAUTH_URL ||
-        process.env.VERCEL_URL ||
+        (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
         "http://localhost:3000";
       const apiUrl = new URL(`/api/users/${user.id}`, baseUrl);
       apiUrl.searchParams.append("requireAuth", "false");
+
+      console.log("API URL:", apiUrl.toString());
 
       const response = await fetch(apiUrl.toString(), {
         cache: "no-store",
