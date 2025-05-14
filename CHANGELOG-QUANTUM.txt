@@ -243,3 +243,9 @@
 
 [2024-07-05] [Fix] - Corregido error de accesibilidad en ProductsEditDialog agregando DialogTitle al estado de carga - [QC]
 
+[2025-06-23] [Feature] - Implementados archivos loading.tsx con skeletons para las secciones del dashboard - [AI]
+- Creados skeletons para dashboard, leads, users, settings, admin/leads, admin/roles y admin/products
+- Mejorada la experiencia de usuario durante la carga de páginas en la navegación
+- Implementada animación de pulso (animate-pulse) en todos los esqueletos para mejorar el feedback visual
+- Componentes de carga basados en la estructura real de sus respectivas páginas
+
