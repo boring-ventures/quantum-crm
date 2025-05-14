@@ -24,6 +24,7 @@ const protectedRoutes = {
   "/admin": "admin",
   "/admin/roles": "admin.roles",
   "/admin/leads": "admin.leads-settings",
+  "/admin/products": "admin.products",
 };
 
 // Función para comprobar si una ruta es pública
