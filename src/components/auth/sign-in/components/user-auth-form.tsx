@@ -21,6 +21,7 @@ import type { SignInFormData, UserAuthFormProps } from "@/types/auth/sign-in";
 import { signInFormSchema } from "@/types/auth/sign-in";
 import { toast } from "@/components/ui/use-toast";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 
 export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
   const [isLoading, setIsLoading] = useState(false);
@@ -95,12 +96,8 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
               )}
             />
             <Button className="mt-2" disabled={isLoading}>
-<<<<<<< HEAD
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isLoading ? "Iniciando sesión..." : "Iniciar sesión"}
-=======
-              Login
->>>>>>> parent of 2bfa236 (Merge pull request #4 from boring-ventures/users_section)
             </Button>
           </div>
         </form>
