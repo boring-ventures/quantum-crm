@@ -8,6 +8,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Missing Supabase environment variables");
 }
 
+if (!supabaseServiceRoleKey) {
+  throw new Error(
+    "supabaseKey is required. SUPABASE_SERVICE_ROLE_KEY is missing"
+  );
+}
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
@@ -16,13 +22,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-export const supabaseAdmin = createClient(
-  supabaseUrl,
-  supabaseServiceRoleKey || "",
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  }
-);
+export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false,
+  },
+});
