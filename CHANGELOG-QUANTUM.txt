@@ -310,4 +310,7 @@
 - Implementada gestión mejorada de encabezados en las peticiones a la API de usuarios
 - Corregida construcción de URL en auth.ts para garantizar el formato correcto (https://) en entorno de producción
 - Solucionado problema TypeError: Invalid URL verificando el formato de URL base antes de construir la URL completa
+- Forzado uso del dominio principal (quantum-crm-leads.vercel.app) para evitar redirecciones en URLs de preview
+- Añadidas cabeceras específicas para evitar la intercepción por la autenticación de Vercel
+- Implementada detección inteligente del entorno para usar diferentes URLs y configuraciones según se ejecute en desarrollo o producción
 

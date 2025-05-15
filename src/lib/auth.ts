@@ -70,18 +70,25 @@ async function _authImplementation(): Promise<Session | null> {
 
     // Usar la API en lugar de consultar directamente a Supabase
     try {
-      // Construir la URL absoluta para la API de usuarios
-      let baseUrl =
-        process.env.NEXTAUTH_URL ||
-        process.env.VERCEL_URL ||
-        "http://localhost:3000";
+      // Determinar si estamos en entorno de producción
+      const isProduction = !!process.env.VERCEL_URL;
 
-      // Asegurarse de que la URL base tenga el protocolo correcto
-      if (!baseUrl.startsWith("http")) {
-        baseUrl = `https://${baseUrl}`;
+      // Seleccionar URL base según el entorno
+      let baseUrl: string | URL | undefined;
+      if (isProduction) {
+        // En producción, usar dominio principal
+        baseUrl = "https://quantum-crm-leads.vercel.app";
+      } else {
+        // En desarrollo local, usar localhost
+        baseUrl = "http://localhost:3000";
       }
 
-      console.log("URL base para API:", baseUrl);
+      console.log(
+        "URL base para API:",
+        baseUrl,
+        "Entorno:",
+        isProduction ? "Producción" : "Desarrollo"
+      );
 
       // Construir URL completa
       const apiUrl = new URL(`/api/users/${user.id}`, baseUrl);
@@ -89,11 +96,22 @@ async function _authImplementation(): Promise<Session | null> {
 
       console.log("Consultando API de usuario:", apiUrl.toString());
 
+      // Configurar headers según el entorno
+      const headers: Record<string, string> = {
+        Accept: "application/json",
+      };
+
+      // Headers adicionales para producción
+      if (isProduction) {
+        headers["Content-Type"] = "application/json";
+        headers["X-Auth-Skip-Vercel"] = "true";
+        headers["X-Requested-With"] = "XMLHttpRequest";
+      }
+
       const response = await fetch(apiUrl.toString(), {
         cache: "no-store",
-        headers: {
-          Accept: "application/json",
-        },
+        headers,
+        credentials: isProduction ? "include" : undefined,
       });
 
       console.log("Respuesta API status:", response.status);
@@ -103,7 +121,8 @@ async function _authImplementation(): Promise<Session | null> {
         console.log(
           "Error al obtener datos de usuario desde API:",
           response.status,
-          responseText
+          responseText.substring(0, 200) +
+            (responseText.length > 200 ? "..." : "")
         );
         await supabase.auth.signOut();
         return null;
