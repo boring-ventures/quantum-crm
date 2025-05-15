@@ -66,6 +66,8 @@ async function _authImplementation(): Promise<Session | null> {
       return null;
     }
 
+    console.log("Usuario Supabase encontrado:", user.id);
+
     // Usar la API en lugar de consultar directamente a Supabase
     try {
       // Construir la URL absoluta para la API de usuarios
@@ -76,27 +78,41 @@ async function _authImplementation(): Promise<Session | null> {
       const apiUrl = new URL(`/api/users/${user.id}`, baseUrl);
       apiUrl.searchParams.append("requireAuth", "false");
 
+      console.log("Consultando API de usuario:", apiUrl.toString());
+
       const response = await fetch(apiUrl.toString(), {
         cache: "no-store",
+        headers: {
+          Accept: "application/json",
+        },
       });
 
+      console.log("Respuesta API status:", response.status);
+
       if (!response.ok) {
+        const responseText = await response.text();
         console.log(
           "Error al obtener datos de usuario desde API:",
-          await response.text()
+          response.status,
+          responseText
         );
         await supabase.auth.signOut();
         return null;
       }
 
-      const { profile } = await response.json();
+      const responseData = await response.json();
+      const { profile } = responseData;
+
+      console.log(
+        "Perfil obtenido:",
+        profile ? "Sí" : "No",
+        profile ? `roleId: ${profile.roleId}` : ""
+      );
 
       // Verificar si el usuario está eliminado
       if (profile && profile.isDeleted) {
         console.log("Usuario ha sido eliminado");
         await supabase.auth.signOut();
-
-        // Limpiar cookie de autenticación (se maneja automáticamente por Supabase)
         return null;
       }
 
@@ -104,8 +120,6 @@ async function _authImplementation(): Promise<Session | null> {
       if (!profile || !profile.isActive) {
         console.log("Usuario no encontrado o inactivo");
         await supabase.auth.signOut();
-
-        // Limpiar cookie de autenticación (se maneja automáticamente por Supabase)
         return null;
       }
 

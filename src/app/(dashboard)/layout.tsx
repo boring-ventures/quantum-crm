@@ -32,16 +32,27 @@ export default async function DashboardLayout({
 }) {
   try {
     // Obtener sesión
+    console.log("Intentando obtener sesión...");
     const session = await auth();
+    console.log("Sesión obtenida:", session ? "Sí" : "No");
+
+    if (session) {
+      console.log("ID de usuario:", session.user?.id);
+      console.log("Email:", session.user?.email);
+      console.log("RoleId:", session.user?.roleId);
+    }
 
     // Si no hay sesión o el usuario no tiene un rol asignado, mostrar pantalla de error
     // en lugar de redirigir para evitar bucles
     if (!session?.user?.roleId) {
-      console.log("No hay sesión válida, mostrando error de autenticación");
+      console.log(
+        "No hay sesión válida o no hay roleId, mostrando error de autenticación"
+      );
       return <AuthError />;
     }
 
     // Si llegamos aquí, la sesión es válida
+    console.log("Sesión válida, renderizando dashboard");
     return <DashboardLayoutClient>{children}</DashboardLayoutClient>;
   } catch (error) {
     console.error("Error al obtener sesión:", error);
