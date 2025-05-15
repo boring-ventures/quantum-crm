@@ -17,7 +17,7 @@ const protectedRoutes = {
   "/api/auth/*": "auth",
   "/dashboard": "dashboard",
   "/leads": "leads",
-  "/ventas": "sales",
+  "/sales": "sales",
   "/reportes": "reports",
   "/tasks": "tasks",
   "/users": "users",
@@ -330,10 +330,10 @@ export const config = {
     // Incluir explícitamente las rutas que queremos proteger
     "/dashboard/:path*",
     "/leads/:path*",
-    "/ventas/:path*",
+    "/sales/:path*",
     "/reportes/:path*",
     "/admin/:path*",
     "/users/:path*",
-    "/tareas/:path*",
+    "/tasks/:path*",
   ],
 };

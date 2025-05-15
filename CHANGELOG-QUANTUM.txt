@@ -1,3 +1,9 @@
+[2023-06-02] [Fix] - Mejorado sistema de cierre de sesión utilizando AuthProvider - [AB]
+- Actualizado componente NavUser para usar método signOut de AuthProvider
+- Actualizado componente ProfileDropdown para usar método signOut de AuthProvider
+- Creado endpoint API /api/logout para manejar el cierre de sesión desde el servidor
+- Estandarizada gestión de errores en el proceso de cierre de sesión
+
 [2023-11-17] [Fix] - Corregidos múltiples errores de runtime relacionados con manejo de cookies y URLs relativas - [AI]
 - Actualizado endpoint de user-permissions para usar URL absoluta en fetch
 - Corregido endpoint de roles/permissions para usar roleId en lugar de roleName
@@ -254,4 +260,34 @@
 - Implementado modal de creación/edición de tareas con integración con leads
 - Añadida vista rápida de tareas con acciones de completar/eliminar
 - Endpoints API para obtener tareas del usuario y búsqueda de leads
+
+[2024-06-15] [Feature] - Implementada sección de Ventas con pestañas para Ventas y Reservas - [CR]
+
+[2023-05-28] [Feature] - Añadido sistema de validación de roles en pantallas de Leads/Sales/Tasks - [QC]
+- Creado hooks/use-user-role.ts para verificar permisos basados en roleId 
+- Modificado leads/page.tsx para soportar selección de vendedores para administradores
+- Modificada API para soportar filtrado por vendedor específico en leads
+- Implementado flujo distinto según rol: admin ve lista de vendedores, vendedores ven sus leads
+
+[2023-05-29] [Fix] - Corregido sistema de validación de roles para usar el hook existente - [QC]
+- Actualizado use-user-role.ts para usar useCurrentUser en lugar de llamada API directa
+- Creado endpoint /api/users/me para obtener información del usuario actual
+- Añadida exportación de useUserRole en lib/hooks/index.ts
+- Corregidas importaciones en leads/page.tsx
+
+[2023-05-30] [Fix] - Corregido filtrado de usuarios por rol en la vista de administración de vendedores - [QC]
+- Mejorado endpoint /api/users para soportar filtrado por rol con el parámetro role
+- Actualizada consulta en leads/page.tsx para usar la constante ROLES.SELLER en lugar de texto fijo
+
+[2023-05-31] [Feature] - Implementada restricción de acciones por rol en detalle de leads - [QC]
+- Modificado componente LeadDetailPage para recibir parámetro isSeller
+- Actualizado TaskList y TaskListItem para deshabilitar acciones para no-vendedores
+- Restringidas funcionalidades de edición, favoritos, proceso de venta, tareas y acciones de lead solo para vendedores
+- Configurada vista de solo lectura para administradores
+
+[2023-06-01] [Fix] - Corregido filtrado de tareas pendientes por usuario asignado - [QC]
+- Modificado componente PendingTasks para usar efectivamente el ID de usuario correcto
+- Mejorado endpoint /api/tasks/pending para siempre aplicar filtro por usuario asignado
+- Implementada lógica para usar ID del usuario en sesión cuando no hay asignado específico
+- Agregados logs de depuración para facilitar diagnóstico de problemas de filtrado
 

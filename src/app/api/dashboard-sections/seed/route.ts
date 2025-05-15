@@ -24,7 +24,7 @@ const initialSections = [
     name: "Ventas",
     description: "Gestión de ventas y oportunidades",
     icon: "ShoppingCart",
-    url: "/ventas",
+    url: "/sales",
     displayOrder: 2,
   },
   {

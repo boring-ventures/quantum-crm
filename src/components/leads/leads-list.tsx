@@ -10,6 +10,7 @@ import {
   useToggleFavoriteMutation,
   useLeadTasks,
   useLeadQuery,
+  useUserRole,
 } from "@/lib/hooks";
 import type { LeadWithRelations } from "@/types/lead";
 import { formatDistanceToNow, format } from "date-fns";
@@ -51,6 +52,8 @@ interface LeadCardProps {
 }
 
 function LeadCard({ lead, onLeadUpdated }: LeadCardProps) {
+  const { isSeller } = useUserRole();
+
   const { data: updatedLead, isLoading: isLoadingUpdatedLead } = useLeadQuery(
     lead.id
   );
@@ -279,32 +282,36 @@ function LeadCard({ lead, onLeadUpdated }: LeadCardProps) {
                       Ver detalles
                     </button>
                   </li>
-                  <li>
-                    <button
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowDropdown(false);
-                        setShowEditDialog(true);
-                      }}
-                    >
-                      Editar Lead
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowDropdown(false);
-                        handleToggleFavorite(e);
-                      }}
-                    >
-                      {isFavorite
-                        ? "Quitar de favoritos"
-                        : "Marcar como favorito"}
-                    </button>
-                  </li>
+                  {isSeller && (
+                    <>
+                      <li>
+                        <button
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowDropdown(false);
+                            setShowEditDialog(true);
+                          }}
+                        >
+                          Editar Lead
+                        </button>
+                      </li>
+                      <li>
+                        <button
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowDropdown(false);
+                            handleToggleFavorite(e);
+                          }}
+                        >
+                          {isFavorite
+                            ? "Quitar de favoritos"
+                            : "Marcar como favorito"}
+                        </button>
+                      </li>
+                    </>
+                  )}
                 </ul>
               </div>
             )}
@@ -443,7 +450,7 @@ function LeadCardSkeleton() {
   );
 }
 
-interface LeadsListProps {
+export interface LeadsListProps {
   filterBadLeads?: boolean;
   searchTerm?: string;
   filterType?:
@@ -454,6 +461,7 @@ interface LeadsListProps {
     | "today-tasks"
     | "favorites";
   interestLevel?: number;
+  assignedToId?: string;
 }
 
 export function LeadsList({
@@ -461,12 +469,13 @@ export function LeadsList({
   searchTerm = "",
   filterType = "all",
   interestLevel = 0,
+  assignedToId,
 }: LeadsListProps) {
-  const { data, isLoading, isError } = useLeadsQuery();
+  const { data, isLoading, isError } = useLeadsQuery({ assignedToId });
   const queryClient = useQueryClient();
 
   const handleLeadUpdated = () => {
-    // Invalidar la caché para refrescar la lista
+    // Invalida todas las consultas de leads para refrescar los datos
     queryClient.invalidateQueries({ queryKey: ["leads"] });
   };
 

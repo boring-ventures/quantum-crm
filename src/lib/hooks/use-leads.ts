@@ -13,6 +13,7 @@ interface LeadsFilter {
   status?: string;
   source?: string;
   assignedTo?: string;
+  assignedToId?: string;
 }
 
 // Consulta de leads con filtros
@@ -27,6 +28,8 @@ export const useLeadsQuery = (filters: LeadsFilter = {}) => {
   if (filters.status) queryParams.append("status", filters.status);
   if (filters.source) queryParams.append("source", filters.source);
   if (filters.assignedTo) queryParams.append("assignedTo", filters.assignedTo);
+  if (filters.assignedToId)
+    queryParams.append("assignedToId", filters.assignedToId);
 
   return useQuery<LeadsResponse>({
     queryKey: ["leads", filters],

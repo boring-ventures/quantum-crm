@@ -34,7 +34,8 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || "";
     const statusId = searchParams.get("status");
     const sourceId = searchParams.get("source");
-    const assignedToId = searchParams.get("assignedTo");
+    const assignedTo = searchParams.get("assignedTo");
+    const assignedToId = searchParams.get("assignedToId");
 
     // Construir condiciones de búsqueda
     const where: any = {};
@@ -52,6 +53,7 @@ export async function GET(request: NextRequest) {
     // Filtros específicos
     if (statusId) where.statusId = statusId;
     if (sourceId) where.sourceId = sourceId;
+    if (assignedTo) where.assignedTo = assignedTo;
     if (assignedToId) where.assignedToId = assignedToId;
 
     // Consultar leads con paginación

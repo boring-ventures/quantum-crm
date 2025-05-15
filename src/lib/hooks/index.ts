@@ -6,6 +6,9 @@ export * from "./use-lead-metadata";
 export * from "./use-quotations";
 export * from "./use-reservations";
 export * from "./use-sales";
+export * from "./use-permissions";
+export * from "./use-roles";
+export * from "./use-user-role";
 
 // Exportar los hooks de tareas explícitamente
 import {

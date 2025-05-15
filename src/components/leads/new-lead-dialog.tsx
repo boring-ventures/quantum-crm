@@ -51,9 +51,14 @@ type FormData = z.infer<typeof newLeadSchema>;
 interface NewLeadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  preassignedUserId?: string; // ID de vendedor pre-asignado (para administradores)
 }
 
-export function NewLeadDialog({ open, onOpenChange }: NewLeadDialogProps) {
+export function NewLeadDialog({
+  open,
+  onOpenChange,
+  preassignedUserId,
+}: NewLeadDialogProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const [isPending, setIsPending] = useState(false);
@@ -128,7 +133,7 @@ export function NewLeadDialog({ open, onOpenChange }: NewLeadDialogProps) {
         ...data,
         companyId: data.companyId === "none" ? "" : data.companyId,
         productId: data.productId === "none" ? "" : data.productId,
-        assignedToId: user?.id || "",
+        assignedToId: preassignedUserId || user?.id || "", // Usar ID pre-asignado si existe
         qualityScore: data.interest ? parseInt(data.interest) : 1,
         isArchived: false,
       };

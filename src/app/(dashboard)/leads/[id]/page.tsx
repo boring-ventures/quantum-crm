@@ -4,6 +4,7 @@ import { use } from "react";
 import { useRouter } from "next/navigation";
 import { LeadDetailPage } from "@/components/leads/lead-detail-page";
 import { useLeadQuery } from "@/lib/hooks";
+import { useUserRole } from "@/lib/hooks";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface LeadPageProps {
@@ -12,6 +13,7 @@ interface LeadPageProps {
 
 export default function LeadPage({ params }: LeadPageProps) {
   const router = useRouter();
+  const { isSeller } = useUserRole();
 
   const { id } = use(params);
 
@@ -70,7 +72,7 @@ export default function LeadPage({ params }: LeadPageProps) {
 
   return (
     <div className="p-6">
-      <LeadDetailPage lead={lead} onBack={handleBack} />
+      <LeadDetailPage lead={lead} onBack={handleBack} isSeller={isSeller} />
     </div>
   );
 }

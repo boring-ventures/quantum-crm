@@ -15,10 +15,23 @@ import { LeadsList } from "@/components/leads/leads-list";
 import { PendingTasks } from "@/components/leads/pending-tasks";
 import { NewLeadDialog } from "@/components/leads/new-lead-dialog";
 import { ImportLeadsDialog } from "@/components/leads/import-leads-dialog";
-import { Plus, Search, Download, Upload } from "lucide-react";
-import { useState } from "react";
+import { Plus, Search, Download, Upload, UserIcon } from "lucide-react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
-import { useLeadsQuery } from "@/lib/hooks";
+import { useLeadsQuery, useUserRole } from "@/lib/hooks";
+import { ROLES } from "@/lib/hooks/use-user-role";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import type { User } from "@/types/user";
 
 export default function LeadsPage() {
   const [newLeadOpen, setNewLeadOpen] = useState(false);
@@ -26,8 +39,56 @@ export default function LeadsPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [interestFilter, setInterestFilter] = useState("all-interests");
+  const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null);
+
   const { toast } = useToast();
-  const { data: rawLeadsData } = useLeadsQuery();
+  const router = useRouter();
+
+  // Obtener el rol del usuario actual
+  const { isAdmin, isSuperAdmin, isSeller, user } = useUserRole();
+
+  // Si el usuario es vendedor, mostrar sus leads directamente
+  const isManagerRole = isAdmin || isSuperAdmin;
+
+  // Filtro para los leads: si es vendedor, mostrar solo sus leads
+  const assignedToId = !isManagerRole
+    ? user?.id
+    : selectedSellerId || undefined;
+
+  // Para debugging - verificar el ID asignado
+  console.log("assignedToId para tareas:", assignedToId);
+  console.log("isManagerRole:", isManagerRole);
+  console.log("user?.id:", user?.id);
+  console.log("selectedSellerId:", selectedSellerId);
+
+  // Obtener datos de leads filtrados por vendedor si es necesario
+  const { data: rawLeadsData } = useLeadsQuery({
+    assignedToId,
+    search: searchTerm,
+  });
+
+  // Consulta para obtener la lista de vendedores si el usuario es administrador
+  const { data: sellersData, isLoading: loadingSellers } = useQuery({
+    queryKey: ["sellers"],
+    queryFn: async () => {
+      if (!isManagerRole) return { users: [] };
+
+      const response = await fetch(`/api/users?role=${ROLES.SELLER}`);
+      if (!response.ok) {
+        throw new Error("Error al obtener vendedores");
+      }
+      return response.json();
+    },
+    enabled: isManagerRole,
+  });
+
+  // Si el usuario es vendedor, redirigir a sus propios leads
+  useEffect(() => {
+    if (user && isSeller) {
+      // Si es vendedor, ya estamos filtrando por su ID
+      console.log("Usuario vendedor mostrando sus propios leads");
+    }
+  }, [user, isSeller]);
 
   // Contador de leads para cada categoría
   let leadsData =
@@ -117,218 +178,332 @@ export default function LeadsPage() {
     }
   };
 
+  // Manejar la selección de un vendedor
+  const handleSelectSeller = (sellerId: string) => {
+    setSelectedSellerId(sellerId);
+  };
+
+  // Renderizar la tabla de vendedores si es administrador
+  const renderSellersTable = () => {
+    const sellers = sellersData?.users || [];
+
+    if (loadingSellers) {
+      return <div className="py-8 text-center">Cargando vendedores...</div>;
+    }
+
+    if (sellers.length === 0) {
+      return (
+        <div className="py-8 text-center">
+          No hay vendedores disponibles. Agrega vendedores desde la sección de
+          usuarios.
+        </div>
+      );
+    }
+
+    return (
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Nombre</TableHead>
+            <TableHead>Email</TableHead>
+            <TableHead>Estado</TableHead>
+            <TableHead className="text-right">Acciones</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {sellers.map((seller: User) => (
+            <TableRow
+              key={seller.id}
+              className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+            >
+              <TableCell className="font-medium">{seller.name}</TableCell>
+              <TableCell>{seller.email}</TableCell>
+              <TableCell>
+                <Badge
+                  variant={seller.isActive ? "default" : "secondary"}
+                  className={
+                    seller.isActive ? "bg-green-500 hover:bg-green-600" : ""
+                  }
+                >
+                  {seller.isActive ? "Activo" : "Inactivo"}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-right">
+                <Button
+                  onClick={() => handleSelectSeller(seller.id)}
+                  variant="outline"
+                  size="sm"
+                >
+                  <UserIcon className="mr-2 h-4 w-4" />
+                  Ver Leads
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    );
+  };
+
   return (
     <div className="space-y-6 p-6 min-h-screen">
       <div className="flex items-center justify-between mb-2">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            Gestión de Leads
+            {isManagerRole && !selectedSellerId
+              ? "Gestión de Vendedores"
+              : "Gestión de Leads"}
           </h1>
           <p className="text-gray-500 dark:text-gray-400">
-            Administra y da seguimiento a tus leads de ventas
+            {isManagerRole && !selectedSellerId
+              ? "Selecciona un vendedor para ver sus leads"
+              : "Administra y da seguimiento a tus leads de ventas"}
           </p>
         </div>
         <div className="flex gap-2">
-          <Button
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-            onClick={() => setNewLeadOpen(true)}
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            Nuevo Lead
-          </Button>
+          {/* Mostrar el botón de crear lead solo si es vendedor o si ya seleccionó un vendedor */}
+          {isSeller && (
+            <Button
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={() => setNewLeadOpen(true)}
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              Nuevo Lead
+            </Button>
+          )}
+          {/* Botón para volver a la lista de vendedores */}
+          {isManagerRole && selectedSellerId && (
+            <Button variant="outline" onClick={() => setSelectedSellerId(null)}>
+              Volver a Vendedores
+            </Button>
+          )}
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* Left Column - Leads Management */}
-        <div className="flex-1 space-y-6">
-          {/* Actions Bar */}
-          <Card className="border-gray-200 dark:border-gray-800">
-            <CardContent className="p-4 space-y-4">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input
-                    placeholder="Buscar leads..."
-                    className="pl-10 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
-                    value={searchTerm}
-                    onChange={handleSearch}
-                  />
+      {/* Si es administrador y no ha seleccionado vendedor, mostrar tabla de vendedores */}
+      {isManagerRole && !selectedSellerId ? (
+        <Card className="border-gray-200 dark:border-gray-800">
+          <CardContent className="p-4">
+            <div className="mb-4">
+              <Input
+                placeholder="Buscar vendedores..."
+                className="max-w-sm"
+                value={searchTerm}
+                onChange={handleSearch}
+              />
+            </div>
+            {renderSellersTable()}
+          </CardContent>
+        </Card>
+      ) : (
+        /* Si es vendedor o ya seleccionó un vendedor, mostrar la interfaz de leads */
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Left Column - Leads Management */}
+          <div className="flex-1 space-y-6">
+            {/* Actions Bar */}
+            <Card className="border-gray-200 dark:border-gray-800">
+              <CardContent className="p-4 space-y-4">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Input
+                      placeholder="Buscar leads..."
+                      className="pl-10 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+                      value={searchTerm}
+                      onChange={handleSearch}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    {isSeller && (
+                      <>
+                        <Button
+                          variant="outline"
+                          className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                          onClick={() => setImportLeadsOpen(true)}
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          Importar
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                          onClick={handleExportLeads}
+                          disabled={isExporting}
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          {isExporting ? "Exportando..." : "Exportar"}
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
-                    onClick={() => setImportLeadsOpen(true)}
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Importar
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
-                    onClick={handleExportLeads}
-                    disabled={isExporting}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    {isExporting ? "Exportando..." : "Exportar"}
-                  </Button>
+
+                <div className="flex flex-col sm:flex-row gap-4 items-center">
+                  <div className="flex items-center gap-4">
+                    <Select
+                      defaultValue="all-interests"
+                      value={interestFilter}
+                      onValueChange={handleInterestChange}
+                    >
+                      <SelectTrigger className="w-[200px] bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                        <SelectValue placeholder="Grado de interés" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200">
+                        <SelectItem value="all-interests">
+                          Todos los grados
+                        </SelectItem>
+                        <SelectItem value="high">Alto interés (3)</SelectItem>
+                        <SelectItem value="medium">
+                          Interés medio (2)
+                        </SelectItem>
+                        <SelectItem value="low">Bajo interés (1)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-              </div>
+              </CardContent>
+            </Card>
 
-              <div className="flex flex-col sm:flex-row gap-4 items-center">
-                <div className="flex items-center gap-4">
-                  <Select
-                    defaultValue="all-interests"
-                    value={interestFilter}
-                    onValueChange={handleInterestChange}
-                  >
-                    <SelectTrigger className="w-[200px] bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-                      <SelectValue placeholder="Grado de interés" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200">
-                      <SelectItem value="all-interests">
-                        Todos los grados
-                      </SelectItem>
-                      <SelectItem value="high">Alto interés (3)</SelectItem>
-                      <SelectItem value="medium">Interés medio (2)</SelectItem>
-                      <SelectItem value="low">Bajo interés (1)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            {/* Leads Tabs */}
+            <Card className="border-gray-200 dark:border-gray-800">
+              <CardContent className="p-4">
+                <Tabs defaultValue="all" className="w-full">
+                  <TabsList className="bg-gray-100 dark:bg-gray-800 p-1 flex flex-wrap gap-1 mb-4">
+                    <TabsTrigger
+                      value="all"
+                      className="flex gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
+                    >
+                      Todos{" "}
+                      <span className="ml-2 px-2 py-0.5 bg-gray-200 dark:bg-gray-600 rounded-full text-xs">
+                        {leadCounts.all}
+                      </span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="no-management"
+                      className="flex gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
+                    >
+                      Sin Gestión{" "}
+                      <span className="ml-2 px-2 py-0.5 bg-gray-200 dark:bg-gray-600 rounded-full text-xs">
+                        {leadCounts.noManagement}
+                      </span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="no-tasks"
+                      className="flex gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
+                    >
+                      Sin Tareas{" "}
+                      <span className="ml-2 px-2 py-0.5 bg-gray-200 dark:bg-gray-600 rounded-full text-xs">
+                        {leadCounts.noTasks}
+                      </span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="overdue-tasks"
+                      className="flex gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
+                    >
+                      Tareas Vencidas{" "}
+                      <span className="ml-2 px-2 py-0.5 bg-red-200 dark:bg-red-900 text-red-900 dark:text-red-200 rounded-full text-xs">
+                        {leadCounts.overdueTasks}
+                      </span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="today-tasks"
+                      className="flex gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
+                    >
+                      Tareas Hoy{" "}
+                      <span className="ml-2 px-2 py-0.5 bg-blue-200 dark:bg-blue-900 text-blue-900 dark:text-blue-200 rounded-full text-xs">
+                        {leadCounts.todayTasks}
+                      </span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="favorites"
+                      className="flex gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
+                    >
+                      Favoritos{" "}
+                      <span className="ml-2 px-2 py-0.5 bg-yellow-200 dark:bg-yellow-900 text-yellow-900 dark:text-yellow-200 rounded-full text-xs">
+                        {leadCounts.favorites}
+                      </span>
+                    </TabsTrigger>
+                  </TabsList>
 
-          {/* Leads Tabs */}
-          <Card className="border-gray-200 dark:border-gray-800">
-            <CardContent className="p-4">
-              <Tabs defaultValue="all" className="w-full">
-                <TabsList className="bg-gray-100 dark:bg-gray-800 p-1 flex flex-wrap gap-1 mb-4">
-                  <TabsTrigger
-                    value="all"
-                    className="flex gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
-                  >
-                    Todos{" "}
-                    <span className="ml-2 px-2 py-0.5 bg-gray-200 dark:bg-gray-600 rounded-full text-xs">
-                      {leadCounts.all}
-                    </span>
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="no-management"
-                    className="flex gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
-                  >
-                    Sin Gestión{" "}
-                    <span className="ml-2 px-2 py-0.5 bg-gray-200 dark:bg-gray-600 rounded-full text-xs">
-                      {leadCounts.noManagement}
-                    </span>
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="no-tasks"
-                    className="flex gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
-                  >
-                    Sin Tareas{" "}
-                    <span className="ml-2 px-2 py-0.5 bg-gray-200 dark:bg-gray-600 rounded-full text-xs">
-                      {leadCounts.noTasks}
-                    </span>
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="overdue-tasks"
-                    className="flex gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
-                  >
-                    Tareas Vencidas{" "}
-                    <span className="ml-2 px-2 py-0.5 bg-red-200 dark:bg-red-900 text-red-900 dark:text-red-200 rounded-full text-xs">
-                      {leadCounts.overdueTasks}
-                    </span>
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="today-tasks"
-                    className="flex gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
-                  >
-                    Tareas Hoy{" "}
-                    <span className="ml-2 px-2 py-0.5 bg-blue-200 dark:bg-blue-900 text-blue-900 dark:text-blue-200 rounded-full text-xs">
-                      {leadCounts.todayTasks}
-                    </span>
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="favorites"
-                    className="flex gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
-                  >
-                    Favoritos{" "}
-                    <span className="ml-2 px-2 py-0.5 bg-yellow-200 dark:bg-yellow-900 text-yellow-900 dark:text-yellow-200 rounded-full text-xs">
-                      {leadCounts.favorites}
-                    </span>
-                  </TabsTrigger>
-                </TabsList>
+                  <TabsContent value="all">
+                    <LeadsList
+                      filterBadLeads={true}
+                      searchTerm={searchTerm}
+                      filterType="all"
+                      interestLevel={getInterestScore(interestFilter)}
+                      assignedToId={assignedToId}
+                    />
+                  </TabsContent>
+                  <TabsContent value="no-management">
+                    <LeadsList
+                      filterBadLeads={true}
+                      searchTerm={searchTerm}
+                      filterType="no-management"
+                      interestLevel={getInterestScore(interestFilter)}
+                      assignedToId={assignedToId}
+                    />
+                  </TabsContent>
+                  <TabsContent value="no-tasks">
+                    <LeadsList
+                      filterBadLeads={true}
+                      searchTerm={searchTerm}
+                      filterType="no-tasks"
+                      interestLevel={getInterestScore(interestFilter)}
+                      assignedToId={assignedToId}
+                    />
+                  </TabsContent>
+                  <TabsContent value="overdue-tasks">
+                    <LeadsList
+                      filterBadLeads={true}
+                      searchTerm={searchTerm}
+                      filterType="overdue-tasks"
+                      interestLevel={getInterestScore(interestFilter)}
+                      assignedToId={assignedToId}
+                    />
+                  </TabsContent>
+                  <TabsContent value="today-tasks">
+                    <LeadsList
+                      filterBadLeads={true}
+                      searchTerm={searchTerm}
+                      filterType="today-tasks"
+                      interestLevel={getInterestScore(interestFilter)}
+                      assignedToId={assignedToId}
+                    />
+                  </TabsContent>
+                  <TabsContent value="favorites">
+                    <LeadsList
+                      filterBadLeads={true}
+                      searchTerm={searchTerm}
+                      filterType="favorites"
+                      interestLevel={getInterestScore(interestFilter)}
+                      assignedToId={assignedToId}
+                    />
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          </div>
 
-                <TabsContent value="all">
-                  <LeadsList
-                    filterBadLeads={true}
-                    searchTerm={searchTerm}
-                    filterType="all"
-                    interestLevel={getInterestScore(interestFilter)}
-                  />
-                </TabsContent>
-                <TabsContent value="no-management">
-                  <LeadsList
-                    filterBadLeads={true}
-                    searchTerm={searchTerm}
-                    filterType="no-management"
-                    interestLevel={getInterestScore(interestFilter)}
-                  />
-                </TabsContent>
-                <TabsContent value="no-tasks">
-                  <LeadsList
-                    filterBadLeads={true}
-                    searchTerm={searchTerm}
-                    filterType="no-tasks"
-                    interestLevel={getInterestScore(interestFilter)}
-                  />
-                </TabsContent>
-                <TabsContent value="overdue-tasks">
-                  <LeadsList
-                    filterBadLeads={true}
-                    searchTerm={searchTerm}
-                    filterType="overdue-tasks"
-                    interestLevel={getInterestScore(interestFilter)}
-                  />
-                </TabsContent>
-                <TabsContent value="today-tasks">
-                  <LeadsList
-                    filterBadLeads={true}
-                    searchTerm={searchTerm}
-                    filterType="today-tasks"
-                    interestLevel={getInterestScore(interestFilter)}
-                  />
-                </TabsContent>
-                <TabsContent value="favorites">
-                  <LeadsList
-                    filterBadLeads={true}
-                    searchTerm={searchTerm}
-                    filterType="favorites"
-                    interestLevel={getInterestScore(interestFilter)}
-                  />
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
+          {/* Right Column - Tasks Overview */}
+          <div className="lg:w-[380px]">
+            <Card className="border-gray-200 dark:border-gray-800">
+              <CardContent className="p-4">
+                <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
+                  Tareas Pendientes
+                </h2>
+                <PendingTasks assignedToId={assignedToId} />
+              </CardContent>
+            </Card>
+          </div>
         </div>
-
-        {/* Right Column - Tasks Overview */}
-        <div className="lg:w-[380px]">
-          <Card className="border-gray-200 dark:border-gray-800">
-            <CardContent className="p-4">
-              <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
-                Tareas Pendientes
-              </h2>
-              <PendingTasks />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      )}
 
       {/* Dialogs */}
-      <NewLeadDialog open={newLeadOpen} onOpenChange={setNewLeadOpen} />
+      <NewLeadDialog
+        open={newLeadOpen}
+        onOpenChange={setNewLeadOpen}
+        preassignedUserId={selectedSellerId || undefined}
+      />
       <ImportLeadsDialog
         open={importLeadsOpen}
         onOpenChange={setImportLeadsOpen}

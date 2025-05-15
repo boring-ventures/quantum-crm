@@ -44,7 +44,7 @@ export const sidebarDataStatic: SidebarData = {
         },
         {
           title: "Ventas",
-          url: "/ventas",
+          url: "/sales",
           icon: ShoppingCart,
           key: "sales",
         },

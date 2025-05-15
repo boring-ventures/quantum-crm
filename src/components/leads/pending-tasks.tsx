@@ -9,29 +9,55 @@ import { Loader2, CheckCircle2, Calendar } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { useUpdateTaskStatusMutation } from "@/lib/hooks";
+import { useUpdateTaskStatusMutation, useUserRole } from "@/lib/hooks";
 import { Task } from "@/types/lead";
 
-export function PendingTasks() {
+interface PendingTasksProps {
+  assignedToId?: string;
+}
+
+export function PendingTasks({ assignedToId }: PendingTasksProps) {
   const [tasks, setTasks] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { isSeller, user } = useUserRole();
   const updateTaskStatusMutation = useUpdateTaskStatusMutation();
   const { toast } = useToast();
+
+  // Logging para debug
+  console.log("PendingTasks - Prop assignedToId:", assignedToId);
+  console.log("PendingTasks - isSeller:", isSeller);
+  console.log("PendingTasks - user?.id:", user?.id);
+
+  // Si es vendedor y no se ha recibido un assignedToId específico, usar el ID del usuario actual
+  const effectiveAssignedToId =
+    isSeller && !assignedToId ? user?.id : assignedToId;
+  console.log("PendingTasks - effectiveAssignedToId:", effectiveAssignedToId);
 
   // Cargar las tareas pendientes
   useEffect(() => {
     const fetchPendingTasks = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch("/api/tasks/pending");
+        // Construir URL con filtro de vendedor si existe
+        const url = effectiveAssignedToId
+          ? `/api/tasks/pending?assignedToId=${effectiveAssignedToId}`
+          : "/api/tasks/pending";
+
+        console.log("PendingTasks - URL para fetch:", url);
+
+        const response = await fetch(url);
 
         if (!response.ok) {
           throw new Error("Error al cargar tareas pendientes");
         }
 
         const data = await response.json();
+        console.log("PendingTasks - Tareas recibidas:", data.length);
+
         // Filtrar tareas de leads no archivados
         const filteredTasks = data.filter((task: any) => !task.lead.isArchived);
+        console.log("PendingTasks - Tareas filtradas:", filteredTasks.length);
+
         setTasks(filteredTasks);
       } catch (error) {
         console.error("Error cargando tareas:", error);
@@ -46,7 +72,7 @@ export function PendingTasks() {
     };
 
     fetchPendingTasks();
-  }, [toast]);
+  }, [toast, effectiveAssignedToId]); // Usar effectiveAssignedToId como dependencia
 
   // Manejar la actualización del estado de la tarea
   const handleCompleteTask = async (taskId: string, leadId: string) => {
@@ -185,15 +211,17 @@ export function PendingTasks() {
                 </Badge>
               </div>
             </div>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8 text-gray-400 hover:text-green-600 dark:hover:text-green-500"
-              onClick={() => handleCompleteTask(task.id, task.leadId)}
-              disabled={updateTaskStatusMutation.isPending}
-            >
-              <CheckCircle2 className="h-5 w-5" />
-            </Button>
+            {isSeller && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 text-gray-400 hover:text-green-600 dark:hover:text-green-500"
+                onClick={() => handleCompleteTask(task.id, task.leadId)}
+                disabled={updateTaskStatusMutation.isPending}
+              >
+                <CheckCircle2 className="h-5 w-5" />
+              </Button>
+            )}
           </div>
         </Card>
       ))}
