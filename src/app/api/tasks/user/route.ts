@@ -19,14 +19,39 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Obtener rol del usuario desde la sesión
+    const userRole = session.user?.role || "";
+    const isManagerRole =
+      userRole === "Administrador" || userRole === "Super Administrador";
+
     // Parámetros de consulta
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status"); // opcional: filtrar por estado
     const priority = searchParams.get("priority"); // opcional: para el futuro
+    const requestedAssignedToId = searchParams.get("assignedToId"); // ID del vendedor solicitado
+
+    // Determinar el ID del vendedor a filtrar
+    // Si es admin/superadmin y hay un ID específico solicitado, usar ese ID
+    // De lo contrario, si es vendedor, usar solo su propio ID
+    const effectiveAssignedToId =
+      isManagerRole && requestedAssignedToId ? requestedAssignedToId : userId;
+
+    console.log("[API] /tasks/user - Procesando solicitud");
+    console.log("[API] /tasks/user - rol:", userRole);
+    console.log("[API] /tasks/user - isManagerRole:", isManagerRole);
+    console.log("[API] /tasks/user - userId:", userId);
+    console.log(
+      "[API] /tasks/user - requestedAssignedToId:",
+      requestedAssignedToId
+    );
+    console.log(
+      "[API] /tasks/user - effectiveAssignedToId:",
+      effectiveAssignedToId
+    );
 
     // Construir el objeto where para filtrar tareas
     const where: any = {
-      assignedToId: userId,
+      assignedToId: effectiveAssignedToId,
     };
 
     // Agregar filtro de estado si se especifica
@@ -52,6 +77,12 @@ export async function GET(request: NextRequest) {
             firstName: true,
             lastName: true,
             email: true,
+          },
+        },
+        assignedTo: {
+          select: {
+            id: true,
+            name: true,
           },
         },
       },

@@ -298,3 +298,9 @@
 - Implementada lógica para usar ID del usuario en sesión cuando no hay asignado específico
 - Agregados logs de depuración para facilitar diagnóstico de problemas de filtrado
 
+[2025-06-15] [Feature] - Implementado sistema de validación de roles en módulo de Tareas - Permite diferentes vistas según rol (admin vs vendedor) - [QD]
+[2025-06-15] [Feature] - Actualizado endpoint /api/tasks/user para soportar filtrado por vendedor asignado - [QD]
+[2025-06-15] [Feature] - Modificado hook useTasks para aceptar parámetro de filtrado por vendedor asignado - [QD]
+[2025-06-15] [Feature] - Agregado selector de vendedores en pantalla de tareas para administradores - [QD]
+[2025-06-15] [Feature] - Restringidas acciones de completar/cancelar tareas solo para vendedores - [QD]
+

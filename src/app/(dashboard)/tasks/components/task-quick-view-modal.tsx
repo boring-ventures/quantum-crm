@@ -8,10 +8,23 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import {
+  CheckCircle2,
+  Clock,
+  CalendarIcon,
+  Trash2,
+  Edit,
+  XCircle,
+  AlertTriangle,
+  User,
+} from "lucide-react";
+import { Task, LeadWithRelations } from "@/types/lead";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,28 +35,34 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Task } from "@/types/lead";
-import {
-  Calendar,
-  Edit,
-  Trash2,
-  CheckCircle,
-  User,
-  Loader2,
-} from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
 import {
   useDeleteTaskMutation,
   useUpdateTaskStatusMutation,
-} from "@/lib/hooks";
+} from "@/lib/hooks/use-tasks";
+import { toast } from "@/components/ui/use-toast";
+
+// Extender el tipo Task para incluir las relaciones que esperamos
+interface TaskWithRelations extends Task {
+  lead?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email?: string;
+  };
+  assignedTo?: {
+    id: string;
+    name: string;
+  };
+}
 
 interface TaskQuickViewModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  task: Task;
-  onEdit?: () => void;
-  onDelete?: () => void;
-  onUpdate?: () => void;
+  task: TaskWithRelations;
+  onEdit: () => void;
+  onDelete: () => void;
+  onUpdate: () => void;
+  isManagerRole?: boolean;
 }
 
 export function TaskQuickViewModal({
@@ -53,228 +72,309 @@ export function TaskQuickViewModal({
   onEdit,
   onDelete,
   onUpdate,
+  isManagerRole = false,
 }: TaskQuickViewModalProps) {
-  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+  const [isStatusChangeLoading, setIsStatusChangeLoading] = useState(false);
+  const [isDeleteLoading, setIsDeleteLoading] = useState(false);
+
+  const updateTaskStatusMutation = useUpdateTaskStatusMutation();
   const deleteTaskMutation = useDeleteTaskMutation();
-  const updateTaskMutation = useUpdateTaskStatusMutation();
-  const { toast } = useToast();
 
-  // Obtener texto y color de prioridad (para cuando implementemos prioridad)
-  const getPriorityBadge = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return (
-          <Badge className="bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-400">
-            Alta
-          </Badge>
-        );
-      case "medium":
-        return (
-          <Badge className="bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400">
-            Media
-          </Badge>
-        );
-      case "low":
-        return (
-          <Badge className="bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400">
-            Baja
-          </Badge>
-        );
-      default:
-        return null;
-    }
-  };
-
-  // Obtener texto y estilo del estado
-  const getStatusBadge = (status: string) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case "PENDING":
-        return (
-          <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400">
-            Pendiente
-          </Badge>
-        );
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
       case "IN_PROGRESS":
-        return (
-          <Badge className="bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400">
-            En progreso
-          </Badge>
-        );
+        return "bg-blue-100 text-blue-800 border-blue-200";
       case "COMPLETED":
-        return (
-          <Badge className="bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400">
-            Completado
-          </Badge>
-        );
+        return "bg-green-100 text-green-800 border-green-200";
       case "CANCELLED":
-        return (
-          <Badge className="bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-400">
-            Cancelado
-          </Badge>
-        );
+        return "bg-red-100 text-red-800 border-red-200";
       default:
-        return null;
+        return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
 
-  // Marcar tarea como completada
-  const markAsCompleted = async () => {
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "PENDING":
+        return "Pendiente";
+      case "IN_PROGRESS":
+        return "En progreso";
+      case "COMPLETED":
+        return "Completada";
+      case "CANCELLED":
+        return "Cancelada";
+      default:
+        return status;
+    }
+  };
+
+  const formatScheduledDate = (date: string | Date | null) => {
+    if (!date) return "No programada";
+    return format(new Date(date), "PPP 'a las' p", { locale: es });
+  };
+
+  const handleCompleteTask = async () => {
+    if (isManagerRole) {
+      toast({
+        title: "Acción no permitida",
+        description:
+          "Los administradores no pueden cambiar el estado de las tareas",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      await updateTaskMutation.mutateAsync({
+      setIsStatusChangeLoading(true);
+      await updateTaskStatusMutation.mutateAsync({
         taskId: task.id,
         leadId: task.leadId,
         status: "COMPLETED",
       });
-
+      onUpdate();
+      onOpenChange(false);
       toast({
         title: "Tarea completada",
-        description: "La tarea se ha marcado como completada",
+        description: "La tarea ha sido marcada como completada",
       });
-
-      if (onUpdate) onUpdate();
-      onOpenChange(false);
     } catch (error) {
-      console.error("Error al completar la tarea:", error);
       toast({
         title: "Error",
-        description: "No se pudo actualizar el estado de la tarea",
+        description: "No se pudo completar la tarea",
         variant: "destructive",
       });
+    } finally {
+      setIsStatusChangeLoading(false);
     }
   };
 
-  // Eliminar tarea
-  const handleDelete = async () => {
+  const handleCancelTask = async () => {
+    if (isManagerRole) {
+      toast({
+        title: "Acción no permitida",
+        description:
+          "Los administradores no pueden cambiar el estado de las tareas",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
+      setIsStatusChangeLoading(true);
+      await updateTaskStatusMutation.mutateAsync({
+        taskId: task.id,
+        leadId: task.leadId,
+        status: "CANCELLED",
+      });
+      onUpdate();
+      onOpenChange(false);
+      toast({
+        title: "Tarea cancelada",
+        description: "La tarea ha sido cancelada",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo cancelar la tarea",
+        variant: "destructive",
+      });
+    } finally {
+      setIsStatusChangeLoading(false);
+    }
+  };
+
+  const handleDeleteTask = async () => {
+    try {
+      setIsDeleteLoading(true);
       await deleteTaskMutation.mutateAsync({
         taskId: task.id,
         leadId: task.leadId,
       });
-
-      toast({
-        title: "Tarea eliminada",
-        description: "La tarea se ha eliminado correctamente",
-      });
-
-      setIsConfirmDeleteOpen(false);
+      setIsDeleteAlertOpen(false);
       onOpenChange(false);
-
-      if (onDelete) onDelete();
+      onDelete();
     } catch (error) {
-      console.error("Error al eliminar la tarea:", error);
       toast({
         title: "Error",
         description: "No se pudo eliminar la tarea",
         variant: "destructive",
       });
+    } finally {
+      setIsDeleteLoading(false);
     }
+  };
+
+  // Determinar si el botón debe estar deshabilitado
+  const isStatusButtonDisabled = (status: string) => {
+    return (
+      isManagerRole || // Si es administrador
+      isStatusChangeLoading || // Si hay una operación en curso
+      task.status === status || // Si ya tiene ese estado
+      task.status === "COMPLETED" || // Si ya está completada
+      task.status === "CANCELLED" // Si ya está cancelada
+    );
   };
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-xl">{task.title}</DialogTitle>
-          </DialogHeader>
+            <DialogDescription className="flex items-center gap-2 pt-1">
+              <Badge
+                variant="outline"
+                className={`${getStatusColor(task.status)} px-2 py-0.5`}
+              >
+                {getStatusText(task.status)}
+              </Badge>
 
-          <div className="space-y-6 py-4">
-            <div className="flex flex-wrap gap-2">
-              {getStatusBadge(task.status)}
-              {/* Aquí iría el badge de prioridad cuando lo implementemos */}
-              {/* {getPriorityBadge(task.priority)} */}
-            </div>
-
-            {task.description && (
-              <div className="text-sm text-muted-foreground bg-muted p-4 rounded-md">
-                {task.description}
-              </div>
-            )}
-
-            <div className="space-y-3">
               {task.scheduledFor && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span>
-                    Programada para:{" "}
-                    {format(new Date(task.scheduledFor), "PPP 'a las' HH:mm", {
-                      locale: es,
-                    })}
+                <div className="flex items-center text-muted-foreground">
+                  <CalendarIcon className="mr-1 h-3 w-3" />
+                  <span className="text-xs">
+                    {formatScheduledDate(task.scheduledFor)}
                   </span>
                 </div>
               )}
+            </DialogDescription>
+          </DialogHeader>
 
-              <div className="flex items-center gap-2 text-sm">
-                <User className="h-4 w-4 text-muted-foreground" />
-                <span>
-                  Lead asociado:{" "}
-                  <a
-                    href={`/leads/${task.leadId}`}
-                    className="text-blue-600 hover:underline"
-                  >
-                    Ver lead
-                  </a>
-                </span>
+          <div className="space-y-4">
+            {/* Información del lead */}
+            {task.lead && (
+              <div>
+                <h3 className="text-sm font-medium mb-1">Lead asociado:</h3>
+                <div className="flex items-center gap-2 text-sm">
+                  <User className="h-4 w-4 text-blue-500" />
+                  <span>
+                    {task.lead.firstName} {task.lead.lastName}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Información del vendedor asignado */}
+            {task.assignedTo && (
+              <div>
+                <h3 className="text-sm font-medium mb-1">Asignado a:</h3>
+                <div className="flex items-center gap-2 text-sm">
+                  <User className="h-4 w-4 text-green-500" />
+                  <span>{task.assignedTo.name}</span>
+                </div>
+              </div>
+            )}
+
+            <Separator />
+
+            {/* Descripción de la tarea */}
+            <div>
+              <h3 className="text-sm font-medium mb-1">Descripción:</h3>
+              <p className="text-sm">{task.description || "Sin descripción"}</p>
+            </div>
+
+            {/* Datos de tiempo */}
+            <div>
+              <div className="flex items-start gap-6 text-xs text-muted-foreground">
+                <div>
+                  <h4 className="font-medium mb-1">Creada</h4>
+                  <p>
+                    {task.createdAt
+                      ? format(new Date(task.createdAt), "Pp", { locale: es })
+                      : "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <h4 className="font-medium mb-1">Actualizada</h4>
+                  <p>
+                    {task.updatedAt
+                      ? format(new Date(task.updatedAt), "Pp", { locale: es })
+                      : "N/A"}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
 
-          <DialogFooter className="flex gap-2 sm:gap-0">
-            {task.status !== "COMPLETED" && (
+          <DialogFooter className="sm:justify-between flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={onEdit}>
+                <Edit className="mr-2 h-4 w-4" />
+                Editar
+              </Button>
               <Button
                 variant="outline"
-                className="bg-green-50 text-green-600 border-green-200 hover:bg-green-100 hover:text-green-700"
-                onClick={markAsCompleted}
-                disabled={updateTaskMutation.isPending}
+                size="sm"
+                className="text-red-500 hover:text-red-600"
+                onClick={() => setIsDeleteAlertOpen(true)}
               >
-                {updateTaskMutation.isPending && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                <CheckCircle className="mr-2 h-4 w-4" />
-                Completar
+                <Trash2 className="mr-2 h-4 w-4" />
+                Eliminar
               </Button>
-            )}
+            </div>
 
-            <Button variant="outline" onClick={onEdit}>
-              <Edit className="mr-2 h-4 w-4" />
-              Editar
-            </Button>
-
-            <Button
-              variant="outline"
-              className="text-red-600 hover:bg-red-50"
-              onClick={() => setIsConfirmDeleteOpen(true)}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Eliminar
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {task.status === "PENDING" && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-red-500 hover:text-red-600"
+                    onClick={handleCancelTask}
+                    disabled={isStatusButtonDisabled("CANCELLED")}
+                  >
+                    <XCircle className="mr-2 h-4 w-4" />
+                    Cancelar
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                    onClick={handleCompleteTask}
+                    disabled={isStatusButtonDisabled("COMPLETED")}
+                  >
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    Completar
+                  </Button>
+                </>
+              )}
+              {isStatusButtonDisabled("COMPLETED") &&
+                isManagerRole &&
+                task.status === "PENDING" && (
+                  <div className="text-xs text-muted-foreground flex items-center">
+                    <AlertTriangle className="h-3 w-3 mr-1 text-amber-500" />
+                    Solo el vendedor puede cambiar el estado
+                  </div>
+                )}
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <AlertDialog
-        open={isConfirmDeleteOpen}
-        onOpenChange={setIsConfirmDeleteOpen}
-      >
+      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción eliminará permanentemente la tarea y no se puede
-              deshacer.
+              Esta acción no se puede deshacer. La tarea será eliminada
+              permanentemente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleteLoading}>
+              Cancelar
+            </AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700"
-              onClick={handleDelete}
-              disabled={deleteTaskMutation.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteTask();
+              }}
+              className="bg-red-600 text-white hover:bg-red-700"
+              disabled={isDeleteLoading}
             >
-              {deleteTaskMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Eliminar
+              {isDeleteLoading ? "Eliminando..." : "Eliminar"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
