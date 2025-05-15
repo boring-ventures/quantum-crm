@@ -7,6 +7,10 @@ interface SaleWithLead extends Sale {
     firstName: string;
     lastName: string;
     id: string;
+    assignedTo?: {
+      id: string;
+      name: string;
+    };
   };
   product?: {
     id: string;
@@ -23,6 +27,10 @@ interface ReservationWithLead extends Reservation {
     firstName: string;
     lastName: string;
     id: string;
+    assignedTo?: {
+      id: string;
+      name: string;
+    };
   };
   product?: {
     id: string;
@@ -40,6 +48,7 @@ export function useSales(filters?: {
   category?: string;
   status?: string;
   searchQuery?: string;
+  assignedToId?: string;
 }) {
   return useQuery<SaleWithLead[]>({
     queryKey: ["sales", filters],
@@ -64,6 +73,11 @@ export function useSales(filters?: {
         params.append("search", filters.searchQuery);
       }
 
+      // Agregar filtro por vendedor asignado
+      if (filters?.assignedToId) {
+        params.append("assignedToId", filters.assignedToId);
+      }
+
       const queryString = params.toString();
       const response = await fetch(
         `/api/sales/all${queryString ? `?${queryString}` : ""}`
@@ -84,6 +98,7 @@ export function useReservations(filters?: {
   category?: string;
   status?: string;
   searchQuery?: string;
+  assignedToId?: string;
 }) {
   return useQuery<ReservationWithLead[]>({
     queryKey: ["reservations", filters],
@@ -106,6 +121,11 @@ export function useReservations(filters?: {
 
       if (filters?.searchQuery) {
         params.append("search", filters.searchQuery);
+      }
+
+      // Agregar filtro por vendedor asignado
+      if (filters?.assignedToId) {
+        params.append("assignedToId", filters.assignedToId);
       }
 
       const queryString = params.toString();

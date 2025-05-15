@@ -9,6 +9,8 @@ import {
   MoreVertical,
   Archive,
   ChevronDown,
+  UserIcon,
+  Plus,
 } from "lucide-react";
 import { format, parseISO, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
@@ -44,7 +46,18 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DateRange } from "react-day-picker";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { useUserRole } from "@/lib/hooks/use-user-role";
+import { ROLES } from "@/lib/hooks/use-user-role";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export default function SalesPage() {
   const router = useRouter();
@@ -55,6 +68,42 @@ export default function SalesPage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null);
+  const [hasSelectedSeller, setHasSelectedSeller] = useState(false);
+  const [showSellerSelector, setShowSellerSelector] = useState(true);
+
+  // Obtener el rol del usuario actual
+  const { isAdmin, isSuperAdmin, isSeller, user } = useUserRole();
+
+  // Determinar si el usuario tiene rol de gerencia
+  const isManagerRole = isAdmin || isSuperAdmin;
+
+  // Si el usuario es vendedor, mostrar solo sus propias ventas/reservas
+  const assignedToId = !isManagerRole
+    ? user?.id
+    : selectedSellerId || undefined;
+
+  // Si el usuario es vendedor, ya podemos mostrar el contenido
+  // Para administradores, hay que esperar a que seleccionen un vendedor o elijan "Ver todas"
+  const shouldShowContent =
+    isSeller ||
+    hasSelectedSeller ||
+    (isManagerRole && selectedSellerId !== null);
+
+  // Consulta para obtener la lista de vendedores si el usuario es administrador
+  const { data: sellersData, isLoading: loadingSellers } = useQuery({
+    queryKey: ["sellers"],
+    queryFn: async () => {
+      if (!isManagerRole) return { users: [] };
+
+      const response = await fetch(`/api/users?role=${ROLES.SELLER}`);
+      if (!response.ok) {
+        throw new Error("Error al obtener vendedores");
+      }
+      return response.json();
+    },
+    enabled: isManagerRole,
+  });
 
   // Obtener datos
   const { data: sales, isLoading: salesLoading } = useSales({
@@ -65,6 +114,7 @@ export default function SalesPage() {
       dateRange?.from && dateRange?.to
         ? [dateRange.from, dateRange.to]
         : undefined,
+    assignedToId,
   });
 
   const { data: reservations, isLoading: reservationsLoading } =
@@ -76,7 +126,17 @@ export default function SalesPage() {
         dateRange?.from && dateRange?.to
           ? [dateRange.from, dateRange.to]
           : undefined,
+      assignedToId,
     });
+
+  // Usar useEffect para manejar el cambio de roles
+  useEffect(() => {
+    // Si es vendedor, mostrar el contenido automáticamente
+    if (isSeller) {
+      setHasSelectedSeller(true);
+      setShowSellerSelector(false);
+    }
+  }, [isSeller]);
 
   const { data: categories, isLoading: categoriesLoading } =
     useProductCategories();
@@ -85,6 +145,40 @@ export default function SalesPage() {
   // Manejar cambios en las pestañas
   const handleTabChange = (value: string) => {
     setActiveTab(value as "ventas" | "reservas");
+  };
+
+  // Manejar la selección de un vendedor
+  const handleSelectSeller = (sellerId: string) => {
+    setSelectedSellerId(sellerId);
+    setHasSelectedSeller(true);
+    // Ocultar selector después de seleccionar
+    setShowSellerSelector(false);
+  };
+
+  // Manejar ver todas las ventas
+  const handleViewAllSales = () => {
+    setSelectedSellerId(null);
+    setHasSelectedSeller(true);
+    // Ocultar selector después de seleccionar "ver todas"
+    setShowSellerSelector(false);
+  };
+
+  // Volver a la selección de vendedores
+  const handleBackToSelection = () => {
+    setShowSellerSelector(true);
+    setHasSelectedSeller(false);
+    setSelectedSellerId(null);
+  };
+
+  // Obtener nombre del vendedor seleccionado
+  const getSelectedSellerName = () => {
+    if (!selectedSellerId) return "Todos los vendedores";
+
+    const sellers = sellersData?.users || [];
+    const selectedSeller = sellers.find(
+      (seller) => seller.id === selectedSellerId
+    );
+    return selectedSeller?.name || "Vendedor seleccionado";
   };
 
   // Determinar ícono según tipo de producto
@@ -121,6 +215,73 @@ export default function SalesPage() {
       default:
         return method;
     }
+  };
+
+  // Renderizar la tabla de vendedores si es administrador
+  const renderSellersTable = () => {
+    const sellers = sellersData?.users || [];
+
+    if (loadingSellers) {
+      return <div className="py-8 text-center">Cargando vendedores...</div>;
+    }
+
+    if (sellers.length === 0) {
+      return (
+        <div className="py-8 text-center">
+          No hay vendedores disponibles. Agrega vendedores desde la sección de
+          usuarios.
+        </div>
+      );
+    }
+
+    return (
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Nombre</TableHead>
+            <TableHead>Email</TableHead>
+            <TableHead>Ventas</TableHead>
+            <TableHead className="text-right">Acciones</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {sellers.map((seller: any) => (
+            <TableRow key={seller.id}>
+              <TableCell className="font-medium">{seller.name}</TableCell>
+              <TableCell>{seller.email}</TableCell>
+              <TableCell>
+                <Badge variant="outline">
+                  {sales?.filter(
+                    (sale) => sale.lead?.assignedTo?.id === seller.id
+                  ).length || 0}{" "}
+                  ventas
+                </Badge>
+              </TableCell>
+              <TableCell className="text-right">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleSelectSeller(seller.id)}
+                >
+                  Ver ventas
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+          <TableRow>
+            <TableCell colSpan={4}>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={handleViewAllSales}
+              >
+                Ver todas las ventas
+              </Button>
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    );
   };
 
   // Renderizar tarjeta de venta
@@ -444,73 +605,140 @@ export default function SalesPage() {
   };
 
   return (
-    <div className="space-y-6 p-6 min-h-screen">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Ventas</h1>
-        <div className="flex gap-2 mt-4 sm:mt-0">
-          <Button variant="outline" size="sm" className="h-9">
-            <Download className="mr-2 h-4 w-4" />
-            Exportar
-          </Button>
-          <Button variant="outline" size="sm" className="h-9">
-            <Printer className="mr-2 h-4 w-4" />
-            Imprimir
-          </Button>
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold tracking-tight">Ventas y Reservas</h1>
+
+        <div className="flex gap-2">
+          {isSeller && (
+            <>
+              <Button size="sm" variant="outline" disabled>
+                <Download className="h-4 w-4 mr-2" />
+                Exportar
+              </Button>
+              <Button>
+                <Plus className="h-5 w-5 mr-2" />
+                Nueva Venta
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
-      <div className="border-b border-gray-800 pb-2">
-        <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList className="w-fit">
-            <TabsTrigger value="ventas">Ventas</TabsTrigger>
-            <TabsTrigger value="reservas">Reservas</TabsTrigger>
-          </TabsList>
+      {/* Solo mostrar el selector de vendedor para roles administrativos */}
+      {isManagerRole && showSellerSelector && (
+        <Card className="mb-6">
+          <CardContent className="p-6">
+            <div className="flex items-center mb-4">
+              <UserIcon className="mr-2 h-5 w-5" />
+              <h2 className="text-xl font-semibold">Seleccione un vendedor</h2>
+            </div>
+            {renderSellersTable()}
+          </CardContent>
+        </Card>
+      )}
 
-          <TabsContent value="ventas" className="mt-6">
-            {salesLoading ? (
-              Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="mb-4">
-                  <Skeleton className="h-[150px] w-full" />
-                </div>
-              ))
-            ) : sales && sales.length > 0 ? (
-              sales.map((sale) => renderSaleCard(sale))
-            ) : (
-              <div className="text-center py-12">
-                <h3 className="text-lg font-medium">
-                  No hay ventas registradas
-                </h3>
-                <p className="text-gray-500 mt-2">
-                  No se encontraron ventas con los filtros actuales
-                </p>
+      {/* Mostrar el contenido solo si debe mostrarse según la lógica definida */}
+      {shouldShowContent && (
+        <>
+          {/* Mostrar información del vendedor seleccionado y botón "volver" para administradores */}
+          {isManagerRole && !showSellerSelector && (
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center">
+                <UserIcon className="mr-2 h-5 w-5 text-primary" />
+                <h2 className="text-xl font-semibold">
+                  Mostrando ventas de: {getSelectedSellerName()}
+                </h2>
               </div>
-            )}
-          </TabsContent>
+              <Button
+                variant="outline"
+                onClick={handleBackToSelection}
+                size="sm"
+              >
+                Volver a selección
+              </Button>
+            </div>
+          )}
 
-          <TabsContent value="reservas" className="mt-6">
-            {reservationsLoading ? (
-              Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="mb-4">
-                  <Skeleton className="h-[150px] w-full" />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div className="relative w-full sm:w-96">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500 dark:text-gray-400" />
+              <Input
+                type="search"
+                placeholder="Buscar por cliente, producto..."
+                className="pl-8 bg-background"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 ml-auto">
+              {/* Filtros existentes */}
+              {/* ... existing code ... */}
+            </div>
+          </div>
+
+          <Tabs
+            defaultValue="ventas"
+            value={activeTab}
+            onValueChange={handleTabChange}
+            className="space-y-4"
+          >
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="ventas">Ventas</TabsTrigger>
+              <TabsTrigger value="reservas">Reservas</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="ventas" className="space-y-4">
+              {salesLoading ? (
+                <div className="space-y-4">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-[140px] w-full" />
+                  ))}
                 </div>
-              ))
-            ) : reservations && reservations.length > 0 ? (
-              reservations.map((reservation) =>
-                renderReservationCard(reservation)
-              )
-            ) : (
-              <div className="text-center py-12">
-                <h3 className="text-lg font-medium">
-                  No hay reservas registradas
-                </h3>
-                <p className="text-gray-500 mt-2">
-                  No se encontraron reservas con los filtros actuales
-                </p>
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
-      </div>
+              ) : sales && sales.length > 0 ? (
+                sales.map((sale) => renderSaleCard(sale))
+              ) : (
+                <div className="text-center py-10">
+                  <h3 className="text-lg font-medium">
+                    No hay ventas disponibles
+                  </h3>
+                  <p className="text-gray-500 dark:text-gray-400 mt-1">
+                    {isManagerRole && !selectedSellerId
+                      ? "No se encontraron ventas para mostrar."
+                      : "No se encontraron ventas con los criterios actuales."}
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="reservas" className="space-y-4">
+              {reservationsLoading ? (
+                <div className="space-y-4">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-[140px] w-full" />
+                  ))}
+                </div>
+              ) : reservations && reservations.length > 0 ? (
+                reservations.map((reservation) =>
+                  renderReservationCard(reservation)
+                )
+              ) : (
+                <div className="text-center py-10">
+                  <h3 className="text-lg font-medium">
+                    No hay reservas disponibles
+                  </h3>
+                  <p className="text-gray-500 dark:text-gray-400 mt-1">
+                    {isManagerRole && !selectedSellerId
+                      ? "No se encontraron reservas para mostrar."
+                      : "No se encontraron reservas con los criterios actuales."}
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        </>
+      )}
 
       {renderDetailSheet()}
     </div>

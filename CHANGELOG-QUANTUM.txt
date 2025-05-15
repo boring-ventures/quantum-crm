@@ -4,6 +4,13 @@
 - Creado endpoint API /api/logout para manejar el cierre de sesión desde el servidor
 - Estandarizada gestión de errores en el proceso de cierre de sesión
 
+[2023-06-02] [Feature] - Implementado sistema de validación de roles en el módulo de Ventas - [QL]
+- Modificados hooks useSales y useReservations para aceptar filtro por vendedor asignado (assignedToId)
+- Actualizados endpoints de API /api/sales/all y /api/reservations/all para filtrar por vendedor
+- Implementada vista diferenciada en sales/page.tsx según rol de usuario (admin/vendedor)
+- Añadido selector de vendedor para administradores similar al existente en módulo de Leads
+- Mejorado sistema de filtrado condicional basado en permisos de usuario
+
 [2023-11-17] [Fix] - Corregidos múltiples errores de runtime relacionados con manejo de cookies y URLs relativas - [AI]
 - Actualizado endpoint de user-permissions para usar URL absoluta en fetch
 - Corregido endpoint de roles/permissions para usar roleId en lugar de roleName

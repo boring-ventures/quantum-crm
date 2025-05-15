@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get("category");
     const status = searchParams.get("status");
     const search = searchParams.get("search");
+    const assignedToId = searchParams.get("assignedToId");
 
     // Construir condiciones de filtrado
     const where: any = {};
@@ -45,9 +46,17 @@ export async function GET(request: NextRequest) {
       };
     }
 
+    // Filtrar por vendedor asignado
+    if (assignedToId) {
+      where.lead = {
+        ...where.lead,
+        assignedToId: assignedToId,
+      };
+    }
+
     // Buscar por texto
     if (search) {
-      where.OR = [
+      const searchConditions = [
         {
           lead: {
             firstName: {
@@ -75,6 +84,16 @@ export async function GET(request: NextRequest) {
           },
         },
       ];
+
+      // Si ya tenemos condiciones para lead, las integramos con OR
+      if (where.lead) {
+        const leadFilters = { ...where.lead };
+        where.lead = undefined;
+
+        where.AND = [{ lead: leadFilters }, { OR: searchConditions }];
+      } else {
+        where.OR = searchConditions;
+      }
     }
 
     // Obtener reservas con relaciones
