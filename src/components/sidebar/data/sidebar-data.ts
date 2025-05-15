@@ -56,7 +56,7 @@ export const sidebarDataStatic: SidebarData = {
         },
         {
           title: "Tareas",
-          url: "/tareas",
+          url: "/tasks",
           icon: CalendarCheck,
           key: "tasks",
         },

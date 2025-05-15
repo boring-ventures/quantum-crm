@@ -19,7 +19,7 @@ const protectedRoutes = {
   "/leads": "leads",
   "/ventas": "sales",
   "/reportes": "reports",
-  "/tareas": "tasks",
+  "/tasks": "tasks",
   "/users": "users",
   "/admin": "admin",
   "/admin/roles": "admin.roles",

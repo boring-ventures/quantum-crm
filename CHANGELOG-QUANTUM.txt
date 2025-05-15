@@ -249,3 +249,9 @@
 - Implementada animación de pulso (animate-pulse) en todos los esqueletos para mejorar el feedback visual
 - Componentes de carga basados en la estructura real de sus respectivas páginas
 
+[2024-07-05] [Feature] - Añadido módulo completo de Calendario de Tareas 
+- Agregada vista de calendario con filtrado por prioridad y búsqueda
+- Implementado modal de creación/edición de tareas con integración con leads
+- Añadida vista rápida de tareas con acciones de completar/eliminar
+- Endpoints API para obtener tareas del usuario y búsqueda de leads
+
