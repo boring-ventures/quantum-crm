@@ -71,10 +71,19 @@ async function _authImplementation(): Promise<Session | null> {
     // Usar la API en lugar de consultar directamente a Supabase
     try {
       // Construir la URL absoluta para la API de usuarios
-      const baseUrl =
+      let baseUrl =
         process.env.NEXTAUTH_URL ||
         process.env.VERCEL_URL ||
         "http://localhost:3000";
+
+      // Asegurarse de que la URL base tenga el protocolo correcto
+      if (!baseUrl.startsWith("http")) {
+        baseUrl = `https://${baseUrl}`;
+      }
+
+      console.log("URL base para API:", baseUrl);
+
+      // Construir URL completa
       const apiUrl = new URL(`/api/users/${user.id}`, baseUrl);
       apiUrl.searchParams.append("requireAuth", "false");
 

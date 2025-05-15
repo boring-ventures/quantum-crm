@@ -308,4 +308,6 @@
 - Añadida información detallada sobre el estado de la sesión y roleId en la consola
 - Corregida función auth.ts para manejar correctamente respuestas de la API
 - Implementada gestión mejorada de encabezados en las peticiones a la API de usuarios
+- Corregida construcción de URL en auth.ts para garantizar el formato correcto (https://) en entorno de producción
+- Solucionado problema TypeError: Invalid URL verificando el formato de URL base antes de construir la URL completa
 
