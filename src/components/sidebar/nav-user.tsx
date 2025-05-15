@@ -26,10 +26,12 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useAuth } from "@/providers/auth-provider";
 
 export function NavUser() {
   const { isMobile } = useSidebar();
   const { profile, user, isLoading } = useCurrentUser();
+  const { signOut } = useAuth();
 
   if (isLoading || !profile || !user) return null;
 
@@ -130,8 +132,12 @@ export function NavUser() {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={async () => {
-                await fetch("/api/logout", { method: "GET" });
-                window.location.href = "/sign-in";
+                try {
+                  await signOut();
+                } catch (error) {
+                  console.error("Error al cerrar sesión:", error);
+                  window.location.href = "/sign-in";
+                }
               }}
             >
               <LogOut />

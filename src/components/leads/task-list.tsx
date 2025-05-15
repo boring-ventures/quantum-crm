@@ -11,78 +11,210 @@ import {
   X,
   Loader2,
   Calendar,
+  CheckCircle,
+  Trash,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Task } from "@/types/lead";
 import { TaskTypeDialog } from "@/components/leads/task-type-dialog";
-import { useLeadTasks, useUpdateTaskStatusMutation } from "@/lib/hooks";
+import {
+  useLeadTasks,
+  useUpdateTaskStatusMutation,
+  useDeleteTaskMutation,
+} from "@/lib/hooks";
 import { useToast } from "@/components/ui/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
-interface TaskListProps {
+export interface TaskListProps {
   leadId: string;
+  isSeller?: boolean;
 }
 
-export function TaskList({ leadId }: TaskListProps) {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const { data: tasks, isLoading } = useLeadTasks(leadId);
-  const updateTaskStatusMutation = useUpdateTaskStatusMutation();
+interface TaskListItemProps {
+  task: Task;
+  onUpdate: () => void;
+  isSeller?: boolean;
+}
+
+function TaskListItem({ task, onUpdate, isSeller = false }: TaskListItemProps) {
   const { toast } = useToast();
+  const updateTaskStatusMutation = useUpdateTaskStatusMutation();
+  const deleteTaskMutation = useDeleteTaskMutation();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
-  const getStatusBadgeStyle = (status: string) => {
-    switch (status) {
-      case "PENDING":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-900/50";
-      case "IN_PROGRESS":
-        return "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-900/50";
-      case "COMPLETED":
-        return "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-900/50";
-      case "CANCELLED":
-        return "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-900/50";
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700";
-    }
-  };
+  const handleComplete = async () => {
+    if (!isSeller) return;
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case "PENDING":
-        return "Pendiente";
-      case "IN_PROGRESS":
-        return "En progreso";
-      case "COMPLETED":
-        return "Completado";
-      case "CANCELLED":
-        return "Cancelado";
-      default:
-        return status;
-    }
-  };
-
-  const handleUpdateStatus = async (
-    taskId: string,
-    newStatus: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
-  ) => {
+    setIsUpdating(true);
     try {
       await updateTaskStatusMutation.mutateAsync({
-        taskId,
-        leadId,
-        status: newStatus,
+        taskId: task.id,
+        leadId: task.leadId,
+        status: "COMPLETED",
       });
 
       toast({
-        title: "Estado actualizado",
-        description: `Tarea marcada como ${getStatusText(newStatus).toLowerCase()}`,
+        title: "Tarea completada",
+        description: "La tarea ha sido marcada como completada",
       });
+
+      onUpdate();
     } catch (error) {
-      console.error("Error al actualizar el estado de la tarea:", error);
+      console.error("Error al actualizar tarea:", error);
       toast({
         title: "Error",
         description: "No se pudo actualizar el estado de la tarea",
         variant: "destructive",
       });
+    } finally {
+      setIsUpdating(false);
     }
   };
+
+  const handleDelete = async () => {
+    if (!isSeller) return;
+
+    try {
+      await deleteTaskMutation.mutateAsync({
+        taskId: task.id,
+        leadId: task.leadId,
+      });
+
+      setShowDeleteDialog(false);
+      toast({
+        title: "Tarea eliminada",
+        description: "La tarea ha sido eliminada exitosamente",
+      });
+
+      onUpdate();
+    } catch (error) {
+      console.error("Error al eliminar tarea:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la tarea",
+        variant: "destructive",
+      });
+    }
+  };
+
+  return (
+    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-200 dark:border-gray-700 py-4 gap-3">
+      <div className="flex-1">
+        <h5
+          className={`text-lg font-medium ${
+            task.status === "COMPLETED" || task.status === "CANCELLED"
+              ? "text-gray-600 dark:text-gray-400"
+              : "text-gray-900 dark:text-gray-100"
+          }`}
+        >
+          {task.title}
+        </h5>
+        <div className="flex items-center mt-2 text-sm text-gray-500 dark:text-gray-400">
+          <Clock className="h-4 w-4 mr-1" />
+          {format(new Date(task.createdAt), "d 'de' MMMM, yyyy", {
+            locale: es,
+          })}
+        </div>
+        {task.scheduledFor && (
+          <div className="flex items-center mt-1 text-sm text-blue-500 dark:text-blue-400">
+            <Calendar className="h-4 w-4 mr-1" />
+            {format(new Date(task.scheduledFor), "d 'de' MMMM, yyyy • HH:mm", {
+              locale: es,
+            })}
+          </div>
+        )}
+        {task.description && (
+          <div className="mt-2 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 p-2 rounded-md">
+            {task.description}
+          </div>
+        )}
+      </div>
+
+      {isSeller ? (
+        <div className="flex gap-2 justify-end">
+          {task.status === "PENDING" && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 px-2 text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700 dark:text-green-500 dark:border-green-800/30 dark:hover:bg-green-900/20"
+              onClick={handleComplete}
+              disabled={isUpdating}
+            >
+              {isUpdating ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <CheckCircle className="h-3.5 w-3.5" />
+              )}
+              <span className="ml-1.5">Completar</span>
+            </Button>
+          )}
+
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 px-2 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-500 dark:hover:bg-red-900/20"
+            onClick={() => setShowDeleteDialog(true)}
+          >
+            <Trash className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ) : (
+        <div>
+          <Badge
+            variant={task.status === "COMPLETED" ? "success" : "outline"}
+            className={
+              task.status === "COMPLETED"
+                ? "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-900/50"
+                : ""
+            }
+          >
+            {task.status === "COMPLETED" ? "Completada" : "Pendiente"}
+          </Badge>
+        </div>
+      )}
+
+      {isSeller && (
+        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Eliminar tarea</DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                ¿Estás seguro de que quieres eliminar esta tarea? Esta acción no
+                se puede deshacer.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteDialog(false)}
+              >
+                Cancelar
+              </Button>
+              <Button variant="destructive" onClick={handleDelete}>
+                Eliminar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
+}
+
+export function TaskList({ leadId, isSeller = false }: TaskListProps) {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const { data: tasks, isLoading, refetch } = useLeadTasks(leadId);
+  const { toast } = useToast();
 
   // Agrupar tareas por estatus
   const groupedTasks =
@@ -125,28 +257,33 @@ export function TaskList({ leadId }: TaskListProps) {
         Crea tu primera tarea para este lead. Las tareas te ayudan a organizar y
         dar seguimiento a tus actividades de ventas.
       </p>
-      <Button
-        onClick={() => setIsDialogOpen(true)}
-        className="mt-2 bg-blue-600 hover:bg-blue-700 text-white"
-      >
-        <Plus className="h-4 w-4 mr-2" />
-        Crear primera tarea
-      </Button>
+      {isSeller && (
+        <Button
+          onClick={() => setIsDialogOpen(true)}
+          className="mt-2 bg-blue-600 hover:bg-blue-700 text-white"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Crear primera tarea
+        </Button>
+      )}
     </div>
   );
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="text-xl font-semibold">Tareas</h3>
-        <Button
-          size="sm"
-          onClick={() => setIsDialogOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Nueva Tarea
-        </Button>
+        <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+          Tareas
+        </h3>
+        {isSeller && (
+          <Button
+            onClick={() => setIsDialogOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Nueva tarea
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
@@ -182,108 +319,12 @@ export function TaskList({ leadId }: TaskListProps) {
                     </h4>
                   )}
                   {sortedTasks[status].map((task) => (
-                    <div
+                    <TaskListItem
                       key={task.id}
-                      className={`p-4 border rounded-lg ${
-                        status === "COMPLETED" || status === "CANCELLED"
-                          ? "bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700/50"
-                          : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
-                      }`}
-                    >
-                      <div className="flex justify-between">
-                        <div>
-                          <h5
-                            className={`text-lg font-medium ${
-                              status === "COMPLETED" || status === "CANCELLED"
-                                ? "text-gray-600 dark:text-gray-400"
-                                : "text-gray-900 dark:text-gray-100"
-                            }`}
-                          >
-                            {task.title}
-                          </h5>
-                          <div className="flex items-center mt-2 text-sm text-gray-500 dark:text-gray-400">
-                            <Clock className="h-4 w-4 mr-1" />
-                            {format(
-                              new Date(task.createdAt),
-                              "d 'de' MMMM, yyyy",
-                              { locale: es }
-                            )}
-                          </div>
-                          {task.scheduledFor && (
-                            <div className="flex items-center mt-1 text-sm text-blue-500 dark:text-blue-400">
-                              <Calendar className="h-4 w-4 mr-1" />
-                              {format(
-                                new Date(task.scheduledFor),
-                                "d 'de' MMMM, yyyy • HH:mm",
-                                { locale: es }
-                              )}
-                            </div>
-                          )}
-                          {task.description && (
-                            <div className="mt-2 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 p-2 rounded-md">
-                              {task.description}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex items-start">
-                          <Badge
-                            variant="outline"
-                            className={`${getStatusBadgeStyle(task.status)}`}
-                          >
-                            {getStatusText(task.status)}
-                          </Badge>
-                        </div>
-                      </div>
-
-                      {/* Acciones de estado */}
-                      {task.status !== "COMPLETED" &&
-                        task.status !== "CANCELLED" && (
-                          <div className="mt-3 flex justify-end space-x-2">
-                            {task.status === "PENDING" && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300 dark:border-blue-900 dark:hover:bg-blue-900/20"
-                                onClick={() =>
-                                  handleUpdateStatus(task.id, "IN_PROGRESS")
-                                }
-                                disabled={updateTaskStatusMutation.isPending}
-                              >
-                                <Clock className="h-4 w-4 mr-1" />
-                                Iniciar
-                              </Button>
-                            )}
-
-                            {task.status === "IN_PROGRESS" && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-green-600 border-green-200 hover:bg-green-50 hover:border-green-300 dark:border-green-900 dark:hover:bg-green-900/20"
-                                onClick={() =>
-                                  handleUpdateStatus(task.id, "COMPLETED")
-                                }
-                                disabled={updateTaskStatusMutation.isPending}
-                              >
-                                <Check className="h-4 w-4 mr-1" />
-                                Completar
-                              </Button>
-                            )}
-
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 dark:border-red-900 dark:hover:bg-red-900/20"
-                              onClick={() =>
-                                handleUpdateStatus(task.id, "CANCELLED")
-                              }
-                              disabled={updateTaskStatusMutation.isPending}
-                            >
-                              <X className="h-4 w-4 mr-1" />
-                              Cancelar
-                            </Button>
-                          </div>
-                        )}
-                    </div>
+                      task={task}
+                      onUpdate={refetch}
+                      isSeller={isSeller}
+                    />
                   ))}
                 </div>
               )
@@ -291,11 +332,13 @@ export function TaskList({ leadId }: TaskListProps) {
         </div>
       )}
 
-      <TaskTypeDialog
-        open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        leadId={leadId}
-      />
+      {isSeller && (
+        <TaskTypeDialog
+          open={isDialogOpen}
+          onOpenChange={setIsDialogOpen}
+          leadId={leadId}
+        />
+      )}
     </div>
   );
 }

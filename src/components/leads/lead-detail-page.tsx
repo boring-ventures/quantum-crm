@@ -14,6 +14,7 @@ import {
   MessageCircle,
   Archive,
   Trash2,
+  Eye,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -52,9 +53,14 @@ import { useQueryClient } from "@tanstack/react-query";
 interface LeadDetailPageProps {
   lead: LeadWithRelations;
   onBack: () => void;
+  isSeller?: boolean;
 }
 
-export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
+export function LeadDetailPage({
+  lead,
+  onBack,
+  isSeller = false,
+}: LeadDetailPageProps) {
   const [activeTab, setActiveTab] = useState("informacion");
   const [isFavorite, setIsFavorite] = useState(lead.isFavorite || false);
   const [comments, setComments] = useState(lead.extraComments || "");
@@ -136,12 +142,14 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
 
   // Manejar la edición de comentarios
   const handleEditComments = () => {
+    if (!isSeller) return;
     setIsEditing(true);
     setOriginalComments(comments);
   };
 
   // Manejar cambios en el textarea
   const handleCommentsChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (!isSeller) return;
     setComments(e.target.value);
     setHasChanges(e.target.value !== originalComments);
   };
@@ -155,6 +163,7 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
 
   // Guardar comentarios
   const handleSaveComments = async () => {
+    if (!isSeller) return;
     try {
       await updateLeadMutation.mutateAsync({
         id: lead.id,
@@ -249,6 +258,7 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
 
   // Manejar el cambio de favorito
   const handleToggleFavorite = async () => {
+    if (!isSeller) return;
     try {
       await toggleFavoriteMutation.mutateAsync({
         leadId: lead.id,
@@ -281,6 +291,7 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
   };
 
   const handleContactLead = () => {
+    if (!isSeller) return;
     if (lead.cellphone) {
       // Eliminar cualquier carácter no numérico del número de teléfono
       const phoneNumber = lead.cellphone.replace(/\D/g, "");
@@ -290,6 +301,7 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
   };
 
   const handleScheduleAppointment = () => {
+    if (!isSeller) return;
     // Abrir el diálogo de tareas directamente en el paso 2 con el tipo "client-visit"
     setSelectedTaskType("client-visit");
     setOpenTaskDialog(true);
@@ -310,10 +322,12 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
             <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
               {lead.firstName} {lead.lastName}
             </h1>
-            <Star
-              className={`h-5 w-5 cursor-pointer ${isFavorite ? "fill-yellow-400 text-yellow-400" : "text-gray-400"}`}
-              onClick={handleToggleFavorite}
-            />
+            {isSeller && (
+              <Star
+                className={`h-5 w-5 cursor-pointer ${isFavorite ? "fill-yellow-400 text-yellow-400" : "text-gray-400"}`}
+                onClick={handleToggleFavorite}
+              />
+            )}
             <Badge className="ml-2 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
               Lead #{lead.id.substring(0, 8)}
             </Badge>
@@ -377,12 +391,6 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
                 >
                   Línea de tiempo
                 </TabsTrigger>
-                {/* <TabsTrigger
-                  value="documentos"
-                  className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:rounded-none data-[state=active]:shadow-none rounded-none px-6 py-3"
-                >
-                  Documentos
-                </TabsTrigger> */}
               </TabsList>
 
               <TabsContent value="informacion" className="p-6 space-y-8">
@@ -448,7 +456,7 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
                     <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
                       Comentarios Extras
                     </h3>
-                    {!isEditing && (
+                    {!isEditing && isSeller && (
                       <Button
                         size="sm"
                         variant="ghost"
@@ -464,9 +472,9 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
                     className="min-h-[120px] resize-none text-gray-800 dark:text-gray-200"
                     value={comments}
                     onChange={handleCommentsChange}
-                    disabled={!isEditing}
+                    disabled={!isEditing || !isSeller}
                   />
-                  {isEditing && (
+                  {isEditing && isSeller && (
                     <div className="flex justify-end mt-3 gap-2">
                       <Button
                         size="sm"
@@ -493,202 +501,215 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
               </TabsContent>
 
               <TabsContent value="tareas" className="p-6">
-                <TaskList leadId={lead.id} />
+                <TaskList leadId={lead.id} isSeller={isSeller} />
               </TabsContent>
 
               <TabsContent value="lineaTiempo" className="p-6">
                 <LeadTimeline lead={lead} isFavorite={isFavorite} />
               </TabsContent>
-
-              {/* <TabsContent value="documentos" className="p-6">
-                <LeadDocuments lead={lead} />
-              </TabsContent> */}
             </Tabs>
           </div>
         </div>
 
         {/* Sidebar derecho */}
         <div className="lg:w-[350px] space-y-4">
-          {/* Proceso de venta */}
-          <Card className="border-gray-200 dark:border-gray-700">
-            <CardContent className="p-6">
-              <h3 className="text-lg font-medium mb-6">Proceso de venta</h3>
+          {/* Proceso de venta - Solo visible para vendedores */}
+          {isSeller && (
+            <Card className="border-gray-200 dark:border-gray-700">
+              <CardContent className="p-6">
+                <h3 className="text-lg font-medium mb-6">Proceso de venta</h3>
 
-              {isLoadingLeadQuotation ||
-              isLoadingLeadReservation ||
-              isLoadingLeadSale ? (
-                <div className="flex items-center justify-center h-24">
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  <button
-                    onClick={() => setOpenModal("quotation")}
-                    className="w-full flex items-center gap-3 mb-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md p-2 transition-colors"
-                  >
-                    {salesProcess.quotation ? (
-                      <div className="rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 w-7 h-7 flex items-center justify-center">
-                        <CheckCircle className="h-4 w-4" />
-                      </div>
-                    ) : (
-                      <div className="rounded-full bg-blue-600 text-white w-7 h-7 flex items-center justify-center text-sm">
-                        1
-                      </div>
-                    )}
-                    <span
-                      className={`${salesProcess.quotation ? "text-green-600 dark:text-green-400" : "font-medium text-gray-800 dark:text-gray-200"}`}
+                {isLoadingLeadQuotation ||
+                isLoadingLeadReservation ||
+                isLoadingLeadSale ? (
+                  <div className="flex items-center justify-center h-24">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <button
+                      onClick={() => setOpenModal("quotation")}
+                      className="w-full flex items-center gap-3 mb-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md p-2 transition-colors"
                     >
-                      Crear cotización
-                    </span>
-                  </button>
+                      {salesProcess.quotation ? (
+                        <div className="rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 w-7 h-7 flex items-center justify-center">
+                          <CheckCircle className="h-4 w-4" />
+                        </div>
+                      ) : (
+                        <div className="rounded-full bg-blue-600 text-white w-7 h-7 flex items-center justify-center text-sm">
+                          1
+                        </div>
+                      )}
+                      <span
+                        className={`${salesProcess.quotation ? "text-green-600 dark:text-green-400" : "font-medium text-gray-800 dark:text-gray-200"}`}
+                      >
+                        Crear cotización
+                      </span>
+                    </button>
 
-                  <div className="border-l-2 border-gray-200 dark:border-gray-700 h-5 ml-3.5"></div>
+                    <div className="border-l-2 border-gray-200 dark:border-gray-700 h-5 ml-3.5"></div>
 
-                  <button
-                    onClick={() =>
-                      salesProcess.quotation && setOpenModal("reservation")
-                    }
-                    disabled={!salesProcess.quotation}
-                    className={`w-full flex items-center gap-3 mb-2 ${salesProcess.quotation ? "hover:bg-gray-50 dark:hover:bg-gray-800" : "cursor-not-allowed"} rounded-md p-2 transition-colors`}
-                  >
-                    {salesProcess.reservation ? (
-                      <div className="rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 w-7 h-7 flex items-center justify-center">
-                        <CheckCircle className="h-4 w-4" />
-                      </div>
-                    ) : salesProcess.quotation ? (
-                      <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 w-7 h-7 flex items-center justify-center text-sm">
-                        2
-                      </div>
-                    ) : (
-                      <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 w-7 h-7 flex items-center justify-center text-sm">
-                        <LockIcon className="h-3 w-3" />
-                      </div>
-                    )}
-                    <span
-                      className={`${
-                        salesProcess.reservation
-                          ? "text-green-600 dark:text-green-400"
-                          : salesProcess.quotation
-                            ? "text-gray-600 dark:text-gray-300"
-                            : "text-gray-400 dark:text-gray-500"
-                      }`}
+                    <button
+                      onClick={() =>
+                        salesProcess.quotation && setOpenModal("reservation")
+                      }
+                      disabled={!salesProcess.quotation}
+                      className={`w-full flex items-center gap-3 mb-2 ${salesProcess.quotation ? "hover:bg-gray-50 dark:hover:bg-gray-800" : "cursor-not-allowed"} rounded-md p-2 transition-colors`}
                     >
-                      Registrar reserva
-                    </span>
-                  </button>
+                      {salesProcess.reservation ? (
+                        <div className="rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 w-7 h-7 flex items-center justify-center">
+                          <CheckCircle className="h-4 w-4" />
+                        </div>
+                      ) : salesProcess.quotation ? (
+                        <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 w-7 h-7 flex items-center justify-center text-sm">
+                          2
+                        </div>
+                      ) : (
+                        <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 w-7 h-7 flex items-center justify-center text-sm">
+                          <LockIcon className="h-3 w-3" />
+                        </div>
+                      )}
+                      <span
+                        className={`${
+                          salesProcess.reservation
+                            ? "text-green-600 dark:text-green-400"
+                            : salesProcess.quotation
+                              ? "text-gray-600 dark:text-gray-300"
+                              : "text-gray-400 dark:text-gray-500"
+                        }`}
+                      >
+                        Registrar reserva
+                      </span>
+                    </button>
 
-                  <div className="border-l-2 border-gray-200 dark:border-gray-700 h-5 ml-3.5"></div>
+                    <div className="border-l-2 border-gray-200 dark:border-gray-700 h-5 ml-3.5"></div>
 
-                  <button
-                    onClick={() =>
-                      salesProcess.reservation && setOpenModal("sale")
-                    }
-                    disabled={!salesProcess.reservation}
-                    className={`w-full flex items-center gap-3 ${salesProcess.reservation ? "hover:bg-gray-50 dark:hover:bg-gray-800" : "cursor-not-allowed"} rounded-md p-2 transition-colors`}
-                  >
-                    {salesProcess.sale ? (
-                      <div className="rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 w-7 h-7 flex items-center justify-center">
-                        <CheckCircle className="h-4 w-4" />
-                      </div>
-                    ) : salesProcess.reservation ? (
-                      <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 w-7 h-7 flex items-center justify-center text-sm">
-                        3
-                      </div>
-                    ) : (
-                      <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 w-7 h-7 flex items-center justify-center text-sm">
-                        <LockIcon className="h-3 w-3" />
-                      </div>
-                    )}
-                    <span
-                      className={`${
-                        salesProcess.sale
-                          ? "text-green-600 dark:text-green-400"
-                          : salesProcess.reservation
-                            ? "text-gray-600 dark:text-gray-300"
-                            : "text-gray-400 dark:text-gray-500"
-                      }`}
+                    <button
+                      onClick={() =>
+                        salesProcess.reservation && setOpenModal("sale")
+                      }
+                      disabled={!salesProcess.reservation}
+                      className={`w-full flex items-center gap-3 ${salesProcess.reservation ? "hover:bg-gray-50 dark:hover:bg-gray-800" : "cursor-not-allowed"} rounded-md p-2 transition-colors`}
                     >
-                      Registrar venta
-                    </span>
-                  </button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                      {salesProcess.sale ? (
+                        <div className="rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 w-7 h-7 flex items-center justify-center">
+                          <CheckCircle className="h-4 w-4" />
+                        </div>
+                      ) : salesProcess.reservation ? (
+                        <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 w-7 h-7 flex items-center justify-center text-sm">
+                          3
+                        </div>
+                      ) : (
+                        <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 w-7 h-7 flex items-center justify-center text-sm">
+                          <LockIcon className="h-3 w-3" />
+                        </div>
+                      )}
+                      <span
+                        className={`${
+                          salesProcess.sale
+                            ? "text-green-600 dark:text-green-400"
+                            : salesProcess.reservation
+                              ? "text-gray-600 dark:text-gray-300"
+                              : "text-gray-400 dark:text-gray-500"
+                        }`}
+                      >
+                        Registrar venta
+                      </span>
+                    </button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
-          {/* Acciones */}
+          {/* Acciones - Diferentes para vendedores y administradores */}
           <Card className="border-gray-200 dark:border-gray-700 overflow-hidden">
             <CardContent className="p-0">
-              <Button
-                className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700"
-                variant="ghost"
-                onClick={handleContactLead}
-              >
-                <MessageCircle className="mr-3 h-5 w-5" />
-                Contactar
-              </Button>
-
-              <Button
-                className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700"
-                variant="ghost"
-                onClick={handleScheduleAppointment}
-              >
-                <CalendarClock className="mr-3 h-5 w-5" />
-                Agendar cita
-              </Button>
-
-              <Button
-                className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700 text-yellow-500"
-                variant="ghost"
-                onClick={handleToggleFavorite}
-                disabled={toggleFavoriteMutation.isPending}
-              >
-                {toggleFavoriteMutation.isPending ? (
-                  <Loader2 className="mr-3 h-5 w-5 animate-spin" />
-                ) : (
-                  <Star className="mr-3 h-5 w-5" />
-                )}
-                {toggleFavoriteMutation.isPending
-                  ? "Actualizando..."
-                  : isFavorite
-                    ? "Quitar de favoritos"
-                    : "Marcar como favorito"}
-              </Button>
-
-              <Button
-                className="w-full justify-start rounded-none py-3 h-auto font-normal text-base"
-                variant="ghost"
-                onClick={() => setShowActionsMenu(!showActionsMenu)}
-              >
-                <MoreHorizontal className="mr-3 h-5 w-5" />
-                Más acciones
-              </Button>
-
-              {showActionsMenu && (
-                <div className="border-t border-gray-200 dark:border-gray-700">
+              {isSeller ? (
+                /* Acciones completas para vendedores */
+                <>
                   <Button
                     className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700"
                     variant="ghost"
-                    onClick={() => setShowArchiveDialog(true)}
+                    onClick={handleContactLead}
                   >
-                    <Archive className="mr-3 h-5 w-5 text-gray-500" />
-                    Archivar lead
+                    <MessageCircle className="mr-3 h-5 w-5" />
+                    Contactar
                   </Button>
 
                   <Button
-                    className="w-full justify-start rounded-none py-3 h-auto font-normal text-base text-red-500"
+                    className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700"
                     variant="ghost"
-                    onClick={() => setShowDeleteDialog(true)}
+                    onClick={handleScheduleAppointment}
                   >
-                    <Trash2 className="mr-3 h-5 w-5" />
-                    Eliminar lead
+                    <CalendarClock className="mr-3 h-5 w-5" />
+                    Agendar cita
                   </Button>
-                </div>
+
+                  <Button
+                    className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700 text-yellow-500"
+                    variant="ghost"
+                    onClick={handleToggleFavorite}
+                    disabled={toggleFavoriteMutation.isPending}
+                  >
+                    {toggleFavoriteMutation.isPending ? (
+                      <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                    ) : (
+                      <Star className="mr-3 h-5 w-5" />
+                    )}
+                    {toggleFavoriteMutation.isPending
+                      ? "Actualizando..."
+                      : isFavorite
+                        ? "Quitar de favoritos"
+                        : "Marcar como favorito"}
+                  </Button>
+
+                  <Button
+                    className="w-full justify-start rounded-none py-3 h-auto font-normal text-base"
+                    variant="ghost"
+                    onClick={() => setShowActionsMenu(!showActionsMenu)}
+                  >
+                    <MoreHorizontal className="mr-3 h-5 w-5" />
+                    Más acciones
+                  </Button>
+
+                  {showActionsMenu && (
+                    <div className="border-t border-gray-200 dark:border-gray-700">
+                      <Button
+                        className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700"
+                        variant="ghost"
+                        onClick={() => setShowArchiveDialog(true)}
+                      >
+                        <Archive className="mr-3 h-5 w-5 text-gray-500" />
+                        Archivar lead
+                      </Button>
+
+                      <Button
+                        className="w-full justify-start rounded-none py-3 h-auto font-normal text-base text-red-500"
+                        variant="ghost"
+                        onClick={() => setShowDeleteDialog(true)}
+                      >
+                        <Trash2 className="mr-3 h-5 w-5" />
+                        Eliminar lead
+                      </Button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* Acción única para administradores: solo ver */
+                <Button
+                  className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-gray-200 dark:border-gray-700"
+                  variant="ghost"
+                  onClick={onBack}
+                >
+                  <Eye className="mr-3 h-5 w-5" />
+                  Solo visualización (Modo Admin)
+                </Button>
               )}
             </CardContent>
           </Card>
 
-          {/* Estado actual */}
+          {/* Estado actual - Visible para todos */}
           <Card className="border-gray-200 dark:border-gray-700">
             <CardContent className="p-6">
               <h3 className="text-lg font-medium mb-4">Estado actual</h3>
@@ -716,147 +737,157 @@ export function LeadDetailPage({ lead, onBack }: LeadDetailPageProps) {
         </div>
       </div>
 
-      {/* Modales para el proceso de venta */}
-      <QuotationDialog
-        open={openModal === "quotation"}
-        onClose={handleCloseModal}
-        leadName={`${lead.firstName} ${lead.lastName}`}
-        leadId={lead.id}
-        onComplete={handleCompleteQuotation}
-      />
+      {/* Modales para el proceso de venta - Solo para vendedores */}
+      {isSeller && (
+        <>
+          <QuotationDialog
+            open={openModal === "quotation"}
+            onClose={handleCloseModal}
+            leadName={`${lead.firstName} ${lead.lastName}`}
+            leadId={lead.id}
+            onComplete={handleCompleteQuotation}
+          />
 
-      <ReservationDialog
-        open={openModal === "reservation"}
-        onClose={handleCloseModal}
-        leadName={`${lead.firstName} ${lead.lastName}`}
-        leadId={lead.id}
-        onComplete={handleCompleteReservation}
-      />
+          <ReservationDialog
+            open={openModal === "reservation"}
+            onClose={handleCloseModal}
+            leadName={`${lead.firstName} ${lead.lastName}`}
+            leadId={lead.id}
+            onComplete={handleCompleteReservation}
+          />
 
-      <SaleDialog
-        open={openModal === "sale"}
-        onClose={handleCloseModal}
-        leadName={`${lead.firstName} ${lead.lastName}`}
-        leadId={lead.id}
-        onComplete={handleCompleteSale}
-      />
+          <SaleDialog
+            open={openModal === "sale"}
+            onClose={handleCloseModal}
+            leadName={`${lead.firstName} ${lead.lastName}`}
+            leadId={lead.id}
+            onComplete={handleCompleteSale}
+          />
 
-      {/* Diálogo de confirmación para archivar lead */}
-      <Dialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Archivar Lead</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p>
-              ¿Estás seguro que deseas archivar este lead? Esta acción no se
-              puede deshacer.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowArchiveDialog(false)}
-              disabled={isArchiving}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="default"
-              className="bg-blue-600 hover:bg-blue-700"
-              onClick={async () => {
-                setIsArchiving(true);
-                try {
-                  await updateLeadMutation.mutateAsync({
-                    id: lead.id,
-                    data: {
-                      isArchived: true,
-                    },
-                  });
-                  setShowArchiveDialog(false);
-                  toast({
-                    title: "Lead archivado",
-                    description: "El lead ha sido archivado correctamente",
-                  });
-                  if (onBack) onBack();
-                } catch (error) {
-                  toast({
-                    title: "Error",
-                    description: "No se pudo archivar el lead",
-                    variant: "destructive",
-                  });
-                } finally {
-                  setIsArchiving(false);
-                }
-              }}
-              disabled={isArchiving}
-            >
-              {isArchiving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Archivar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          {/* Diálogo de confirmación para archivar lead */}
+          <Dialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Archivar Lead</DialogTitle>
+              </DialogHeader>
+              <div className="py-4">
+                <p>
+                  ¿Estás seguro que deseas archivar este lead? Esta acción no se
+                  puede deshacer.
+                </p>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowArchiveDialog(false)}
+                  disabled={isArchiving}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  variant="default"
+                  className="bg-blue-600 hover:bg-blue-700"
+                  onClick={async () => {
+                    setIsArchiving(true);
+                    try {
+                      await updateLeadMutation.mutateAsync({
+                        id: lead.id,
+                        data: {
+                          isArchived: true,
+                        },
+                      });
+                      setShowArchiveDialog(false);
+                      toast({
+                        title: "Lead archivado",
+                        description: "El lead ha sido archivado correctamente",
+                      });
+                      if (onBack) onBack();
+                    } catch (error) {
+                      toast({
+                        title: "Error",
+                        description: "No se pudo archivar el lead",
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setIsArchiving(false);
+                    }
+                  }}
+                  disabled={isArchiving}
+                >
+                  {isArchiving && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Archivar
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
-      {/* Diálogo de confirmación para eliminar lead */}
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Eliminar Lead</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p>
-              ¿Estás seguro que deseas eliminar este lead? Esta acción no se
-              puede deshacer.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowDeleteDialog(false)}
-              disabled={isDeleting}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={async () => {
-                setIsDeleting(true);
-                try {
-                  await deleteLeadMutation.mutateAsync(lead.id);
-                  setShowDeleteDialog(false);
-                  toast({
-                    title: "Lead eliminado",
-                    description: "El lead ha sido eliminado correctamente",
-                  });
-                  if (onBack) onBack();
-                } catch (error) {
-                  toast({
-                    title: "Error",
-                    description: "No se pudo eliminar el lead",
-                    variant: "destructive",
-                  });
-                } finally {
-                  setIsDeleting(false);
-                }
-              }}
-              disabled={isDeleting}
-            >
-              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Eliminar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          {/* Diálogo de confirmación para eliminar lead */}
+          <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Eliminar Lead</DialogTitle>
+              </DialogHeader>
+              <div className="py-4">
+                <p>
+                  ¿Estás seguro que deseas eliminar este lead? Esta acción no se
+                  puede deshacer.
+                </p>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDeleteDialog(false)}
+                  disabled={isDeleting}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={async () => {
+                    setIsDeleting(true);
+                    try {
+                      await deleteLeadMutation.mutateAsync(lead.id);
+                      setShowDeleteDialog(false);
+                      toast({
+                        title: "Lead eliminado",
+                        description: "El lead ha sido eliminado correctamente",
+                      });
+                      if (onBack) onBack();
+                    } catch (error) {
+                      toast({
+                        title: "Error",
+                        description: "No se pudo eliminar el lead",
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setIsDeleting(false);
+                    }
+                  }}
+                  disabled={isDeleting}
+                >
+                  {isDeleting && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Eliminar
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
+      )}
 
-      {/* Diálogo de tarea */}
-      <TaskTypeDialog
-        open={openTaskDialog}
-        onOpenChange={setOpenTaskDialog}
-        leadId={lead.id}
-        initialStep={selectedTaskType ? 2 : 1}
-        preselectedTaskType={selectedTaskType}
-      />
+      {/* Diálogo de tarea - Solo para vendedores */}
+      {isSeller && (
+        <TaskTypeDialog
+          open={openTaskDialog}
+          onOpenChange={setOpenTaskDialog}
+          leadId={lead.id}
+          initialStep={selectedTaskType ? 2 : 1}
+          preselectedTaskType={selectedTaskType}
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,34 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Task } from "@/types/lead";
 
+// Obtener todas las tareas con filtros opcionales
+export const useTasks = ({ assignedToId }: { assignedToId?: string } = {}) => {
+  return useQuery<Task[]>({
+    queryKey: ["tasks", assignedToId],
+    queryFn: async () => {
+      try {
+        let url = "/api/tasks/user";
+
+        // Si se proporciona assignedToId, agregar como parámetro
+        if (assignedToId) {
+          url += `?assignedToId=${assignedToId}`;
+        }
+
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          throw new Error("Error al cargar tareas");
+        }
+
+        return response.json();
+      } catch (error) {
+        console.error("Error cargando tareas:", error);
+        return [];
+      }
+    },
+  });
+};
+
 // Obtener las tareas de un lead
 export const useLeadTasks = (leadId: string) => {
   return useQuery<Task[]>({
@@ -68,6 +96,9 @@ export const useCreateTaskMutation = () => {
       queryClient.invalidateQueries({
         queryKey: ["leadTasks", variables.leadId],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["tasks"],
+      });
     },
   });
 };
@@ -104,6 +135,9 @@ export const useUpdateTaskStatusMutation = () => {
       queryClient.invalidateQueries({
         queryKey: ["leadTasks", variables.leadId],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["tasks"],
+      });
     },
   });
 };
@@ -130,6 +164,9 @@ export const useDeleteTaskMutation = () => {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: ["leadTasks", variables.leadId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["tasks"],
       });
     },
   });

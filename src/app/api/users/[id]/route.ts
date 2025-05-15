@@ -10,7 +10,7 @@ export async function GET(
 ) {
   try {
     // Verificar que el ID solicitado es válido
-    const userId = context.params.id;
+    const { id: userId } = await context.params;
 
     if (!userId) {
       return NextResponse.json(
@@ -87,7 +87,10 @@ export async function GET(
 
     return NextResponse.json({ profile });
   } catch (error) {
-    console.error("Error al obtener usuario:", error);
+    console.error(
+      "Error al obtener usuario:",
+      error instanceof Error ? error.message : "Error desconocido"
+    );
     return NextResponse.json(
       { error: "Error al obtener datos del usuario" },
       { status: 500 }

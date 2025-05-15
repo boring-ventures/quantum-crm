@@ -157,6 +157,9 @@ export async function GET(request: NextRequest) {
     const supabase = createRouteHandlerClient({ cookies });
     const url = new URL(request.url);
 
+    // Extraer parámetros de consulta
+    const roleParam = url.searchParams.get("role");
+
     // Verificar autorización
     const auth = await checkAuthorization(supabase);
     if (!auth.authorized) return auth.response;
@@ -169,8 +172,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Obtener todos los usuarios
+    // Construir condiciones de consulta
+    const where: any = {};
+
+    // Filtrar por rol si se especifica
+    if (roleParam) {
+      where.role = roleParam;
+    }
+
+    // Obtener los usuarios con filtros aplicados
     const users = await prisma.user.findMany({
+      where,
       select: {
         id: true,
         name: true,

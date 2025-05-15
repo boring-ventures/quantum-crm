@@ -15,9 +15,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/providers/auth-provider";
 
 export function ProfileDropdown() {
   const { profile, user, isLoading } = useCurrentUser();
+  const { signOut } = useAuth();
 
   if (isLoading) {
     return (
@@ -106,8 +108,12 @@ export function ProfileDropdown() {
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={async () => {
-            await fetch("/api/logout", { method: "GET" });
-            window.location.href = "/sign-in";
+            try {
+              await signOut();
+            } catch (error) {
+              console.error("Error al cerrar sesión:", error);
+              window.location.href = "/sign-in";
+            }
           }}
         >
           <LogOut className="mr-2 h-4 w-4" />
