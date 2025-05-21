@@ -2,10 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import { Role } from "@/types/role";
 import { NestedSectionPermissions, SectionPermission } from "@/types/dashboard";
 import {
-  hasPermission as checkPermission,
-  getScope as checkScope,
+  hasPermission as sharedHasPermission,
+  getScope as sharedGetScope,
   PermissionScope,
-} from "@/lib/permissions";
+} from "@/lib/utils/permissions";
 
 /**
  * Hook para gestionar los permisos de un usuario basado en su rol
@@ -49,9 +49,12 @@ export function usePermissions(userRole?: Role | null) {
       sectionKey: string,
       permission: keyof SectionPermission = "view"
     ): boolean => {
-      return checkPermission(permissions, sectionKey, permission as string, {
-        role: userRole?.name,
-      });
+      return sharedHasPermission(
+        permissions,
+        sectionKey,
+        permission as string,
+        { role: userRole?.name }
+      );
     },
     [permissions, userRole]
   );
@@ -67,7 +70,7 @@ export function usePermissions(userRole?: Role | null) {
       sectionKey: string,
       permission: keyof SectionPermission = "view"
     ): PermissionScope => {
-      return checkScope(permissions, sectionKey, permission as string);
+      return sharedGetScope(permissions, sectionKey, permission as string);
     },
     [permissions]
   );
