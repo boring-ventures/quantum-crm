@@ -219,6 +219,17 @@ model LeadSource {
   @@map("lead_sources")
 }
 
+model Country {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  code      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
+
+  @@map("countries")
+}
+
 model User {
   id             String          @id @default(uuid())
   createdAt      DateTime        @default(now()) @map("created_at")
@@ -233,17 +244,21 @@ model User {
   conversionRate Float?          @map("conversion_rate")
   responseTime   Int?            @map("response_time")
   roleId         String?         @map("role_id")
+  countryId      String?         @map("country_id")
   communications Communication[]
   assignedLeads  Lead[]
   notes          Note[]
   tasks          Task[]
   userRole       Role?           @relation(fields: [roleId], references: [id])
+  country        Country?        @relation(fields: [countryId], references: [id])
+  userPermission UserPermission?
 
   @@index([email])
   @@index([role])
   @@index([isActive])
   @@index([isDeleted])
   @@index([roleId])
+  @@index([countryId])
   @@map("users")
 }
 
@@ -517,6 +532,18 @@ model QuotationProduct {
   @@index([quotationId])
   @@index([productId])
   @@map("quotation_products")
+}
+
+model UserPermission {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  permissions Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_permissions")
 }
 
 enum UserRole {

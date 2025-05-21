@@ -17,8 +17,11 @@ const createRoleSchema = z.object({
 });
 
 // GET - Obtener todos los roles disponibles
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const includeUserCount = searchParams.get("includeUserCount") === "true";
+
     const supabase = createRouteHandlerClient({ cookies });
 
     // Verificar autenticación
@@ -36,6 +39,9 @@ export async function GET() {
       select: {
         id: true,
         name: true,
+        permissions: true,
+        isActive: true,
+        ...(includeUserCount ? { _count: { select: { users: true } } } : {}),
       },
       where: {
         isActive: true,

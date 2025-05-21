@@ -9,6 +9,7 @@ import {
   UserCog,
   Settings2,
   PackageSearch,
+  Globe,
 } from "lucide-react";
 import type { SidebarData } from "../types";
 
@@ -90,6 +91,13 @@ export const sidebarDataStatic: SidebarData = {
           url: "/admin/products",
           icon: PackageSearch,
           key: "admin.products",
+          parentKey: "admin",
+        },
+        {
+          title: "Países",
+          url: "/admin/countries",
+          icon: Globe,
+          key: "admin.countries",
           parentKey: "admin",
         },
       ],

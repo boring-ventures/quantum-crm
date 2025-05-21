@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
 import type { User } from "@/types/user";
 import { useCurrentUser } from "@/hooks/use-current-user";
 

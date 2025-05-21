@@ -25,7 +25,14 @@ export async function GET(
 
     const role = await prisma.role.findUnique({
       where: { id },
-      include: { users: true },
+      include: {
+        users: {
+          include: {
+            country: true,
+            userPermission: true,
+          },
+        },
+      },
     });
 
     if (!role) {

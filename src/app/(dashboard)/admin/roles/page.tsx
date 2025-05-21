@@ -1,7 +1,15 @@
 "use client";
 
-import { UserCog, Search, Plus, Filter, Pencil, Trash2 } from "lucide-react";
-import { useState } from "react";
+import {
+  UserCog,
+  Search,
+  Plus,
+  Eye,
+  Users,
+  Key,
+  CheckCircle2,
+} from "lucide-react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
@@ -15,51 +23,251 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/components/ui/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import PermissionEditor, {
+  PermissionMap,
+} from "@/components/admin/permission-editor";
 
-// Demo data - esto se reemplazará con datos reales de la API
-const ROLES_DATA = [
-  {
-    id: "1",
-    name: "Administrador",
-    permissions: "Acceso completo",
-    isActive: true,
-  },
-  {
-    id: "2",
-    name: "Gerente",
-    permissions: "Acceso a reportes y gestión",
-    isActive: true,
-  },
-  {
-    id: "3",
-    name: "Vendedor",
-    permissions: "Acceso a leads y ventas",
-    isActive: true,
-  },
-  {
-    id: "4",
-    name: "Soporte",
-    permissions: "Acceso a tickets y consultas",
-    isActive: true,
-  },
-];
+// Tipos para los datos
+interface Role {
+  id: string;
+  name: string;
+  permissions: any;
+  isActive: boolean;
+  _count?: {
+    users: number;
+  };
+}
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  countryId?: string;
+  country?: {
+    name: string;
+  };
+  userPermission?: {
+    id: string;
+    permissions: any;
+  } | null;
+}
 
 export default function RolesPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+  const [usersWithRole, setUsersWithRole] = useState<User[]>([]);
+  const [showApplyDialog, setShowApplyDialog] = useState(false);
+  const [applyingPermissions, setApplyingPermissions] = useState(false);
+  const [editedPermissions, setEditedPermissions] = useState<PermissionMap>({});
+  const { toast } = useToast();
+
+  // Cargar roles al iniciar
+  useEffect(() => {
+    async function fetchRoles() {
+      try {
+        setLoading(true);
+        const response = await fetch("/api/roles?includeUserCount=true");
+        if (!response.ok) throw new Error("Error al cargar roles");
+
+        const data = await response.json();
+        setRoles(data.roles || []);
+      } catch (error) {
+        console.error("Error al cargar roles:", error);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los roles",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchRoles();
+  }, [toast]);
 
   // Filtrar roles por búsqueda
-  const filteredRoles = ROLES_DATA.filter(
-    (role) =>
-      role.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      role.permissions.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredRoles = roles.filter((role) =>
+    role.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Cargar detalles de un rol específico
+  const loadRoleDetails = async (role: Role) => {
+    try {
+      setSelectedRole(role);
+
+      // Cargar los usuarios asociados a este rol
+      const response = await fetch(`/api/roles/${role.id}`);
+      if (!response.ok) throw new Error("Error al cargar detalles del rol");
+
+      const data = await response.json();
+      if (data.success && data.data) {
+        setSelectedRole(data.data);
+        setUsersWithRole(data.data.users || []);
+        setEditedPermissions({});
+      }
+    } catch (error) {
+      console.error("Error al cargar detalles del rol:", error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los detalles del rol",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Manejar cambios en los permisos editados
+  const handlePermissionsChange = (permissions: PermissionMap) => {
+    setEditedPermissions(permissions);
+  };
+
+  // Aplicar los permisos del rol a todos los usuarios
+  const applyPermissionsToUsers = async () => {
+    if (!selectedRole) return;
+
+    // Preparar los permisos a aplicar (usar los editados si existen, sino los originales)
+    const permissionsToApply =
+      Object.keys(editedPermissions).length > 0
+        ? editedPermissions
+        : selectedRole.permissions;
+
+    try {
+      setApplyingPermissions(true);
+      const response = await fetch(
+        `/api/roles/${selectedRole.id}/apply-permissions`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ permissions: permissionsToApply }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        toast({
+          title: "Éxito",
+          description: `Se han aplicado los permisos a ${data.data.usersCount} usuarios`,
+        });
+
+        // Actualizar también los permisos del rol si fueron editados
+        if (Object.keys(editedPermissions).length > 0) {
+          await updateRolePermissions(selectedRole.id, permissionsToApply);
+        }
+
+        setShowApplyDialog(false);
+      } else {
+        throw new Error(data.error || "Error al aplicar permisos");
+      }
+    } catch (error) {
+      console.error("Error al aplicar permisos:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Error al aplicar permisos a los usuarios",
+        variant: "destructive",
+      });
+    } finally {
+      setApplyingPermissions(false);
+    }
+  };
+
+  // Actualizar los permisos del rol
+  const updateRolePermissions = async (roleId: string, permissions: any) => {
+    try {
+      const response = await fetch(`/api/roles/${roleId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ permissions }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Actualizar el rol en el estado local
+        setRoles((prevRoles) =>
+          prevRoles.map((r) => (r.id === roleId ? { ...r, permissions } : r))
+        );
+
+        // Actualizar el rol seleccionado
+        if (selectedRole && selectedRole.id === roleId) {
+          setSelectedRole({
+            ...selectedRole,
+            permissions,
+          });
+        }
+
+        toast({
+          title: "Éxito",
+          description: "Se han actualizado los permisos del rol",
+        });
+      } else {
+        throw new Error(data.error || "Error al actualizar permisos del rol");
+      }
+    } catch (error) {
+      console.error("Error al actualizar permisos del rol:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Error al actualizar permisos del rol",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Formatear JSON para mostrarlo bonito
+  const formatJSON = (json: any) => {
+    try {
+      if (typeof json === "string") {
+        return JSON.stringify(JSON.parse(json), null, 2);
+      }
+      return JSON.stringify(json, null, 2);
+    } catch (e) {
+      return JSON.stringify(json);
+    }
+  };
+
+  // Copiar JSON al portapapeles
+  const copyToClipboard = (json: any) => {
+    navigator.clipboard.writeText(formatJSON(json));
+    toast({
+      title: "Copiado",
+      description: "Permisos copiados al portapapeles",
+    });
+  };
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -82,16 +290,6 @@ export default function RolesPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="flex flex-row gap-2">
-          <Button variant="outline" size="sm">
-            <Filter className="mr-2 h-4 w-4" />
-            Filtrar
-          </Button>
-          <Button size="sm">
-            <Plus className="mr-2 h-4 w-4" />
-            Agregar Rol
-          </Button>
-        </div>
       </div>
 
       {/* Tabla de roles */}
@@ -100,13 +298,19 @@ export default function RolesPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Nombre</TableHead>
-              <TableHead>Permisos</TableHead>
+              <TableHead>Usuarios</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredRoles.length === 0 ? (
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={4} className="h-32 text-center">
+                  Cargando roles...
+                </TableCell>
+              </TableRow>
+            ) : filteredRoles.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={4} className="h-32 text-center">
                   No se encontraron roles
@@ -116,7 +320,7 @@ export default function RolesPage() {
               filteredRoles.map((role) => (
                 <TableRow key={role.id}>
                   <TableCell className="font-medium">{role.name}</TableCell>
-                  <TableCell>{role.permissions}</TableCell>
+                  <TableCell>{role._count?.users || 0} usuarios</TableCell>
                   <TableCell>
                     <Badge
                       variant={role.isActive ? "default" : "destructive"}
@@ -129,28 +333,169 @@ export default function RolesPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
+                    <Dialog>
+                      <DialogTrigger asChild>
                         <Button
                           variant="ghost"
-                          className="h-8 w-8 p-0 data-[state=open]:bg-muted"
+                          size="icon"
+                          onClick={() => loadRoleDetails(role)}
                         >
-                          <span className="sr-only">Abrir menú</span>
-                          <UserCog className="h-4 w-4" />
+                          <Eye className="h-4 w-4" />
+                          <span className="sr-only">Ver detalles</span>
                         </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                        <DropdownMenuItem>
-                          <Pencil className="mr-2 h-4 w-4" />
-                          Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive focus:text-destructive">
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Eliminar
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                      </DialogTrigger>
+
+                      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+                        <DialogHeader>
+                          <DialogTitle>Rol: {selectedRole?.name}</DialogTitle>
+                          <DialogDescription>
+                            Administra los permisos y usuarios asociados a este
+                            rol
+                          </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="flex-1 overflow-hidden">
+                          <Tabs
+                            defaultValue="permissions"
+                            className="mt-4 h-full"
+                          >
+                            <TabsList>
+                              <TabsTrigger value="permissions">
+                                <Key className="h-4 w-4 mr-2" />
+                                Permisos
+                              </TabsTrigger>
+                              <TabsTrigger value="users">
+                                <Users className="h-4 w-4 mr-2" />
+                                Usuarios ({usersWithRole.length})
+                              </TabsTrigger>
+                            </TabsList>
+
+                            <TabsContent
+                              value="permissions"
+                              className="mt-4 h-full"
+                            >
+                              <div className="flex justify-end mb-4">
+                                <Button
+                                  onClick={() => setShowApplyDialog(true)}
+                                  disabled={!usersWithRole.length}
+                                >
+                                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                                  Aplicar a todos los usuarios
+                                </Button>
+                              </div>
+
+                              <div className="overflow-hidden">
+                                {selectedRole && (
+                                  <PermissionEditor
+                                    permissions={selectedRole.permissions}
+                                    onChange={handlePermissionsChange}
+                                    onExportJson={() =>
+                                      copyToClipboard(
+                                        Object.keys(editedPermissions).length >
+                                          0
+                                          ? editedPermissions
+                                          : selectedRole.permissions
+                                      )
+                                    }
+                                  />
+                                )}
+                              </div>
+                            </TabsContent>
+
+                            <TabsContent value="users" className="mt-4">
+                              <div className="relative w-full max-w-sm mb-4">
+                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                  type="search"
+                                  placeholder="Buscar usuarios..."
+                                  className="pl-8"
+                                />
+                              </div>
+
+                              <ScrollArea className="h-[300px]">
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead>Nombre</TableHead>
+                                      <TableHead>Email</TableHead>
+                                      <TableHead>País</TableHead>
+                                      <TableHead>
+                                        Permisos personalizados
+                                      </TableHead>
+                                      <TableHead className="text-right">
+                                        Acciones
+                                      </TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {usersWithRole.length === 0 ? (
+                                      <TableRow>
+                                        <TableCell
+                                          colSpan={5}
+                                          className="h-32 text-center"
+                                        >
+                                          No hay usuarios con este rol
+                                        </TableCell>
+                                      </TableRow>
+                                    ) : (
+                                      usersWithRole.map((user) => (
+                                        <TableRow key={user.id}>
+                                          <TableCell className="font-medium">
+                                            {user.name}
+                                          </TableCell>
+                                          <TableCell>{user.email}</TableCell>
+                                          <TableCell>
+                                            {user.country?.name || "-"}
+                                          </TableCell>
+                                          <TableCell>
+                                            {user.userPermission ? (
+                                              <Badge>Personalizados</Badge>
+                                            ) : (
+                                              <Badge variant="outline">
+                                                Predet.
+                                              </Badge>
+                                            )}
+                                          </TableCell>
+                                          <TableCell className="text-right">
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={() =>
+                                                (window.location.href = `/admin/users/${user.id}`)
+                                              }
+                                            >
+                                              Editar
+                                            </Button>
+                                          </TableCell>
+                                        </TableRow>
+                                      ))
+                                    )}
+                                  </TableBody>
+                                </Table>
+                              </ScrollArea>
+                            </TabsContent>
+                          </Tabs>
+                        </div>
+
+                        <DialogFooter>
+                          <DialogClose asChild>
+                            <Button variant="outline">Cerrar</Button>
+                          </DialogClose>
+                          {Object.keys(editedPermissions).length > 0 && (
+                            <Button
+                              onClick={() =>
+                                updateRolePermissions(
+                                  selectedRole!.id,
+                                  editedPermissions
+                                )
+                              }
+                            >
+                              Guardar cambios
+                            </Button>
+                          )}
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
                   </TableCell>
                 </TableRow>
               ))
@@ -158,6 +503,35 @@ export default function RolesPage() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Dialog de confirmación para aplicar permisos */}
+      <AlertDialog open={showApplyDialog} onOpenChange={setShowApplyDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              ¿Aplicar permisos a todos los usuarios?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Esto sobrescribirá los permisos actuales de todos los usuarios con
+              este rol. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={applyingPermissions}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                applyPermissionsToUsers();
+              }}
+              disabled={applyingPermissions}
+            >
+              {applyingPermissions ? "Aplicando..." : "Sí, aplicar permisos"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

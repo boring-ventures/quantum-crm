@@ -29,16 +29,31 @@ export async function GET(request: Request) {
       );
     }
 
-    // Convertir las cadenas JSON de permisos a objetos
+    // Procesar el campo de permisos
     let permissions;
     try {
-      permissions = JSON.parse(role.permissions as string);
+      // Verificar si permissions ya es un objeto (Prisma puede devolverlo como objeto)
+      if (typeof role.permissions === "object" && role.permissions !== null) {
+        permissions = role.permissions;
+      } else if (typeof role.permissions === "string") {
+        permissions = JSON.parse(role.permissions);
+      } else {
+        throw new Error(
+          `Formato de permisos inválido: ${typeof role.permissions}`
+        );
+      }
 
       // Validar que el objeto de permisos tiene la estructura correcta
       if (!isValidPermissionsObject(permissions)) {
         throw new Error("Estructura de permisos inválida");
       }
     } catch (error) {
+      console.error(
+        "Error procesando permisos:",
+        error,
+        "Tipo:",
+        typeof role.permissions
+      );
       return NextResponse.json(
         {
           success: false,

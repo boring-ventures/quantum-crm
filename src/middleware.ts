@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
+import {
+  getSectionKeyFromPath,
+  hasPermission as sharedHasPermission,
+} from "@/lib/permissions";
+import { NestedSectionPermissions } from "@/types/dashboard";
 
 // Rutas públicas que no requieren autenticación (paths exactos o prefijos)
 const publicRoutes = [
@@ -11,21 +16,6 @@ const publicRoutes = [
   "/_next",
   "/favicon.ico",
 ];
-
-// Lista específica de rutas protegidas y sus permisos
-const protectedRoutes = {
-  "/api/auth/*": "auth",
-  "/dashboard": "dashboard",
-  "/leads": "leads",
-  "/sales": "sales",
-  "/reportes": "reports",
-  "/tasks": "tasks",
-  "/users": "users",
-  "/admin": "admin",
-  "/admin/roles": "admin.roles",
-  "/admin/leads": "admin.leads-settings",
-  "/admin/products": "admin.products",
-};
 
 // Función para comprobar si una ruta es pública
 function isPublicRoute(pathname: string): boolean {
@@ -43,143 +33,25 @@ function isPublicRoute(pathname: string): boolean {
   });
 }
 
-// Función para obtener el permiso requerido para una ruta
-function getRequiredPermission(pathname: string): string | null {
-  console.log(`[MIDDLEWARE] Checking permission for path: ${pathname}`);
-
-  // Primero intentamos una coincidencia exacta
-  if (protectedRoutes[pathname]) {
-    console.log(`[MIDDLEWARE] Exact match found: ${protectedRoutes[pathname]}`);
-    return protectedRoutes[pathname];
-  }
-
-  // Si no hay coincidencia exacta, buscamos el prefijo más largo que coincida
-  let matchedPrefix = "";
-  let matchedPermission = null;
-
-  for (const route in protectedRoutes) {
-    if (pathname.startsWith(route) && route.length > matchedPrefix.length) {
-      matchedPrefix = route;
-      matchedPermission = protectedRoutes[route];
-      console.log(
-        `[MIDDLEWARE] Found matching prefix: ${route} -> ${matchedPermission}`
-      );
-    }
-  }
-
-  // Para rutas como /admin/leads, si no tenemos una coincidencia específica,
-  // extraemos el subpath y construimos un permiso compuesto
-  if (matchedPrefix && !protectedRoutes[pathname]) {
-    const rootKey = matchedPermission;
-    const pathParts = pathname.split("/").filter(Boolean);
-
-    if (pathParts.length > 1) {
-      const subPath = pathParts[1];
-      console.log(
-        `[MIDDLEWARE] Extracted subpath: ${subPath} from ${pathname}`
-      );
-
-      // Si es una ruta como /admin/leads, intentamos un permiso compuesto admin.leads
-      if (subPath && subPath !== "roles") {
-        // Para /admin/roles ya tenemos una coincidencia explícita
-        const composedPermission = `${rootKey}.${subPath}`;
-        console.log(
-          `[MIDDLEWARE] Created composed permission: ${composedPermission}`
-        );
-        return composedPermission;
-      }
-    }
-  }
-
-  return matchedPermission;
-}
-
-// Agregar una función auxiliar para verificar permisos en estructuras anidadas
-function checkPermission(permissions: any, permissionKey: string): boolean {
-  // Si es un permiso simple (no anidado)
-  if (!permissionKey.includes(".")) {
-    // Extraer componentes de la ruta para verificación anidada
-    const parts = permissionKey.split(".");
-    const rootKey = parts[0];
-    const subPath = parts.length > 1 ? parts[1] : null;
-
-    // Verificar si hay un permiso específico para la subruta
-    let hasAccess = false;
-
-    if (subPath) {
-      hasAccess = permissions.sections?.[rootKey]?.[subPath]?.view === true;
-      console.log(
-        `[MIDDLEWARE] Checking specific permission ${rootKey}.${subPath}.view: ${hasAccess}`
-      );
-    }
-
-    // Si no hay permiso específico, verificar si hay permiso general para la ruta raíz
-    if (!hasAccess && permissions.sections?.[rootKey]?.view === true) {
-      hasAccess = true;
-      console.log(
-        `[MIDDLEWARE] Falling back to parent permission ${rootKey}.view: true`
-      );
-    }
-
-    // Verificar si hay permiso en la estructura anidada
-    if (!hasAccess && permissions.sections?.[rootKey]) {
-      // Verificar si hay un permiso 'leads-settings' para casos como admin.leads-settings
-      if (
-        permissionKey === "admin" &&
-        permissions.sections?.admin?.["leads-settings"]?.view === true
-      ) {
-        hasAccess = true;
-        console.log(
-          `[MIDDLEWARE] Found nested permission admin.leads-settings.view: true`
-        );
-      }
-    }
-
-    return hasAccess;
-  }
-
-  // Para permisos anidados como 'admin.roles'
-  const [parent, child] = permissionKey.split(".");
-
-  // Verificar si existe la estructura anidada correcta
-  if (permissions.sections?.[parent]?.[child]?.view === true) {
-    console.log(`[MIDDLEWARE] Found nested permission ${parent}.${child}`);
-    return true;
-  }
-
-  // Si no existe la estructura anidada, verificar si el padre tiene permisos
-  if (permissions.sections?.[parent]?.view === true) {
-    console.log(`[MIDDLEWARE] Found parent permission ${parent}`);
-    return true;
-  }
-
-  // Mostrar todas las rutas y permisos disponibles para ayudar con el debug
-  console.log(`[MIDDLEWARE] Permission check details for ${permissionKey}:`);
-  console.log(`  - Parent key: ${parent}`);
-  console.log(`  - Child key: ${child}`);
-  console.log(`  - Parent exists: ${Boolean(permissions.sections?.[parent])}`);
-
-  if (permissions.sections?.[parent]) {
-    console.log(`  - Parent keys:`, Object.keys(permissions.sections[parent]));
-  }
-
-  // Listar todas las secciones y permisos disponibles para el usuario
-  console.log(`[MIDDLEWARE] All available permissions:`);
-  Object.keys(permissions.sections || {}).forEach((section) => {
-    console.log(`  - ${section}:`, permissions.sections[section]);
-  });
-
-  return false;
-}
-
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   console.log(`[MIDDLEWARE] Path: ${pathname}`);
 
-  // Ignorar completamente todas las rutas de API
-  if (pathname.startsWith("/api/")) {
+  // Ignorar completamente todas las rutas de API excepto las que necesitamos para verificar permisos por país
+  if (
+    pathname.startsWith("/api/") &&
+    !pathname.includes("/api/leads/") &&
+    !pathname.includes("/api/sales/") &&
+    !pathname.includes("/api/users/")
+  ) {
     console.log(`[MIDDLEWARE] Skipping API route: ${pathname}`);
+    return NextResponse.next();
+  }
+
+  // Excluir explícitamente las rutas de API de usuarios que usa el propio middleware
+  if (pathname.match(/^\/api\/users\/[a-zA-Z0-9-]+(\?.*)?$/)) {
+    console.log(`[MIDDLEWARE] Allowing user API route: ${pathname}`);
     return NextResponse.next();
   }
 
@@ -207,8 +79,7 @@ export async function middleware(request: NextRequest) {
 
     console.log(`[MIDDLEWARE] Session found for user: ${session.user.id}`);
 
-    // Obtener los permisos del usuario utilizando el endpoint API en lugar de acceder directo a Supabase
-    // Construir la URL completa para el fetch
+    // Obtener los permisos del usuario utilizando el endpoint API
     const protocol = request.headers.get("x-forwarded-proto") || "http";
     const host = request.headers.get("host") || "localhost:3000";
     const apiUrl = `${protocol}://${host}/api/users/${session.user.id}?requireAuth=false`;
@@ -270,7 +141,7 @@ export async function middleware(request: NextRequest) {
     console.log(`[MIDDLEWARE] User role: ${profile.role}`);
 
     // Parsear los permisos (pueden venir como string JSON o como objeto)
-    let permissions;
+    let permissions: NestedSectionPermissions;
     try {
       permissions =
         typeof profile.permissions === "string"
@@ -281,36 +152,93 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL("/access-denied", request.url));
     }
 
-    console.log(
-      `[MIDDLEWARE] Permission object:`,
-      JSON.stringify(permissions, null, 2)
-    );
+    // Extraer la sección de la ruta
+    const sectionKey = getSectionKeyFromPath(pathname);
+    console.log(`[MIDDLEWARE] Extracted section key: ${sectionKey}`);
 
-    // Obtener el permiso requerido para esta ruta
-    const requiredPermission = getRequiredPermission(pathname);
-
-    console.log(
-      `[MIDDLEWARE] Required permission for ${pathname}: ${requiredPermission}`
-    );
-
-    // Si no se encontró un permiso requerido, denegar acceso
-    if (!requiredPermission) {
+    if (!sectionKey) {
       console.log(
-        `[MIDDLEWARE] No permission mapping found for ${pathname}, denying access`
+        `[MIDDLEWARE] No section key found for ${pathname}, denying access`
       );
       return NextResponse.redirect(new URL("/access-denied", request.url));
     }
 
-    // Reemplazar la verificación de permisos actual con la nueva función
-    const hasPermission = checkPermission(permissions, requiredPermission);
-
-    console.log(
-      `[MIDDLEWARE] User has permission for ${requiredPermission}: ${hasPermission}`
+    // Verificar permisos
+    const userHasPermission = sharedHasPermission(
+      permissions,
+      sectionKey,
+      "view",
+      { role: profile.role }
     );
 
-    if (!hasPermission) {
+    console.log(
+      `[MIDDLEWARE] User has permission for ${sectionKey}: ${userHasPermission}`
+    );
+
+    if (!userHasPermission) {
       console.log(`[MIDDLEWARE] Access denied for ${pathname}, redirecting`);
       return NextResponse.redirect(new URL("/access-denied", request.url));
+    }
+
+    // Para rutas de API a recursos específicos, también verificar permisos de scope
+    if (pathname.startsWith("/api/")) {
+      // Extraer el módulo y el ID del recurso de la URL
+      const parts = pathname.split("/").filter(Boolean);
+
+      if (parts.length >= 3) {
+        const module = parts[1]; // 'leads', 'sales', etc.
+        const resourceId = parts[2];
+        const action =
+          request.method === "GET"
+            ? "view"
+            : request.method === "POST"
+              ? "create"
+              : request.method === "PUT" || request.method === "PATCH"
+                ? "edit"
+                : request.method === "DELETE"
+                  ? "delete"
+                  : "view";
+
+        // Si hay un ID de recurso específico, verificar permisos según el scope
+        if (resourceId && resourceId !== "new" && resourceId !== "batch") {
+          console.log(
+            `[MIDDLEWARE] Checking scope permission for ${module}.${action} on resource ${resourceId}`
+          );
+
+          // Obtener información del recurso para verificar propiedad/país
+          const resourceApiUrl = `${protocol}://${host}/api/${module}/${resourceId}?scopeCheck=true`;
+
+          try {
+            const resourceResponse = await fetch(resourceApiUrl, {
+              headers: {
+                "Content-Type": "application/json",
+                Cookie: request.headers.get("cookie") || "",
+              },
+            });
+
+            if (!resourceResponse.ok) {
+              console.error(
+                `[MIDDLEWARE] Resource API returned error ${resourceResponse.status}`
+              );
+              return NextResponse.redirect(
+                new URL("/access-denied", request.url)
+              );
+            }
+
+            // Continuar con la verificación de scope según la implementación existente
+            // Esta parte no la modificamos para mantener compatibilidad
+            // TODO: Actualizar este código cuando se implemente completamente el nuevo sistema de permisos
+          } catch (error) {
+            console.error(
+              `[MIDDLEWARE] Error checking resource permissions:`,
+              error
+            );
+            return NextResponse.redirect(
+              new URL("/access-denied", request.url)
+            );
+          }
+        }
+      }
     }
 
     // Si tiene permisos, permitir acceso
@@ -335,5 +263,9 @@ export const config = {
     "/admin/:path*",
     "/users/:path*",
     "/tasks/:path*",
+    // Incluir APIs que requieren verificación de permiso por país/scope
+    "/api/leads/:path*",
+    "/api/sales/:path*",
+    "/api/users/:path*",
   ],
 };

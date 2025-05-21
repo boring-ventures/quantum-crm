@@ -6,6 +6,7 @@ export async function GET() {
     // Verificar sesión activa
     const session = await auth();
     if (!session?.user?.roleId) {
+      console.log("user-permissions: No hay roleId en la sesión");
       return NextResponse.json({ permissions: null }, { status: 200 });
     }
 
@@ -13,33 +14,42 @@ export async function GET() {
       // Usar URL absoluta para fetch con baseUrl
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-      const response = await fetch(
-        `${baseUrl}/api/roles/permissions?roleId=${session.user.roleId}`
-      );
+      const fetchUrl = `${baseUrl}/api/roles/permissions?roleId=${session.user.roleId}`;
+      console.log("user-permissions: Consultando", fetchUrl);
+
+      const response = await fetch(fetchUrl);
 
       if (!response.ok) {
-        return NextResponse.json(
-          { permissions: { sections: {} } },
-          { status: 200 }
+        console.error(
+          "Error al obtener permisos:",
+          response.status,
+          await response
+            .text()
+            .catch(() => "No se pudo leer el cuerpo de la respuesta")
         );
+        return NextResponse.json({ permissions: {} }, { status: 200 });
       }
 
       const data = await response.json();
+
+      // Validar que permissions existe
+      if (!data.permissions) {
+        console.error("No se encontraron permisos en la respuesta", data);
+        return NextResponse.json({ permissions: {} }, { status: 200 });
+      }
+
+      console.log("user-permissions: Permisos obtenidos correctamente");
+
+      // Retornar los permisos tal como vienen
       return NextResponse.json({ permissions: data.permissions });
     } catch (innerError) {
       console.error("Error al obtener permisos de rol:", innerError);
       // Devolver permisos vacíos en lugar de error para evitar problemas en el cliente
-      return NextResponse.json(
-        { permissions: { sections: {} } },
-        { status: 200 }
-      );
+      return NextResponse.json({ permissions: {} }, { status: 200 });
     }
   } catch (error) {
     console.error("Error al obtener permisos:", error);
     // Devolver permisos vacíos en lugar de error
-    return NextResponse.json(
-      { permissions: { sections: {} } },
-      { status: 200 }
-    );
+    return NextResponse.json({ permissions: {} }, { status: 200 });
   }
 }
