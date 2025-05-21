@@ -4,7 +4,7 @@ import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
 import {
   getSectionKeyFromPath,
   hasPermission as sharedHasPermission,
-} from "@/lib/permissions";
+} from "@/lib/utils/permissions";
 import { NestedSectionPermissions } from "@/types/dashboard";
 
 // Rutas públicas que no requieren autenticación (paths exactos o prefijos)
