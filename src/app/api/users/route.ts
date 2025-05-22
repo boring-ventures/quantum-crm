@@ -4,6 +4,8 @@ import { cookies } from "next/headers";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabase/client";
+import { getScope_user, hasPermission } from "@/lib/utils/permissions";
+import { getCurrentUser } from "@/lib/utils/auth-utils";
 
 // Esquemas de validación
 const createUserSchema = z.object({
@@ -13,7 +15,9 @@ const createUserSchema = z.object({
     .string()
     .min(8, { message: "La contraseña debe tener al menos 8 caracteres" }),
   roleId: z.string({ required_error: "El rol es obligatorio" }),
+  countryId: z.string().optional(),
   isActive: z.boolean().optional().default(true),
+  user_permissions: z.record(z.any()).optional(),
 });
 
 const updateUserSchema = z.object({
@@ -32,20 +36,6 @@ const deleteUserSchema = z.object({
   id: z.string({ required_error: "El ID de usuario es obligatorio" }),
 });
 
-// Tipo para los permisos de usuario
-type UserPermissions = {
-  sections?: {
-    users?: {
-      view?: boolean;
-      create?: boolean;
-      edit?: boolean;
-      delete?: boolean;
-    };
-    [key: string]: any;
-  };
-  [key: string]: any;
-};
-
 // Función auxiliar para verificar autorización
 async function checkAuthorization(supabase: any) {
   // Verificar autenticación
@@ -62,13 +52,11 @@ async function checkAuthorization(supabase: any) {
     };
   }
 
-  // Verificar permisos de administrador
+  // Obtener usuario actual
   const currentUser = await prisma.user.findUnique({
     where: { id: session.user.id },
-    include: { userRole: true },
+    include: { userRole: true, userPermission: true },
   });
-
-  console.log("currentUser", currentUser?.userRole?.permissions);
 
   if (!currentUser) {
     return {
@@ -81,124 +69,122 @@ async function checkAuthorization(supabase: any) {
     };
   }
 
-  // Verificar si el usuario tiene permisos para gestionar usuarios
-  let userPermissions: UserPermissions = {};
-
-  try {
-    // Si el usuario tiene un rol asignado, obtener sus permisos
-    if (currentUser.userRole?.permissions) {
-      // Convertir a objeto si viene como string
-      if (typeof currentUser.userRole.permissions === "string") {
-        userPermissions = JSON.parse(
-          currentUser.userRole.permissions as string
-        );
-      } else {
-        userPermissions = currentUser.userRole.permissions as any;
-      }
-    } else if (currentUser.roleId) {
-      // Buscar el rol si existe roleId pero no está incluido el userRole
-      const role = await prisma.role.findUnique({
-        where: { id: currentUser.roleId },
-      });
-
-      if (role?.permissions) {
-        // Convertir a objeto si viene como string
-        if (typeof role.permissions === "string") {
-          userPermissions = JSON.parse(role.permissions as string);
-        } else {
-          userPermissions = role.permissions as any;
-        }
-      }
-    }
-
-    const hasPermission =
-      userPermissions.sections?.users?.view === true &&
-      (userPermissions.sections?.users?.create === true ||
-        userPermissions.sections?.users?.edit === true ||
-        userPermissions.sections?.users?.delete === true);
-
-    console.log("hasPermission", hasPermission);
-
-    if (!hasPermission) {
-      return {
-        authorized: false,
-        session,
-        currentUser,
-        response: NextResponse.json(
-          { error: "No tienes permisos suficientes para gestionar usuarios" },
-          { status: 403 }
-        ),
-      };
-    }
-  } catch (error) {
-    console.error("Error al verificar permisos:", error);
-    return {
-      authorized: false,
-      session,
-      currentUser,
-      response: NextResponse.json(
-        { error: "Error al verificar permisos" },
-        { status: 500 }
-      ),
-    };
+  // Normalizar roleId para compatibilidad de tipos
+  if (currentUser.roleId === null) {
+    (currentUser as any).roleId = undefined;
   }
 
   return {
     authorized: true,
     session,
     currentUser,
-    permissions: userPermissions,
   };
 }
 
-// GET - Obtener todos los usuarios
+// GET - Obtener usuarios
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
-    const url = new URL(request.url);
-
-    // Extraer parámetros de consulta
-    const roleParam = url.searchParams.get("role");
-
-    // Verificar autorización
-    const auth = await checkAuthorization(supabase);
-    if (!auth.authorized) return auth.response;
-
-    // Verificar si tiene permiso para ver usuarios
-    if (!auth.permissions?.sections?.users?.view) {
+    const currentUser = await getCurrentUser();
+    // Verificar permiso
+    if (!hasPermission(currentUser, "users", "view")) {
       return NextResponse.json(
         { error: "No tienes permiso para ver usuarios" },
         { status: 403 }
       );
     }
 
-    // Construir condiciones de consulta
-    const where: any = {};
+    // Obtener parámetros de consulta
+    const searchParams = request.nextUrl.searchParams;
+    const includeDeleted = searchParams.get("includeDeleted") === "true";
 
-    // Filtrar por rol si se especifica
-    if (roleParam) {
-      where.role = roleParam;
+    // Obtener el usuario actual completo para verificar país
+    const currentUserInfo = await prisma.user.findUnique({
+      where: { id: currentUser?.id },
+      include: { userPermission: true, country: true },
+    });
+
+    if (!currentUserInfo) {
+      return NextResponse.json(
+        { error: "Usuario no encontrado" },
+        { status: 404 }
+      );
     }
 
-    // Obtener los usuarios con filtros aplicados
+    // Determinar el scope para "users.view" basado en los permisos del usuario
+    let scope: string | boolean = "all"; // Por defecto para Super Admin
+
+    // Si no es Super Admin, obtener scope de los permisos
+    if (
+      currentUserInfo.role !== "Super Administrador" &&
+      currentUserInfo.userPermission?.permissions
+    ) {
+      // Extraer permisos
+      const permissions =
+        typeof currentUserInfo.userPermission.permissions === "string"
+          ? JSON.parse(currentUserInfo.userPermission.permissions)
+          : currentUserInfo.userPermission.permissions;
+
+      // Verificar módulo users
+      if (permissions.users) {
+        const viewPermission = permissions.users.view;
+
+        // Si es un string de scope, usar ese scope
+        if (
+          typeof viewPermission === "string" &&
+          ["self", "team", "all"].includes(viewPermission)
+        ) {
+          scope = viewPermission;
+        }
+        // Si es booleano false, no hay acceso
+        else if (viewPermission === false) {
+          scope = false;
+        }
+      } else {
+        scope = false;
+      }
+    }
+
+    // Criterios base de búsqueda
+    const whereClause: any = {};
+
+    // Filtrar por eliminados solo si se solicita explícitamente
+    if (!includeDeleted) {
+      whereClause.isDeleted = false;
+    }
+
+    // Aplicar filtro por país si el scope es "team"
+    if (scope === "team" && currentUserInfo.countryId) {
+      whereClause.countryId = currentUserInfo.countryId;
+    }
+
+    // Si el scope es "self", mostrar solo el usuario actual
+    if (scope === "self") {
+      whereClause.id = currentUserInfo.id;
+    }
+
+    // Si el scope es false, no hay acceso
+    if (scope === false) {
+      return NextResponse.json({ users: [] });
+    }
+
+    // Buscar usuarios
     const users = await prisma.user.findMany({
-      where,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        roleId: true,
-        isActive: true,
-        role: true,
+      where: whereClause,
+      orderBy: [{ name: "asc" }],
+      include: {
         userRole: {
           select: {
             id: true,
             name: true,
           },
         },
-      },
-      orderBy: {
-        name: "asc",
+        country: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
       },
     });
 
@@ -215,14 +201,9 @@ export async function GET(request: NextRequest) {
 // POST - Crear un nuevo usuario
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
-
-    // Verificar autorización
-    const auth = await checkAuthorization(supabase);
-    if (!auth.authorized) return auth.response;
-
-    // Verificar si tiene permiso para crear usuarios
-    if (!auth.permissions?.sections?.users?.create) {
+    const currentUser = await getCurrentUser();
+    // Verificar permiso
+    if (!hasPermission(currentUser, "users", "create")) {
       return NextResponse.json(
         { error: "No tienes permiso para crear usuarios" },
         { status: 403 }
@@ -248,7 +229,9 @@ export async function POST(request: NextRequest) {
       email,
       password,
       roleId,
+      countryId,
       isActive = true,
+      user_permissions,
     } = validationResult.data;
 
     // Verificar que el rol existe
@@ -261,6 +244,20 @@ export async function POST(request: NextRequest) {
         { error: "El rol seleccionado no existe" },
         { status: 400 }
       );
+    }
+
+    // Si se incluye countryId, verificar que el país existe
+    if (countryId) {
+      const country = await prisma.country.findUnique({
+        where: { id: countryId },
+      });
+
+      if (!country) {
+        return NextResponse.json(
+          { error: "El país seleccionado no existe" },
+          { status: 400 }
+        );
+      }
     }
 
     // Crear usuario en Supabase Auth
@@ -284,6 +281,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Obtener los permisos del rol para asignarlos al usuario
+    const rolePermissions = role.permissions;
+    const permissionsToAssign =
+      user_permissions && Object.keys(user_permissions).length > 0
+        ? user_permissions
+        : rolePermissions;
+
     // Crear usuario en la base de datos
     const user = await prisma.user.create({
       data: {
@@ -292,7 +296,17 @@ export async function POST(request: NextRequest) {
         email,
         role: role.name,
         roleId: role.id,
+        countryId,
         isActive,
+        // Crear registro de permisos basados en el rol o personalizados
+        userPermission: {
+          create: {
+            permissions: permissionsToAssign as any,
+          },
+        },
+      },
+      include: {
+        userPermission: true,
       },
     });
 
@@ -303,8 +317,8 @@ export async function POST(request: NextRequest) {
           entityType: "USER",
           entityId: user.id,
           action: "CREATE",
-          description: `Usuario ${user.name} creado con rol ${role.name}`,
-          performedById: auth.session.user.id,
+          description: `Usuario ${user.name} creado con rol ${role.name}${countryId ? " y país asignado" : ""}`,
+          performedById: currentUser!.id,
         },
       });
     } catch (logError) {
@@ -330,14 +344,9 @@ export async function POST(request: NextRequest) {
 // PUT - Actualizar un usuario existente
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
-
-    // Verificar autorización
-    const auth = await checkAuthorization(supabase);
-    if (!auth.authorized) return auth.response;
-
-    // Verificar si tiene permiso para editar usuarios
-    if (!auth.permissions?.sections?.users?.edit) {
+    const currentUser = await getCurrentUser();
+    // Verificar permiso
+    if (!hasPermission(currentUser, "users", "edit")) {
       return NextResponse.json(
         { error: "No tienes permiso para editar usuarios" },
         { status: 403 }
@@ -451,14 +460,10 @@ export async function PUT(request: NextRequest) {
 // DELETE - Eliminar un usuario
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
-
     // Verificar autorización
-    const auth = await checkAuthorization(supabase);
-    if (!auth.authorized) return auth.response;
-
-    // Verificar si tiene permiso para eliminar usuarios
-    if (!auth.permissions?.sections?.users?.delete) {
+    const currentUser = await getCurrentUser();
+    // Verificar permiso
+    if (!hasPermission(currentUser, "users", "delete")) {
       return NextResponse.json(
         { error: "No tienes permiso para eliminar usuarios" },
         { status: 403 }
@@ -489,7 +494,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Prevenir eliminación de uno mismo
-    if (id === auth.session.user.id) {
+    if (id === currentUser?.id) {
       return NextResponse.json(
         { error: "No puedes eliminar tu propio usuario" },
         { status: 403 }
@@ -511,25 +516,10 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Obtener información del rol del usuario actual (que está realizando la eliminación)
-    const currentUser = await prisma.user.findUnique({
-      where: { id: auth.session.user.id },
-      include: {
-        userRole: true,
-      },
-    });
-
-    if (!currentUser || !currentUser.userRole) {
-      return NextResponse.json(
-        { error: "No se pudo verificar tu rol" },
-        { status: 403 }
-      );
-    }
-
     // Prevenir eliminación de Super Administrador a menos que uno mismo sea Super Administrador
     const isSuperAdmin = targetUser.userRole?.name === "Super Administrador";
     const currentIsSuperAdmin =
-      currentUser.userRole.name === "Super Administrador";
+      currentUser?.userRole?.name === "Super Administrador";
 
     if (isSuperAdmin && !currentIsSuperAdmin) {
       return NextResponse.json(
@@ -572,7 +562,7 @@ export async function DELETE(request: NextRequest) {
           entityId: id,
           action: "DEACTIVATE",
           description: `Usuario ${targetUser.name} (Super Administrador) desactivado`,
-          performedById: auth.session.user.id,
+          performedById: currentUser!.id,
         },
       });
 
@@ -589,7 +579,7 @@ export async function DELETE(request: NextRequest) {
         isActive: false,
         isDeleted: true,
         deletedAt: new Date(),
-        deletedBy: auth.session.user.id,
+        deletedBy: currentUser!.id,
       },
     });
 
@@ -599,8 +589,8 @@ export async function DELETE(request: NextRequest) {
         entityType: "USER",
         entityId: id,
         action: "DELETE",
-        description: `Usuario ${targetUser.name} eliminado por ${currentUser.name}`,
-        performedById: auth.session.user.id,
+        description: `Usuario ${targetUser.name} eliminado por ${currentUser!.name}`,
+        performedById: currentUser!.id,
       },
     });
 

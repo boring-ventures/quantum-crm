@@ -1,3 +1,9 @@
+[2025-05-22] [Fix] - Corregidos errores de tipado en rutas API de usuarios - [XX]
+- Arreglada ruta de API users/route.ts: Eliminada dependencia de módulo inexistente y corregidos tipos de variables
+- Corregida ruta de API users/[id]/permissions/route.ts para compatibilidad con función hasPermission_user
+- Mejorada transformación de modelos de base de datos a tipos del frontend para validación de permisos
+- Solucionados problemas de tipado con JsonValue para actualización de permisos de usuario
+
 [2023-11-27] [Fix] - Actualizado sistema de permisos para el sidebar con soporte para formato plano - [AI]
 - Rediseñado hook useRolePermissions para trabajar con el nuevo formato plano de permisos
 - Agregados logs detallados para facilitar depuración de problemas con permisos
@@ -399,4 +405,20 @@
 - Añadida validación para impedir duplicación de códigos o nombres de países
 - Implementada restricción para evitar eliminación de países con usuarios asignados
 - Integrado sistema de permisos para controlar acceso a operaciones según rol del usuario
+
+[2023-10-30] [Feature] - Añadida página detallada de usuarios en `/admin/users/[id]` con tabs para información general y permisos - [AI]
+[2023-10-30] [Schema] - Actualizado el formulario de creación y edición de usuarios para incluir selección de país - [AI]
+[2023-10-30] [Feature] - Implementado editor de permisos de usuario personalizado con botón para resetear a permisos de rol - [AI]
+[2023-10-30] [API] - Creado endpoint /api/users/[id]/permissions para gestionar permisos específicos de usuario - [AI]
+[2023-10-30] [Refactor] - Actualizada la creación de usuarios para generar permisos basados en rol - [AI] 
+[2023-10-30] [Feature] - Implementado filtrado por país según el scope del usuario en la lista de usuarios - [AI]
+
+[2025-05-28] [Refactor] - Reestructurada la página de detalle de usuario para adaptarse a la arquitectura de rutas de Quantum CRM - [AI]
+- Movida la página de detalle desde /admin/users/[id] a /users/[id]
+- Actualizadas todas las importaciones relativas para componentes
+- Corregidas las redirecciones internas para apuntar a /users en lugar de /admin/users
+- Implementada verificación para evitar eliminar usuarios con leads activos
+- Agregado endpoint /api/users/[id]/check-leads para validar la eliminación segura de usuarios
+
+[2024-06-09] [Refactor] - Personalización de permisos en creación de usuario ahora se realiza en un segundo diálogo modal, el diálogo principal es scrolleable y el select de rol muestra 'Personalizado' si corresponde (src/app/(dashboard)/users/components/create-user-form.tsx) - [AI]
 

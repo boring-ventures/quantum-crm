@@ -66,6 +66,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import type { User } from "@/types/user";
+import { hasPermission } from "@/lib/utils/permissions";
 
 // Componente de diálogo para restablecer contraseña
 function ResetPasswordDialog({ open, onClose, user, onSuccess }) {
@@ -398,10 +399,42 @@ export default function UsersPage() {
   };
 
   // Función para procesar la eliminación de un usuario
-  const processDeleteUser = () => {
+  const processDeleteUser = async () => {
     if (deleteConfirmUser) {
-      deleteUserMutation.mutate(deleteConfirmUser.id);
-      setDeleteConfirmUser(null);
+      try {
+        // Verificar si el usuario tiene leads activos
+        const response = await fetch(
+          `/api/users/${deleteConfirmUser.id}/check-leads`
+        );
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Error al verificar leads");
+        }
+
+        if (data.hasActiveLeads) {
+          toast({
+            title: "No se puede eliminar",
+            description:
+              "Este usuario tiene leads activos con ventas pendientes",
+            variant: "destructive",
+          });
+          setDeleteConfirmUser(null);
+          return;
+        }
+
+        // Proceder con la eliminación
+        deleteUserMutation.mutate(deleteConfirmUser.id);
+        setDeleteConfirmUser(null);
+      } catch (error) {
+        console.error("Error:", error);
+        toast({
+          title: "Error",
+          description:
+            error instanceof Error ? error.message : "Error al verificar leads",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -457,8 +490,10 @@ export default function UsersPage() {
             user.userRole?.name === "Super Administrador";
 
           // Deshabilitar acciones para usuarios eliminados o para usuarios inapropiados
-          const canEdit = !user.isDeleted;
-          const canResetPassword = !user.isDeleted;
+          const canEdit =
+            !user.isDeleted && hasPermission(currentUser, "users", "edit");
+          const canResetPassword =
+            !user.isDeleted && hasPermission(currentUser, "users", "edit");
           const canDelete =
             !user.isDeleted &&
             !isSelfUser &&
@@ -478,24 +513,20 @@ export default function UsersPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                  <DropdownMenuItem
-                    onClick={() => (canEdit ? setEditingUser(user) : null)}
-                    className={!canEdit ? "opacity-50 cursor-not-allowed" : ""}
-                  >
-                    <Pencil className="mr-2 h-4 w-4" />
-                    Editar
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() =>
-                      canResetPassword ? setResetPasswordUser(user) : null
-                    }
-                    className={
-                      !canResetPassword ? "opacity-50 cursor-not-allowed" : ""
-                    }
-                  >
-                    <Key className="mr-2 h-4 w-4" />
-                    Restablecer contraseña
-                  </DropdownMenuItem>
+                  {canEdit && (
+                    <DropdownMenuItem onClick={() => setEditingUser(user)}>
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Editar
+                    </DropdownMenuItem>
+                  )}
+                  {canResetPassword && (
+                    <DropdownMenuItem
+                      onClick={() => setResetPasswordUser(user)}
+                    >
+                      <Key className="mr-2 h-4 w-4" />
+                      Restablecer contraseña
+                    </DropdownMenuItem>
+                  )}
                   {!user.isDeleted && (
                     <>
                       <DropdownMenuSeparator />

@@ -14,7 +14,7 @@ export type User = {
   id: string;
   name: string;
   email: string;
-  roleId?: string;
+  roleId?: string | null;
   role?: string;
   isActive: boolean;
   userRole?: Role;

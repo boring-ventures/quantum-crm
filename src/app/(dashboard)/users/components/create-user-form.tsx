@@ -14,6 +14,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
@@ -35,6 +36,11 @@ import { RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import html2canvas from "html2canvas";
 import type { Role } from "@/types/role";
+import type { Country } from "@/types/country";
+import PermissionEditor, {
+  PermissionMap,
+} from "@/components/admin/permission-editor";
+import { Switch } from "@/components/ui/switch";
 
 // Hook interno para obtener roles
 function useRoles() {
@@ -68,6 +74,38 @@ function useRoles() {
   return { roles, isLoading, error };
 }
 
+// Hook para obtener países
+function useCountries() {
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch("/api/admin/countries");
+
+        if (!response.ok) {
+          throw new Error("Error al obtener países");
+        }
+
+        const data = await response.json();
+        setCountries(data || []);
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error("Error desconocido"));
+        console.error("Error al obtener países:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCountries();
+  }, []);
+
+  return { countries, isLoading, error };
+}
+
 // Función para generar contraseña
 function generatePassword(length = 10): string {
   const charset =
@@ -99,6 +137,7 @@ const createUserSchema = z.object({
     .string()
     .min(8, { message: "La contraseña debe tener al menos 8 caracteres" }),
   roleId: z.string({ required_error: "El rol es obligatorio" }),
+  countryId: z.string().optional(),
 });
 
 type CreateUserFormValues = z.infer<typeof createUserSchema>;
@@ -109,6 +148,7 @@ type UserCredentials = {
   email: string;
   password: string;
   role: string;
+  country?: string;
 };
 
 type CreateUserFormProps = {
@@ -124,9 +164,14 @@ export function CreateUserForm({
 }: CreateUserFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { roles, isLoading: isLoadingRoles } = useRoles();
+  const { countries, isLoading: isLoadingCountries } = useCountries();
   const [showCredentials, setShowCredentials] = useState(false);
   const [userCredentials, setUserCredentials] =
     useState<UserCredentials | null>(null);
+  const [showPermissionDialog, setShowPermissionDialog] = useState(false);
+  const [customLabel, setCustomLabel] = useState(false);
+  const [customPermissions, setCustomPermissions] = useState<PermissionMap>({});
+  const [lastRoleId, setLastRoleId] = useState<string | null>(null);
 
   const form = useForm<CreateUserFormValues>({
     resolver: zodResolver(createUserSchema),
@@ -135,6 +180,7 @@ export function CreateUserForm({
       email: "",
       password: "",
       roleId: "",
+      countryId: "",
     },
   });
 
@@ -164,15 +210,53 @@ export function CreateUserForm({
     onCreated();
   };
 
+  // Cuando cambia el rol seleccionado, si hay permisos personalizados y cambia el rol, resetear custom
+  useEffect(() => {
+    if (
+      form.watch("roleId") &&
+      lastRoleId &&
+      form.watch("roleId") !== lastRoleId
+    ) {
+      setCustomPermissions({});
+      setCustomLabel(false);
+    }
+  }, [form.watch("roleId"), lastRoleId]);
+
+  // Validar que al menos un permiso tenga scope distinto de false
+  function hasAtLeastOnePermission(permissions: PermissionMap) {
+    return Object.values(permissions).some((item) =>
+      ["view", "create", "edit", "delete"].some(
+        (action) => item[action] !== false && item[action] !== undefined
+      )
+    );
+  }
+
   async function onSubmit(data: CreateUserFormValues) {
     setIsLoading(true);
+    // Normalizar countryId si es 'none'
+    const submitData: any = {
+      ...data,
+      countryId: data.countryId === "none" ? undefined : data.countryId,
+    };
+    if (customLabel) {
+      if (!hasAtLeastOnePermission(customPermissions)) {
+        toast({
+          title: "Permisos insuficientes",
+          description: "Debes asignar al menos un permiso con acceso.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+      submitData.user_permissions = customPermissions;
+    }
     try {
       const response = await fetch("/api/users", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(submitData),
       });
 
       if (!response.ok) {
@@ -185,6 +269,11 @@ export function CreateUserForm({
       // Buscar el nombre del rol
       const roleName = roles.find((r) => r.id === data.roleId)?.name || "";
 
+      // Buscar el nombre del país
+      const countryName = data.countryId
+        ? countries.find((c) => c.id === data.countryId)?.name || ""
+        : undefined;
+
       // Guardar credenciales para mostrarlas
       setUserCredentials({
         id: result.user.id,
@@ -192,6 +281,7 @@ export function CreateUserForm({
         email: result.user.email,
         password: data.password,
         role: roleName,
+        country: countryName,
       });
 
       // Mostrar diálogo de credenciales
@@ -209,13 +299,25 @@ export function CreateUserForm({
     }
   }
 
+  // Copiar credenciales al portapapeles
+  const copyCredentialsToClipboard = () => {
+    if (!userCredentials) return;
+    let text = `Nombre: ${userCredentials.name}\nEmail: ${userCredentials.email}\nContraseña: ${userCredentials.password}\nRol: ${userCredentials.role}`;
+    if (userCredentials.country) text += `\nPaís: ${userCredentials.country}`;
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Copiado",
+      description: "Credenciales copiadas al portapapeles",
+    });
+  };
+
   return (
     <>
       <Dialog
         open={open && !showCredentials}
         onOpenChange={(val) => !val && onClose()}
       >
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Crear nuevo usuario</DialogTitle>
             <DialogDescription>
@@ -223,104 +325,219 @@ export function CreateUserForm({
               rol.
             </DialogDescription>
           </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nombre</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Nombre completo" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="correo@ejemplo.com"
-                        type="email"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Contraseña</FormLabel>
-                    <div className="flex gap-2">
+          <div className="overflow-y-auto flex-1 pr-2 scrollbar-thin scrollbar-thumb-rounded-md scrollbar-thumb-zinc-700 scrollbar-track-zinc-900 scrollbar-w-2">
+            <Form {...form}>
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-4"
+              >
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nombre</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Nombre completo" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="Contraseña"
-                          type="text"
+                          placeholder="correo@ejemplo.com"
+                          type="email"
                           {...field}
                         />
                       </FormControl>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={generateRandomPassword}
-                        title="Generar contraseña"
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Contraseña</FormLabel>
+                      <div className="flex gap-2">
+                        <FormControl>
+                          <Input
+                            placeholder="Contraseña"
+                            type="text"
+                            {...field}
+                          />
+                        </FormControl>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={generateRandomPassword}
+                          title="Generar contraseña"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="roleId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Rol</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                        disabled={isLoadingRoles}
                       >
-                        <RefreshCw className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="roleId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Rol</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      disabled={isLoadingRoles}
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona un rol">
+                              {customLabel ? "Personalizado" : undefined}
+                            </SelectValue>
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {roles?.map((role) => (
+                            <SelectItem key={role.id} value={role.id}>
+                              {role.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {form.watch("roleId") && (
+                  <div className="flex items-center gap-2 mb-2">
+                    <Button
+                      type="button"
+                      variant={customLabel ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setShowPermissionDialog(true)}
                     >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecciona un rol" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {roles?.map((role) => (
-                          <SelectItem key={role.id} value={role.id}>
-                            {role.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
+                      {customLabel
+                        ? "Editar permisos personalizados"
+                        : "Configurar permisos personalizados"}
+                    </Button>
+                    <FormDescription>
+                      Puedes usar los permisos predeterminados del rol o
+                      personalizarlos para este usuario.
+                    </FormDescription>
+                  </div>
                 )}
-              />
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={onClose}>
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? "Creando..." : "Crear usuario"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
+                <FormField
+                  control={form.control}
+                  name="countryId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>País</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        disabled={isLoadingCountries}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona un país" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">
+                            Sin país asignado
+                          </SelectItem>
+                          {countries?.map((country) => (
+                            <SelectItem key={country.id} value={country.id}>
+                              {country.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        El país es necesario para usuarios con permisos de
+                        alcance "equipo"
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={onClose}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={isLoading}>
+                    {isLoading ? "Creando..." : "Crear usuario"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de permisos personalizados */}
+      <Dialog
+        open={showPermissionDialog}
+        onOpenChange={setShowPermissionDialog}
+      >
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Configurar permisos personalizados</DialogTitle>
+            <DialogDescription>
+              Personaliza los permisos de este usuario. Puedes guardar la
+              configuración o cancelar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <PermissionEditor
+              permissions={
+                customPermissions && Object.keys(customPermissions).length > 0
+                  ? customPermissions
+                  : roles.find((r) => r.id === form.watch("roleId"))
+                      ?.permissions || {}
+              }
+              onChange={setCustomPermissions}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowPermissionDialog(false)}
+              type="button"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => {
+                if (!hasAtLeastOnePermission(customPermissions)) {
+                  toast({
+                    title: "Permisos insuficientes",
+                    description:
+                      "Debes asignar al menos un permiso con acceso.",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                setCustomLabel(true);
+                setLastRoleId(form.watch("roleId"));
+                setShowPermissionDialog(false);
+              }}
+              type="button"
+            >
+              Guardar configuración
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -359,6 +576,13 @@ export function CreateUserForm({
 
                   <span className="font-semibold">Rol:</span>
                   <span>{userCredentials?.role}</span>
+
+                  {userCredentials?.country && (
+                    <>
+                      <span className="font-semibold">País:</span>
+                      <span>{userCredentials.country}</span>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -367,6 +591,13 @@ export function CreateUserForm({
           <DialogFooter className="flex flex-col sm:flex-row gap-2">
             <Button onClick={downloadAsImage} className="w-full sm:w-auto">
               Descargar como imagen
+            </Button>
+            <Button
+              onClick={copyCredentialsToClipboard}
+              variant="secondary"
+              className="w-full sm:w-auto"
+            >
+              Copiar credenciales
             </Button>
             <Button
               onClick={handleCloseCredentials}

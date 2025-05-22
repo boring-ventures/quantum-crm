@@ -422,9 +422,6 @@ export default function RolesPage() {
                                       <TableHead>
                                         Permisos personalizados
                                       </TableHead>
-                                      <TableHead className="text-right">
-                                        Acciones
-                                      </TableHead>
                                     </TableRow>
                                   </TableHeader>
                                   <TableBody>
@@ -455,17 +452,6 @@ export default function RolesPage() {
                                                 Predet.
                                               </Badge>
                                             )}
-                                          </TableCell>
-                                          <TableCell className="text-right">
-                                            <Button
-                                              variant="outline"
-                                              size="sm"
-                                              onClick={() =>
-                                                (window.location.href = `/admin/users/${user.id}`)
-                                              }
-                                            >
-                                              Editar
-                                            </Button>
                                           </TableCell>
                                         </TableRow>
                                       ))
