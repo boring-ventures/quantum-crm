@@ -152,6 +152,12 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL("/access-denied", request.url));
     }
 
+    // Log de permisos antes de verificar
+    console.log(
+      `[MIDDLEWARE] Permisos recibidos para el usuario:`,
+      JSON.stringify(permissions, null, 2)
+    );
+
     // Extraer la sección de la ruta
     const sectionKey = getSectionKeyFromPath(pathname);
     console.log(`[MIDDLEWARE] Extracted section key: ${sectionKey}`);
@@ -167,8 +173,7 @@ export async function middleware(request: NextRequest) {
     const userHasPermission = sharedHasPermission(
       permissions,
       sectionKey,
-      "view",
-      { role: profile.role }
+      "view"
     );
 
     console.log(

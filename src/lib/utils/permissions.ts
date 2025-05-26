@@ -226,8 +226,7 @@ export type PermissionScope = "self" | "team" | "all" | false;
 export function hasPermission(
   permissions: NestedSectionPermissions | null | undefined | User,
   sectionKey: string,
-  action: string = "view",
-  userInfo?: { role?: string } | null
+  action: string = "view"
 ): boolean {
   // Detectar si se está llamando con la interfaz antigua (User) o nueva (NestedSectionPermissions)
   if (permissions && "id" in permissions) {
@@ -235,30 +234,66 @@ export function hasPermission(
     return hasPermission_user(permissions as User, sectionKey, action);
   }
 
-  // Super Administrador siempre tiene todos los permisos
-  if (userInfo?.role === "Super Administrador") {
-    console.debug(
-      `[PERMISSION] Super Administrador bypass: ${sectionKey}.${action}`
-    );
-    return true;
+  if (!permissions || typeof permissions !== "object") return false;
+
+  // SOPORTE FORMATO PLANO
+  const isFlat = !("sections" in permissions);
+
+  if (isFlat) {
+    // Manejar claves con notación de punto (ej: admin.roles)
+    if (sectionKey.includes(".")) {
+      const [parentKey, childKey] = sectionKey.split(".");
+      const parentSection = permissions[parentKey];
+      if (
+        parentSection &&
+        typeof parentSection === "object" &&
+        childKey in parentSection
+      ) {
+        const childSection = parentSection[childKey];
+        if (childSection && typeof childSection === "object") {
+          const value = childSection[action as keyof typeof childSection];
+          console.debug(`[PERMISSION][PLANO] ${sectionKey}.${action} =`, value);
+          return value !== false && value !== undefined;
+        }
+        return false;
+      }
+      // Fallback: acceso a la sección padre
+      if (
+        parentSection &&
+        typeof parentSection === "object" &&
+        "view" in parentSection
+      ) {
+        const value = (parentSection as any).view;
+        console.debug(
+          `[PERMISSION][PLANO] ${parentKey}.view (fallback) =`,
+          value
+        );
+        return action === "view" && value !== false && value !== undefined;
+      }
+      return false;
+    }
+    // Sección simple
+    const sectionPermission = permissions[sectionKey];
+    if (sectionPermission && action in sectionPermission) {
+      const value = sectionPermission[action];
+      console.debug(`[PERMISSION][PLANO] ${sectionKey}.${action} =`, value);
+      return value !== false && value !== undefined;
+    }
+    return false;
   }
 
-  if (!permissions || !("sections" in permissions) || !permissions.sections)
-    return false;
+  // FORMATO CON SECTIONS (legacy)
+  if (!permissions.sections) return false;
 
   // Manejar claves con notación de punto (ej: admin.roles)
   if (sectionKey.includes(".")) {
     const [parentKey, childKey] = sectionKey.split(".");
-
-    // Verificar si existe el permiso anidado
     const parentSection = permissions.sections[parentKey];
-
     if (
       parentSection &&
       typeof parentSection === "object" &&
       childKey in parentSection
     ) {
-      // @ts-ignore - Acceso dinámico a la estructura de permisos
       const childSection = parentSection[childKey];
       if (childSection && typeof childSection === "object") {
         const value = childSection[action as keyof typeof childSection];
@@ -267,8 +302,7 @@ export function hasPermission(
       }
       return false;
     }
-
-    // Si no hay permiso específico, verificar acceso completo a la sección padre
+    // Fallback: acceso a la sección padre
     if (
       parentSection &&
       typeof parentSection === "object" &&
@@ -278,21 +312,15 @@ export function hasPermission(
       console.debug(`[PERMISSION] ${parentKey}.view (fallback) =`, value);
       return action === "view" && value !== false && value !== undefined;
     }
-
     return false;
   }
-
-  // Manejar sección simple
+  // Sección simple
   const sectionPermission = permissions.sections[sectionKey];
-
-  // Si es un objeto directo de permisos
   if (sectionPermission && action in sectionPermission) {
-    // @ts-ignore - Necesitamos acceder dinámicamente
     const value = sectionPermission[action];
     console.debug(`[PERMISSION] ${sectionKey}.${action} =`, value);
     return value !== false && value !== undefined;
   }
-
   return false;
 }
 
@@ -303,9 +331,6 @@ export function hasPermission_user(
   action: string
 ): boolean {
   if (!user) return false;
-
-  // Super Admin siempre tiene todos los permisos
-  if (user.role === "Super Administrador") return true;
 
   if (!user.userPermission?.permissions) return false;
 
@@ -384,9 +409,6 @@ export function getScope_user(
 ): PermissionScope {
   if (!user) return false;
 
-  // Super Admin siempre tiene scope "all"
-  if (user.role === "Super Administrador") return "all";
-
   if (!user.userPermission?.permissions) return false;
 
   // Extraer permisos
@@ -421,11 +443,14 @@ export function getScope_user(
 export function getSectionKeyFromPath(pathname: string): string | null {
   // Eliminar parámetros de consulta y fragmentos
   const cleanPath = pathname.split(/[?#]/)[0];
-
-  // Dividir la ruta en segmentos
   const segments = cleanPath.split("/").filter(Boolean);
 
   if (segments.length === 0) return null;
+
+  // Si es una ruta de API, extraer el módulo real
+  if (segments[0] === "api" && segments.length > 1) {
+    return segments[1]; // leads, sales, etc.
+  }
 
   // Caso especial para admin y otras secciones con subsecciones
   if (segments[0] === "admin" && segments.length > 1) {
@@ -446,9 +471,6 @@ export function canAccessResource(
   scope: PermissionScope
 ): boolean {
   if (!user) return false;
-
-  // Super Admin siempre tiene acceso
-  if (user.role === "Super Administrador") return true;
 
   // Usar el scope para determinar acceso
   switch (scope) {

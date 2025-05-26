@@ -1,3 +1,5 @@
+"use server";
+
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import { type User } from "@/types/user";
@@ -33,19 +35,37 @@ export async function getCurrentUser(): Promise<User | null> {
       return null;
     }
 
+    // Normalizar permisos a objeto JS
+    let permissionsObj: Record<string, boolean> | undefined = undefined;
+    if (user.userPermission?.permissions) {
+      if (typeof user.userPermission.permissions === "string") {
+        try {
+          permissionsObj = JSON.parse(user.userPermission.permissions);
+        } catch {
+          permissionsObj = {};
+        }
+      } else {
+        permissionsObj = user.userPermission.permissions as Record<
+          string,
+          boolean
+        >;
+      }
+    }
+
     // Convertir a nuestro tipo User
     return {
       id: user.id,
       email: user.email,
       name: user.name,
       role: user.role,
+      roleId: user.roleId,
       isActive: user.isActive,
       countryId: user.countryId || undefined,
       userPermission: user.userPermission
         ? {
             id: user.userPermission.id,
             userId: user.userPermission.userId,
-            permissions: user.userPermission.permissions,
+            permissions: permissionsObj,
             createdAt: user.userPermission.createdAt.toISOString(),
             updatedAt: user.userPermission.updatedAt.toISOString(),
           }

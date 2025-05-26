@@ -49,12 +49,7 @@ export function usePermissions(userRole?: Role | null) {
       sectionKey: string,
       permission: keyof SectionPermission = "view"
     ): boolean => {
-      return sharedHasPermission(
-        permissions,
-        sectionKey,
-        permission as string,
-        { role: userRole?.name }
-      );
+      return sharedHasPermission(permissions, sectionKey, permission as string);
     },
     [permissions, userRole]
   );
