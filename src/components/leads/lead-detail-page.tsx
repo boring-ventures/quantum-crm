@@ -49,17 +49,18 @@ import {
 } from "@/components/ui/dialog";
 import { TaskTypeDialog } from "@/components/leads/task-type-dialog";
 import { useQueryClient } from "@tanstack/react-query";
+import { hasPermission } from "@/lib/utils/permissions";
 
 interface LeadDetailPageProps {
   lead: LeadWithRelations;
   onBack: () => void;
-  isSeller?: boolean;
+  currentUser: any; // Reemplazar isSeller por currentUser
 }
 
 export function LeadDetailPage({
   lead,
   onBack,
-  isSeller = false,
+  currentUser,
 }: LeadDetailPageProps) {
   const [activeTab, setActiveTab] = useState("informacion");
   const [isFavorite, setIsFavorite] = useState(lead.isFavorite || false);
@@ -140,16 +141,41 @@ export function LeadDetailPage({
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   };
 
+  // Determinamos los permisos del usuario actual
+  const canViewLeads = hasPermission(currentUser, "leads", "view");
+  const canEditLeads = hasPermission(currentUser, "leads", "edit");
+  const canDeleteLeads = hasPermission(currentUser, "leads", "delete");
+  const canCreateSales = hasPermission(currentUser, "sales", "create");
+  const canCreateTasks = hasPermission(currentUser, "tasks", "create");
+  const canViewTasks = hasPermission(currentUser, "tasks", "view");
+
+  // Si el usuario no tiene permiso para ver leads, no mostrar nada
+  if (!canViewLeads) {
+    return (
+      <div className="flex items-center justify-center h-[50vh]">
+        <div className="text-center p-6 max-w-md">
+          <h3 className="text-lg font-semibold mb-2">Acceso denegado</h3>
+          <p className="text-gray-500 mb-4">
+            No tienes permisos para ver la información de este lead.
+          </p>
+          <Button onClick={onBack} variant="outline">
+            Volver
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   // Manejar la edición de comentarios
   const handleEditComments = () => {
-    if (!isSeller) return;
+    if (!canEditLeads) return;
     setIsEditing(true);
     setOriginalComments(comments);
   };
 
   // Manejar cambios en el textarea
   const handleCommentsChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    if (!isSeller) return;
+    if (!canEditLeads) return;
     setComments(e.target.value);
     setHasChanges(e.target.value !== originalComments);
   };
@@ -163,7 +189,7 @@ export function LeadDetailPage({
 
   // Guardar comentarios
   const handleSaveComments = async () => {
-    if (!isSeller) return;
+    if (!canEditLeads) return;
     try {
       await updateLeadMutation.mutateAsync({
         id: lead.id,
@@ -258,7 +284,7 @@ export function LeadDetailPage({
 
   // Manejar el cambio de favorito
   const handleToggleFavorite = async () => {
-    if (!isSeller) return;
+    if (!canEditLeads) return;
     try {
       await toggleFavoriteMutation.mutateAsync({
         leadId: lead.id,
@@ -291,7 +317,7 @@ export function LeadDetailPage({
   };
 
   const handleContactLead = () => {
-    if (!isSeller) return;
+    if (!canEditLeads) return;
     if (lead.cellphone) {
       // Eliminar cualquier carácter no numérico del número de teléfono
       const phoneNumber = lead.cellphone.replace(/\D/g, "");
@@ -301,7 +327,7 @@ export function LeadDetailPage({
   };
 
   const handleScheduleAppointment = () => {
-    if (!isSeller) return;
+    if (!canCreateTasks) return;
     // Abrir el diálogo de tareas directamente en el paso 2 con el tipo "client-visit"
     setSelectedTaskType("client-visit");
     setOpenTaskDialog(true);
@@ -322,7 +348,7 @@ export function LeadDetailPage({
             <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
               {lead.firstName} {lead.lastName}
             </h1>
-            {isSeller && (
+            {canEditLeads && (
               <Star
                 className={`h-5 w-5 cursor-pointer ${isFavorite ? "fill-yellow-400 text-yellow-400" : "text-gray-400"}`}
                 onClick={handleToggleFavorite}
@@ -379,12 +405,14 @@ export function LeadDetailPage({
                 >
                   Información
                 </TabsTrigger>
-                <TabsTrigger
-                  value="tareas"
-                  className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:rounded-none data-[state=active]:shadow-none rounded-none px-6 py-3"
-                >
-                  Tareas
-                </TabsTrigger>
+                {canViewTasks && (
+                  <TabsTrigger
+                    value="tareas"
+                    className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:rounded-none data-[state=active]:shadow-none rounded-none px-6 py-3"
+                  >
+                    Tareas
+                  </TabsTrigger>
+                )}
                 <TabsTrigger
                   value="lineaTiempo"
                   className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:rounded-none data-[state=active]:shadow-none rounded-none px-6 py-3"
@@ -456,7 +484,7 @@ export function LeadDetailPage({
                     <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
                       Comentarios Extras
                     </h3>
-                    {!isEditing && isSeller && (
+                    {!isEditing && canEditLeads && (
                       <Button
                         size="sm"
                         variant="ghost"
@@ -472,9 +500,9 @@ export function LeadDetailPage({
                     className="min-h-[120px] resize-none text-gray-800 dark:text-gray-200"
                     value={comments}
                     onChange={handleCommentsChange}
-                    disabled={!isEditing || !isSeller}
+                    disabled={!isEditing || !canEditLeads}
                   />
-                  {isEditing && isSeller && (
+                  {isEditing && canEditLeads && (
                     <div className="flex justify-end mt-3 gap-2">
                       <Button
                         size="sm"
@@ -500,9 +528,11 @@ export function LeadDetailPage({
                 </div>
               </TabsContent>
 
-              <TabsContent value="tareas" className="p-6">
-                <TaskList leadId={lead.id} isSeller={isSeller} />
-              </TabsContent>
+              {canViewTasks && (
+                <TabsContent value="tareas" className="p-6">
+                  <TaskList leadId={lead.id} currentUser={currentUser} />
+                </TabsContent>
+              )}
 
               <TabsContent value="lineaTiempo" className="p-6">
                 <LeadTimeline lead={lead} isFavorite={isFavorite} />
@@ -513,8 +543,8 @@ export function LeadDetailPage({
 
         {/* Sidebar derecho */}
         <div className="lg:w-[350px] space-y-4">
-          {/* Proceso de venta - Solo visible para vendedores */}
-          {isSeller && (
+          {/* Proceso de venta - Solo visible para usuarios con permiso de ventas */}
+          {canCreateSales && (
             <Card className="border-gray-200 dark:border-gray-700">
               <CardContent className="p-6">
                 <h3 className="text-lg font-medium mb-6">Proceso de venta</h3>
@@ -622,11 +652,11 @@ export function LeadDetailPage({
             </Card>
           )}
 
-          {/* Acciones - Diferentes para vendedores y administradores */}
+          {/* Acciones - Basadas en permisos */}
           <Card className="border-gray-200 dark:border-gray-700 overflow-hidden">
             <CardContent className="p-0">
-              {isSeller ? (
-                /* Acciones completas para vendedores */
+              {canEditLeads ? (
+                /* Acciones para usuarios con permisos de edición */
                 <>
                   <Button
                     className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700"
@@ -637,14 +667,16 @@ export function LeadDetailPage({
                     Contactar
                   </Button>
 
-                  <Button
-                    className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700"
-                    variant="ghost"
-                    onClick={handleScheduleAppointment}
-                  >
-                    <CalendarClock className="mr-3 h-5 w-5" />
-                    Agendar cita
-                  </Button>
+                  {canCreateTasks && (
+                    <Button
+                      className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700"
+                      variant="ghost"
+                      onClick={handleScheduleAppointment}
+                    >
+                      <CalendarClock className="mr-3 h-5 w-5" />
+                      Agendar cita
+                    </Button>
+                  )}
 
                   <Button
                     className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700 text-yellow-500"
@@ -675,35 +707,39 @@ export function LeadDetailPage({
 
                   {showActionsMenu && (
                     <div className="border-t border-gray-200 dark:border-gray-700">
-                      <Button
-                        className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700"
-                        variant="ghost"
-                        onClick={() => setShowArchiveDialog(true)}
-                      >
-                        <Archive className="mr-3 h-5 w-5 text-gray-500" />
-                        Archivar lead
-                      </Button>
+                      {canEditLeads && (
+                        <Button
+                          className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700"
+                          variant="ghost"
+                          onClick={() => setShowArchiveDialog(true)}
+                        >
+                          <Archive className="mr-3 h-5 w-5 text-gray-500" />
+                          Archivar lead
+                        </Button>
+                      )}
 
-                      <Button
-                        className="w-full justify-start rounded-none py-3 h-auto font-normal text-base text-red-500"
-                        variant="ghost"
-                        onClick={() => setShowDeleteDialog(true)}
-                      >
-                        <Trash2 className="mr-3 h-5 w-5" />
-                        Eliminar lead
-                      </Button>
+                      {canDeleteLeads && (
+                        <Button
+                          className="w-full justify-start rounded-none py-3 h-auto font-normal text-base text-red-500"
+                          variant="ghost"
+                          onClick={() => setShowDeleteDialog(true)}
+                        >
+                          <Trash2 className="mr-3 h-5 w-5" />
+                          Eliminar lead
+                        </Button>
+                      )}
                     </div>
                   )}
                 </>
               ) : (
-                /* Acción única para administradores: solo ver */
+                /* Acción única para usuarios sin permisos de edición: solo ver */
                 <Button
                   className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-gray-200 dark:border-gray-700"
                   variant="ghost"
                   onClick={onBack}
                 >
                   <Eye className="mr-3 h-5 w-5" />
-                  Solo visualización (Modo Admin)
+                  Solo visualización (Modo Lectura)
                 </Button>
               )}
             </CardContent>
@@ -737,8 +773,8 @@ export function LeadDetailPage({
         </div>
       </div>
 
-      {/* Modales para el proceso de venta - Solo para vendedores */}
-      {isSeller && (
+      {/* Modales para el proceso de venta - Solo para usuarios con permisos */}
+      {canCreateSales && (
         <>
           <QuotationDialog
             open={openModal === "quotation"}
@@ -763,123 +799,127 @@ export function LeadDetailPage({
             leadId={lead.id}
             onComplete={handleCompleteSale}
           />
-
-          {/* Diálogo de confirmación para archivar lead */}
-          <Dialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Archivar Lead</DialogTitle>
-              </DialogHeader>
-              <div className="py-4">
-                <p>
-                  ¿Estás seguro que deseas archivar este lead? Esta acción no se
-                  puede deshacer.
-                </p>
-              </div>
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowArchiveDialog(false)}
-                  disabled={isArchiving}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  variant="default"
-                  className="bg-blue-600 hover:bg-blue-700"
-                  onClick={async () => {
-                    setIsArchiving(true);
-                    try {
-                      await updateLeadMutation.mutateAsync({
-                        id: lead.id,
-                        data: {
-                          isArchived: true,
-                        },
-                      });
-                      setShowArchiveDialog(false);
-                      toast({
-                        title: "Lead archivado",
-                        description: "El lead ha sido archivado correctamente",
-                      });
-                      if (onBack) onBack();
-                    } catch (error) {
-                      toast({
-                        title: "Error",
-                        description: "No se pudo archivar el lead",
-                        variant: "destructive",
-                      });
-                    } finally {
-                      setIsArchiving(false);
-                    }
-                  }}
-                  disabled={isArchiving}
-                >
-                  {isArchiving && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  Archivar
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          {/* Diálogo de confirmación para eliminar lead */}
-          <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Eliminar Lead</DialogTitle>
-              </DialogHeader>
-              <div className="py-4">
-                <p>
-                  ¿Estás seguro que deseas eliminar este lead? Esta acción no se
-                  puede deshacer.
-                </p>
-              </div>
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowDeleteDialog(false)}
-                  disabled={isDeleting}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={async () => {
-                    setIsDeleting(true);
-                    try {
-                      await deleteLeadMutation.mutateAsync(lead.id);
-                      setShowDeleteDialog(false);
-                      toast({
-                        title: "Lead eliminado",
-                        description: "El lead ha sido eliminado correctamente",
-                      });
-                      if (onBack) onBack();
-                    } catch (error) {
-                      toast({
-                        title: "Error",
-                        description: "No se pudo eliminar el lead",
-                        variant: "destructive",
-                      });
-                    } finally {
-                      setIsDeleting(false);
-                    }
-                  }}
-                  disabled={isDeleting}
-                >
-                  {isDeleting && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  Eliminar
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </>
       )}
 
-      {/* Diálogo de tarea - Solo para vendedores */}
-      {isSeller && (
+      {/* Diálogo de confirmación para archivar lead */}
+      {canEditLeads && (
+        <Dialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Archivar Lead</DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              <p>
+                ¿Estás seguro que deseas archivar este lead? Esta acción no se
+                puede deshacer.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setShowArchiveDialog(false)}
+                disabled={isArchiving}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="default"
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={async () => {
+                  setIsArchiving(true);
+                  try {
+                    await updateLeadMutation.mutateAsync({
+                      id: lead.id,
+                      data: {
+                        isArchived: true,
+                      },
+                    });
+                    setShowArchiveDialog(false);
+                    toast({
+                      title: "Lead archivado",
+                      description: "El lead ha sido archivado correctamente",
+                    });
+                    if (onBack) onBack();
+                  } catch (error) {
+                    toast({
+                      title: "Error",
+                      description: "No se pudo archivar el lead",
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setIsArchiving(false);
+                  }
+                }}
+                disabled={isArchiving}
+              >
+                {isArchiving && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Archivar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Diálogo de confirmación para eliminar lead */}
+      {canDeleteLeads && (
+        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Eliminar Lead</DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              <p>
+                ¿Estás seguro que deseas eliminar este lead? Esta acción no se
+                puede deshacer.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteDialog(false)}
+                disabled={isDeleting}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={async () => {
+                  setIsDeleting(true);
+                  try {
+                    await deleteLeadMutation.mutateAsync(lead.id);
+                    setShowDeleteDialog(false);
+                    toast({
+                      title: "Lead eliminado",
+                      description: "El lead ha sido eliminado correctamente",
+                    });
+                    if (onBack) onBack();
+                  } catch (error) {
+                    toast({
+                      title: "Error",
+                      description: "No se pudo eliminar el lead",
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setIsDeleting(false);
+                  }
+                }}
+                disabled={isDeleting}
+              >
+                {isDeleting && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Eliminar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Diálogo de tarea - Solo para usuarios con permisos */}
+      {canCreateTasks && (
         <TaskTypeDialog
           open={openTaskDialog}
           onOpenChange={setOpenTaskDialog}

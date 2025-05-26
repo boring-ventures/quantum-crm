@@ -19,6 +19,7 @@ import { QualifyLeadDialog } from "@/components/leads/qualify-lead-dialog";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { EditLeadDialog } from "@/components/leads/edit-lead-dialog";
+import { hasPermission } from "@/lib/utils/permissions";
 
 // Tipo para lead basado en el modelo de Prisma
 export type Lead = {
@@ -49,10 +50,12 @@ export type Lead = {
 interface LeadCardProps {
   lead: LeadWithRelations;
   onLeadUpdated?: () => void;
+  currentUser: any;
 }
 
-function LeadCard({ lead, onLeadUpdated }: LeadCardProps) {
-  const { isSeller } = useUserRole();
+function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
+  const canReadLeads = hasPermission(currentUser, "leads", "view");
+  const canUpdateLeads = hasPermission(currentUser, "leads", "edit");
 
   const { data: updatedLead, isLoading: isLoadingUpdatedLead } = useLeadQuery(
     lead.id
@@ -270,19 +273,21 @@ function LeadCard({ lead, onLeadUpdated }: LeadCardProps) {
             {showDropdown && (
               <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-10">
                 <ul className="py-1">
-                  <li>
-                    <button
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowDropdown(false);
-                        handleCardClick();
-                      }}
-                    >
-                      Ver detalles
-                    </button>
-                  </li>
-                  {isSeller && (
+                  {canReadLeads && (
+                    <li>
+                      <button
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowDropdown(false);
+                          handleCardClick();
+                        }}
+                      >
+                        Ver detalles
+                      </button>
+                    </li>
+                  )}
+                  {canUpdateLeads && (
                     <>
                       <li>
                         <button
@@ -459,9 +464,14 @@ export interface LeadsListProps {
     | "no-tasks"
     | "overdue-tasks"
     | "today-tasks"
-    | "favorites";
+    | "favorites"
+    | "my-leads";
   interestLevel?: number;
   assignedToId?: string;
+  countryId?: string;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  currentUser?: any;
 }
 
 export function LeadsList({
@@ -470,8 +480,15 @@ export function LeadsList({
   filterType = "all",
   interestLevel = 0,
   assignedToId,
+  countryId,
+  canEdit = false,
+  canDelete = false,
+  currentUser,
 }: LeadsListProps) {
-  const { data, isLoading, isError } = useLeadsQuery({ assignedToId });
+  const { data, isLoading, isError } = useLeadsQuery({
+    assignedToId,
+    countryId,
+  });
   const queryClient = useQueryClient();
 
   const handleLeadUpdated = () => {
@@ -576,6 +593,12 @@ export function LeadsList({
       // Leads marcados como favoritos
       filteredLeads = filteredLeads.filter((lead) => lead.isFavorite);
       break;
+    case "my-leads":
+      // Leads asignados al usuario actual
+      filteredLeads = filteredLeads.filter(
+        (lead) => lead.assignedToId === assignedToId
+      );
+      break;
   }
 
   // Paso 3: Filtrar por nivel de interés si se especificó
@@ -614,7 +637,12 @@ export function LeadsList({
   return (
     <div className="space-y-4">
       {filteredLeads.map((lead) => (
-        <LeadCard key={lead.id} lead={lead} onLeadUpdated={handleLeadUpdated} />
+        <LeadCard
+          key={lead.id}
+          lead={lead}
+          onLeadUpdated={handleLeadUpdated}
+          currentUser={currentUser}
+        />
       ))}
     </div>
   );

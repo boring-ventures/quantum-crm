@@ -4,8 +4,11 @@ import { use } from "react";
 import { useRouter } from "next/navigation";
 import { LeadDetailPage } from "@/components/leads/lead-detail-page";
 import { useLeadQuery } from "@/lib/hooks";
-import { useUserRole } from "@/lib/hooks";
 import { Skeleton } from "@/components/ui/skeleton";
+import { hasPermission } from "@/lib/utils/permissions";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Info } from "lucide-react";
+import { useUserStore } from "@/store/userStore";
 
 interface LeadPageProps {
   params: Promise<{ id: string }>;
@@ -13,22 +16,49 @@ interface LeadPageProps {
 
 export default function LeadPage({ params }: LeadPageProps) {
   const router = useRouter();
-  const { isSeller } = useUserRole();
-
   const { id } = use(params);
+
+  // Obtener el usuario actual desde el store
+  const { user: currentUser, isLoading: isLoadingCurrentUser } = useUserStore();
+
+  // Verificar permisos para ver leads
+  const canViewLeads = hasPermission(currentUser, "leads", "view");
 
   if (!id) {
     router.push("/leads");
     return null;
   }
 
+  // Si no tiene permiso para ver leads, mostrar acceso denegado
+  if (!canViewLeads && !isLoadingCurrentUser) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen p-6">
+        <Alert className="max-w-md">
+          <Info className="h-5 w-5" />
+          <AlertTitle>Acceso Denegado</AlertTitle>
+          <AlertDescription>
+            No tienes permisos para acceder a la información de leads.
+          </AlertDescription>
+        </Alert>
+        <button
+          onClick={() => router.push("/dashboard")}
+          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+        >
+          Volver al inicio
+        </button>
+      </div>
+    );
+  }
+
   const { data: lead, isLoading, isError } = useLeadQuery(id);
+
+  console.log(" useLeadQuery: lead: ", id);
 
   const handleBack = () => {
     router.push("/leads");
   };
 
-  if (isLoading) {
+  if (isLoading || isLoadingCurrentUser) {
     return (
       <div className="p-6 space-y-6">
         <div className="flex items-center gap-4">
@@ -72,7 +102,11 @@ export default function LeadPage({ params }: LeadPageProps) {
 
   return (
     <div className="p-6">
-      <LeadDetailPage lead={lead} onBack={handleBack} isSeller={isSeller} />
+      <LeadDetailPage
+        lead={lead}
+        onBack={handleBack}
+        currentUser={currentUser}
+      />
     </div>
   );
 }

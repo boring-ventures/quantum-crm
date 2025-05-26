@@ -30,6 +30,7 @@ export async function GET(
   req: Request,
   { params }: { params: { id: string } }
 ) {
+  console.log("GET: params: ", params);
   try {
     // Verificar autenticación
     const session = await auth();
@@ -38,7 +39,7 @@ export async function GET(
     }
 
     // Obtener el ID del lead desde los parámetros de ruta (await)
-    const { id } = await params;
+    const { id } = params;
 
     // Obtener el lead con sus relaciones
     const lead = await prisma.lead.findUnique({

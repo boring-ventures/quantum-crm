@@ -1,3 +1,7 @@
+"use client";
+
+import { useEffect } from "react";
+import { useUserStore } from "@/store/userStore";
 import { DashboardLayoutClient } from "@/components/dashboard/dashboard-layout-client";
 import { auth } from "@/lib/auth";
 import Link from "next/link";
@@ -25,37 +29,28 @@ function AuthError() {
   );
 }
 
-export default async function DashboardLayout({
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  try {
-    // Obtener sesión
-    console.log("Intentando obtener sesión...");
-    const session = await auth();
-    console.log("Sesión obtenida:", session ? "Sí" : "No");
+  const { user, fetchUser, isLoading } = useUserStore();
 
-    if (session) {
-      console.log("ID de usuario:", session.user?.id);
-      console.log("Email:", session.user?.email);
-      console.log("RoleId:", session.user?.roleId);
+  useEffect(() => {
+    if (!user && !isLoading) {
+      fetchUser();
     }
+  }, []);
 
-    // Si no hay sesión o el usuario no tiene un rol asignado, mostrar pantalla de error
-    // en lugar de redirigir para evitar bucles
-    if (!session?.user?.roleId) {
-      console.log(
-        "No hay sesión válida o no hay roleId, mostrando error de autenticación"
-      );
-      return <AuthError />;
-    }
+  if (isLoading) {
+    return <div>Cargando...</div>;
+  }
 
-    // Si llegamos aquí, la sesión es válida
-    console.log("Sesión válida, renderizando dashboard");
-    return <DashboardLayoutClient>{children}</DashboardLayoutClient>;
-  } catch (error) {
-    console.error("Error al obtener sesión:", error);
+  console.log(user);
+
+  if (!user?.roleId) {
     return <AuthError />;
   }
+
+  return <DashboardLayoutClient>{children}</DashboardLayoutClient>;
 }

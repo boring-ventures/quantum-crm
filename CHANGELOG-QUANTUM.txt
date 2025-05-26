@@ -1,3 +1,19 @@
+[2025-06-25] [Schema] - Añadido modelo LeadReassignment para seguimiento de reasignaciones de leads - [IR]
+- Creado modelo LeadReassignment en schema.prisma con relaciones a Lead y User
+- Implementadas relaciones múltiples con User para fromUser, toUser y reassignedBy
+- Actualizado tipo LeadWithRelations para incluir relación de reasignaciones
+- Modificado componente LeadTimeline para mostrar eventos de reasignación con UI dedicada
+- Añadido icono ArrowRightLeft para eventos de reasignación en la línea de tiempo
+
+[2025-06-25] [Refactor] - Implementado flujo de 3 pasos en el diálogo de creación de leads con UX mejorada - [IR]
+- Refactorizado componente NewLeadDialog para implementar navegación en 3 pasos: Información Personal, Contacto y Negocio
+- Añadido soporte para tema claro/oscuro con clases Tailwind
+- Implementada funcionalidad de búsqueda en dropdowns con más de 5 opciones
+- Añadidos RadioGroups para tipos de contacto y tipos de negocio
+- Reemplazada interfaz plana por un flujo dirigido con botones Siguiente/Crear Lead
+- Eliminado el botón "Guardar y crear otro" conforme a requerimientos
+- Mejorada la validación de formularios entre pasos
+
 [2025-05-22] [Fix] - Corregidos errores de tipado en rutas API de usuarios - [XX]
 - Arreglada ruta de API users/route.ts: Eliminada dependencia de módulo inexistente y corregidos tipos de variables
 - Corregida ruta de API users/[id]/permissions/route.ts para compatibilidad con función hasPermission_user
@@ -421,4 +437,5 @@
 - Agregado endpoint /api/users/[id]/check-leads para validar la eliminación segura de usuarios
 
 [2024-06-09] [Refactor] - Personalización de permisos en creación de usuario ahora se realiza en un segundo diálogo modal, el diálogo principal es scrolleable y el select de rol muestra 'Personalizado' si corresponde (src/app/(dashboard)/users/components/create-user-form.tsx) - [AI]
+[2024-06-09] [Fix] - Eliminado bypass de Super Administrador en funciones de permisos (hasPermission, getScope, canAccessResource) para que solo dependan de la estructura de permisos - [IR]
 

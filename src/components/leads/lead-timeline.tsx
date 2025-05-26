@@ -12,6 +12,7 @@ import {
   Loader2,
   FileText,
   CreditCard,
+  ArrowRightLeft,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { LeadWithRelations, Task } from "@/types/lead";
@@ -30,7 +31,8 @@ interface TimelineEvent {
     | "lead_favorited"
     | "quotation_created"
     | "reservation_created"
-    | "sale_created";
+    | "sale_created"
+    | "lead_reassigned";
   date: Date;
   title: string;
   description: string;
@@ -38,6 +40,9 @@ interface TimelineEvent {
   statusColor?: string;
   amount?: number;
   paymentMethod?: string;
+  fromUser?: string;
+  toUser?: string;
+  reassignedBy?: string;
 }
 
 export function LeadTimeline({ lead, isFavorite }: LeadTimelineProps) {
@@ -147,6 +152,22 @@ export function LeadTimeline({ lead, isFavorite }: LeadTimelineProps) {
       });
     }
 
+    // Añadir eventos de reasignación de leads
+    if (lead.reassignments && lead.reassignments.length > 0) {
+      lead.reassignments.forEach((reassignment) => {
+        allEvents.push({
+          id: `reassignment-${reassignment.id}`,
+          type: "lead_reassigned",
+          date: new Date(reassignment.createdAt),
+          title: "Lead reasignado",
+          description: `Reasignado por ${reassignment.reassignedByUser?.name || "Un usuario"}`,
+          fromUser: reassignment.fromUser?.name,
+          toUser: reassignment.toUser?.name,
+          reassignedBy: reassignment.reassignedByUser?.name,
+        });
+      });
+    }
+
     // Añadir evento de favorito solo si existe favoriteAt o si está marcado como favorito
     if (lead.isFavorite) {
       // Usar favoriteAt si existe, o updatedAt como respaldo
@@ -198,6 +219,8 @@ export function LeadTimeline({ lead, isFavorite }: LeadTimelineProps) {
         return <CreditCard className="h-5 w-5 text-green-500" />;
       case "sale_created":
         return <CheckCircle2 className="h-5 w-5 text-emerald-500" />;
+      case "lead_reassigned":
+        return <ArrowRightLeft className="h-5 w-5 text-orange-500" />;
       default:
         return <Clock className="h-5 w-5 text-gray-500" />;
     }
@@ -275,6 +298,16 @@ export function LeadTimeline({ lead, isFavorite }: LeadTimelineProps) {
                   <Badge className={`mt-1 font-normal ${event.statusColor}`}>
                     {getStatusText(event.status)}
                   </Badge>
+                )}
+
+                {event.type === "lead_reassigned" && (
+                  <div className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                    <span className="font-medium">De:</span>{" "}
+                    {event.fromUser || "Usuario anterior"}
+                    <span className="mx-2">→</span>
+                    <span className="font-medium">A:</span>{" "}
+                    {event.toUser || "Nuevo usuario"}
+                  </div>
                 )}
 
                 {event.amount && (

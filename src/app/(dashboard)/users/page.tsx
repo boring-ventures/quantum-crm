@@ -67,6 +67,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import type { User } from "@/types/user";
 import { hasPermission } from "@/lib/utils/permissions";
+import { useUserStore } from "@/store/userStore";
 
 // Componente de diálogo para restablecer contraseña
 function ResetPasswordDialog({ open, onClose, user, onSuccess }) {
@@ -169,6 +170,17 @@ function ResetPasswordDialog({ open, onClose, user, onSuccess }) {
     }
   };
 
+  const copyCredentialsToClipboard = () => {
+    if (!user) return;
+    let text = `Nombre: ${user.name}\nEmail: ${user.email}\nContraseña: ${password}\nRol: ${user.userRole?.name || user.role}`;
+    if (user.country) text += `\nPaís: ${user.country}`;
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Copiado",
+      description: "Credenciales copiadas al portapapeles",
+    });
+  };
+
   const handleCloseCredentials = () => {
     setShowCredentials(false);
     setPassword("");
@@ -220,6 +232,13 @@ function ResetPasswordDialog({ open, onClose, user, onSuccess }) {
           <DialogFooter className="flex flex-col sm:flex-row gap-2">
             <Button onClick={downloadAsImage} className="w-full sm:w-auto">
               Descargar como imagen
+            </Button>
+            <Button
+              onClick={copyCredentialsToClipboard}
+              variant="secondary"
+              className="w-full sm:w-auto"
+            >
+              Copiar credenciales
             </Button>
             <Button
               onClick={handleCloseCredentials}
@@ -304,21 +323,6 @@ const useUsers = (includeDeleted: boolean = false) => {
   });
 };
 
-// Hook para obtener el usuario actual y sus permisos
-const useCurrentUser = () => {
-  return useQuery({
-    queryKey: ["currentUser"],
-    queryFn: async () => {
-      const response = await fetch("/api/users/me");
-      if (!response.ok) {
-        throw new Error("Error al obtener usuario actual");
-      }
-      const data = await response.json();
-      return data.user || null;
-    },
-  });
-};
-
 // Componente de confirmación para eliminar usuario
 function DeleteUserConfirmation({ isOpen, onClose, onConfirm, userName }) {
   return (
@@ -353,8 +357,7 @@ export default function UsersPage() {
   const [deleteConfirmUser, setDeleteConfirmUser] = useState<User | null>(null);
   const [showDeleted, setShowDeleted] = useState(false);
 
-  const { data: currentUser, isLoading: isLoadingCurrentUser } =
-    useCurrentUser();
+  const { user: currentUser, isLoading: isLoadingCurrentUser } = useUserStore();
   const { data: users = [], isLoading } = useUsers(showDeleted);
   const queryClient = useQueryClient();
 

@@ -20,16 +20,16 @@ const LEAD_CONFIG_OPTIONS = [
     href: "/admin/leads/statuses",
   },
   {
-    title: "Categorías de Fuente",
-    description:
-      "Agrupa las fuentes de leads como Sitio Web, Publicidad Digital, Evento, etc.",
-    href: "/admin/leads/source-categories",
-  },
-  {
     title: "Fuentes de Lead",
     description:
       "Gestiona las fuentes específicas como Facebook, Instagram, Google Ads",
     href: "/admin/leads/sources",
+  },
+  {
+    title: "Categorías de Fuente",
+    description:
+      "Agrupa las fuentes de leads como Sitio Web, Publicidad Digital, Evento, etc.",
+    href: "/admin/leads/source-categories",
   },
   // {
   //   title: "Motivos de Cierre",

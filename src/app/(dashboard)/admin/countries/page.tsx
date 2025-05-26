@@ -12,16 +12,14 @@ import { CountryTable } from "./country-table";
 import { CountryDialog } from "./country-dialog";
 import { DeleteCountryDialog } from "./delete-country-dialog";
 import { Country } from "@/types/country";
-import { getCurrentUser } from "@/lib/auth";
-import { User } from "@/types/user";
+import { useUserStore } from "@/store/userStore";
 
 export default function CountriesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [countries, setCountries] = useState<Country[]>([]);
-  const [currentUserObtained, setCurrentUserObtained] = useState<User | null>(
-    null
-  );
+  const { user: currentUserObtained, isLoading: isLoadingCurrentUser } =
+    useUserStore();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCountry, setEditingCountry] = useState<Country | null>(null);
@@ -56,12 +54,6 @@ export default function CountriesPage() {
       }
     }
 
-    async function checkUserPermissions() {
-      const currentUser = await getCurrentUser();
-      setCurrentUserObtained(currentUser as any);
-    }
-
-    checkUserPermissions();
     loadCountries();
   }, []);
 

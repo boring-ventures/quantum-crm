@@ -31,10 +31,11 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { hasPermission } from "@/lib/utils/permissions";
 
-export interface TaskListProps {
+interface TaskListProps {
   leadId: string;
-  isSeller?: boolean;
+  currentUser?: any;
 }
 
 interface TaskListItemProps {
@@ -211,10 +212,13 @@ function TaskListItem({ task, onUpdate, isSeller = false }: TaskListItemProps) {
   );
 }
 
-export function TaskList({ leadId, isSeller = false }: TaskListProps) {
+export function TaskList({ leadId, currentUser }: TaskListProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { data: tasks, isLoading, refetch } = useLeadTasks(leadId);
   const { toast } = useToast();
+
+  const canCreateTasks = hasPermission(currentUser, "tasks", "create");
+  const canUpdateTasks = hasPermission(currentUser, "tasks", "update");
 
   // Agrupar tareas por estatus
   const groupedTasks =
@@ -257,7 +261,7 @@ export function TaskList({ leadId, isSeller = false }: TaskListProps) {
         Crea tu primera tarea para este lead. Las tareas te ayudan a organizar y
         dar seguimiento a tus actividades de ventas.
       </p>
-      {isSeller && (
+      {canCreateTasks && (
         <Button
           onClick={() => setIsDialogOpen(true)}
           className="mt-2 bg-blue-600 hover:bg-blue-700 text-white"
@@ -275,7 +279,7 @@ export function TaskList({ leadId, isSeller = false }: TaskListProps) {
         <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
           Tareas
         </h3>
-        {isSeller && (
+        {canCreateTasks && (
           <Button
             onClick={() => setIsDialogOpen(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white"
@@ -323,7 +327,7 @@ export function TaskList({ leadId, isSeller = false }: TaskListProps) {
                       key={task.id}
                       task={task}
                       onUpdate={refetch}
-                      isSeller={isSeller}
+                      isSeller={canUpdateTasks}
                     />
                   ))}
                 </div>
@@ -332,7 +336,7 @@ export function TaskList({ leadId, isSeller = false }: TaskListProps) {
         </div>
       )}
 
-      {isSeller && (
+      {canCreateTasks && (
         <TaskTypeDialog
           open={isDialogOpen}
           onOpenChange={setIsDialogOpen}

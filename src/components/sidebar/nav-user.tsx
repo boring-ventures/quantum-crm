@@ -27,11 +27,13 @@ import {
 } from "@/components/ui/sidebar";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useAuth } from "@/providers/auth-provider";
+import { useUserStore } from "@/store/userStore";
 
 export function NavUser() {
   const { isMobile } = useSidebar();
   const { profile, user, isLoading } = useCurrentUser();
   const { signOut } = useAuth();
+  const { clearUser } = useUserStore();
 
   if (isLoading || !profile || !user) return null;
 
@@ -134,8 +136,10 @@ export function NavUser() {
               onClick={async () => {
                 try {
                   await signOut();
+                  clearUser();
                 } catch (error) {
                   console.error("Error al cerrar sesión:", error);
+                  clearUser();
                   window.location.href = "/sign-in";
                 }
               }}

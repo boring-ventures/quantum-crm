@@ -298,6 +298,17 @@ export function EditUserForm({
     }
   };
 
+  const copyCredentialsToClipboard = () => {
+    if (!userCredentials) return;
+    let text = `Nombre: ${userCredentials.name}\nEmail: ${userCredentials.email}\nContraseña: ${userCredentials.password}\nRol: ${userCredentials.role}`;
+    if (userCredentials.country) text += `\nPaís: ${userCredentials.country}`;
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Copiado",
+      description: "Credenciales copiadas al portapapeles",
+    });
+  };
+
   const handleCloseCredentials = () => {
     setShowCredentials(false);
     setUserCredentials(null);
@@ -544,6 +555,13 @@ export function EditUserForm({
           <DialogFooter className="flex flex-col sm:flex-row gap-2">
             <Button onClick={downloadAsImage} className="w-full sm:w-auto">
               Descargar como imagen
+            </Button>
+            <Button
+              onClick={copyCredentialsToClipboard}
+              variant="secondary"
+              className="w-full sm:w-auto"
+            >
+              Copiar credenciales
             </Button>
             <Button
               onClick={handleCloseCredentials}
