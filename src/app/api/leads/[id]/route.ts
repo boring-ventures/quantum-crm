@@ -63,6 +63,14 @@ export async function GET(
         quotations: true,
         reservations: true,
         sales: true,
+        reassignments: {
+          include: {
+            fromUser: true,
+            toUser: true,
+            reassignedByUser: true,
+          },
+          orderBy: { createdAt: "asc" },
+        },
       },
     });
 
