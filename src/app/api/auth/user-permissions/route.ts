@@ -12,8 +12,19 @@ export async function GET() {
 
     try {
       // Usar URL absoluta para fetch con baseUrl
-      const baseUrl =
-        process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+
+      const isProduction = !!process.env.VERCEL_URL;
+
+      // Seleccionar URL base según el entorno
+      let baseUrl: string | URL | undefined;
+      if (isProduction) {
+        // En producción, usar dominio principal
+        baseUrl = "https://quantum-crm-leads.vercel.app";
+      } else {
+        // En desarrollo local, usar localhost
+        baseUrl = "http://localhost:3000";
+      }
+
       const fetchUrl = `${baseUrl}/api/roles/permissions?roleId=${session.user.roleId}`;
       console.log("user-permissions: Consultando", fetchUrl);
 
