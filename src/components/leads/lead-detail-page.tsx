@@ -15,6 +15,7 @@ import {
   Archive,
   Trash2,
   Eye,
+  ArrowRightLeft,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,7 @@ import {
 import { TaskTypeDialog } from "@/components/leads/task-type-dialog";
 import { useQueryClient } from "@tanstack/react-query";
 import { hasPermission } from "@/lib/utils/permissions";
+import { ReassignLeadDialog } from "@/components/leads/reassign-lead-dialog";
 
 interface LeadDetailPageProps {
   lead: LeadWithRelations;
@@ -83,6 +85,7 @@ export function LeadDetailPage({
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showReassignDialog, setShowReassignDialog] = useState(false);
   const updateLeadMutation = useUpdateLeadMutation();
   const deleteLeadMutation = useDeleteLeadMutation();
   const toggleFavoriteMutation = useToggleFavoriteMutation();
@@ -728,6 +731,17 @@ export function LeadDetailPage({
                           Eliminar lead
                         </Button>
                       )}
+
+                      {canEditLeads && (
+                        <Button
+                          className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700"
+                          variant="ghost"
+                          onClick={() => setShowReassignDialog(true)}
+                        >
+                          <ArrowRightLeft className="mr-3 h-5 w-5 text-orange-500" />
+                          Reasignar lead
+                        </Button>
+                      )}
                     </div>
                   )}
                 </>
@@ -926,6 +940,20 @@ export function LeadDetailPage({
           leadId={lead.id}
           initialStep={selectedTaskType ? 2 : 1}
           preselectedTaskType={selectedTaskType}
+        />
+      )}
+
+      {/* Diálogo de reasignación de lead */}
+      {canEditLeads && (
+        <ReassignLeadDialog
+          open={showReassignDialog}
+          onOpenChange={setShowReassignDialog}
+          leadId={lead.id}
+          currentUser={currentUser}
+          onSuccess={() =>
+            queryClient.invalidateQueries({ queryKey: ["leads", lead.id] })
+          }
+          assignedToId={lead.assignedTo?.id}
         />
       )}
     </div>

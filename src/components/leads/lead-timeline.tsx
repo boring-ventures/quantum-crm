@@ -307,6 +307,15 @@ export function LeadTimeline({ lead, isFavorite }: LeadTimelineProps) {
                     <span className="mx-2">→</span>
                     <span className="font-medium">A:</span>{" "}
                     {event.toUser || "Nuevo usuario"}
+                    {event.reassignedBy && (
+                      <span className="ml-2">
+                        (por{" "}
+                        <span className="font-semibold">
+                          {event.reassignedBy}
+                        </span>
+                        )
+                      </span>
+                    )}
                   </div>
                 )}
 

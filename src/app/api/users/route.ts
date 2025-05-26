@@ -36,51 +36,6 @@ const deleteUserSchema = z.object({
   id: z.string({ required_error: "El ID de usuario es obligatorio" }),
 });
 
-// Función auxiliar para verificar autorización
-async function checkAuthorization(supabase: any) {
-  // Verificar autenticación
-  const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession();
-
-  if (sessionError || !session) {
-    return {
-      authorized: false,
-      session: null,
-      response: NextResponse.json({ error: "No autenticado" }, { status: 401 }),
-    };
-  }
-
-  // Obtener usuario actual
-  const currentUser = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    include: { userRole: true, userPermission: true },
-  });
-
-  if (!currentUser) {
-    return {
-      authorized: false,
-      session,
-      response: NextResponse.json(
-        { error: "Usuario no encontrado" },
-        { status: 401 }
-      ),
-    };
-  }
-
-  // Normalizar roleId para compatibilidad de tipos
-  if (currentUser.roleId === null) {
-    (currentUser as any).roleId = undefined;
-  }
-
-  return {
-    authorized: true,
-    session,
-    currentUser,
-  };
-}
-
 // GET - Obtener usuarios
 export async function GET(request: NextRequest) {
   try {
@@ -185,6 +140,7 @@ export async function GET(request: NextRequest) {
             code: true,
           },
         },
+        userPermission: true,
       },
     });
 

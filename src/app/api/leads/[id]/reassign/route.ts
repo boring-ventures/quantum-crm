@@ -23,18 +23,15 @@ export async function POST(
     const body = await req.json();
     const { newUserId, performedBy } = reassignSchema.parse(body);
 
-    // Validar permisos
-    // Asegurar que currentUser.name, currentUser.email sean string y isActive boolean
-    const safeUser = {
-      ...currentUser,
-      name: currentUser.name ?? "",
-      email: currentUser.email ?? "",
-      isActive: currentUser.isActive ?? true,
-    };
-    if (!hasPermission(safeUser, "leads", "update")) {
+    // Obtener el usuario ejecutor real
+    const performedByUser = await prisma.user.findUnique({
+      where: { id: performedBy },
+      include: { userPermission: true },
+    });
+    if (!performedByUser) {
       return NextResponse.json(
-        { error: "Sin permiso para reasignar leads" },
-        { status: 403 }
+        { error: "Usuario ejecutor no encontrado" },
+        { status: 400 }
       );
     }
 
@@ -61,12 +58,9 @@ export async function POST(
       where: { id: lead.assignedToId || undefined },
     });
     const toUser = await prisma.user.findUnique({ where: { id: newUserId } });
-    const performedByUser = await prisma.user.findUnique({
-      where: { id: performedBy },
-    });
-    if (!toUser || !performedByUser) {
+    if (!toUser) {
       return NextResponse.json(
-        { error: "Usuario destino o ejecutor no encontrado" },
+        { error: "Usuario destino no encontrado" },
         { status: 400 }
       );
     }
