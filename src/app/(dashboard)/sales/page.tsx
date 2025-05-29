@@ -16,6 +16,7 @@ import { format, parseISO, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import {
   Sheet,
   SheetContent,
@@ -40,6 +41,7 @@ import {
   useReservations,
   useProductCategories,
   useSaleStatuses,
+  useBusinessTypes,
 } from "./hooks/use-sales-data";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRouter } from "next/navigation";
@@ -47,8 +49,8 @@ import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DateRange } from "react-day-picker";
 import { Card, CardContent } from "@/components/ui/card";
-import { useUserRole } from "@/lib/hooks/use-user-role";
-import { ROLES } from "@/lib/hooks/use-user-role";
+import { useUserStore } from "@/store/userStore";
+import { hasPermission, getScope } from "@/lib/utils/permissions";
 import { useQuery } from "@tanstack/react-query";
 import {
   Table,
@@ -58,13 +60,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Calendar as CalendarIcon } from "lucide-react";
+import { addDays } from "date-fns";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function SalesPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"ventas" | "reservas">("ventas");
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
@@ -72,40 +83,61 @@ export default function SalesPage() {
   const [hasSelectedSeller, setHasSelectedSeller] = useState(false);
   const [showSellerSelector, setShowSellerSelector] = useState(true);
 
-  // Obtener el rol del usuario actual
-  const { isAdmin, isSuperAdmin, isSeller, user } = useUserRole();
+  // Obtener el usuario actual y sus permisos
+  const { user: currentUser, isLoading: isLoadingCurrentUser } = useUserStore();
 
-  // Determinar si el usuario tiene rol de gerencia
-  const isManagerRole = isAdmin || isSuperAdmin;
+  // Verificar permisos específicos
+  const canViewSales = hasPermission(currentUser, "sales", "view");
+  const canCreateSales = hasPermission(currentUser, "sales", "create");
+  const canEditSales = hasPermission(currentUser, "sales", "edit");
+  const canDeleteSales = hasPermission(currentUser, "sales", "delete");
+  const salesScope = getScope(currentUser, "sales", "view");
+
+  // Determinar si es rol administrativo y el alcance
+  const isManagerRole = salesScope === "all" || salesScope === "team";
+  const isSeller = salesScope === "self";
 
   // Si el usuario es vendedor, mostrar solo sus propias ventas/reservas
   const assignedToId = !isManagerRole
-    ? user?.id
+    ? currentUser?.id
     : selectedSellerId || undefined;
 
   // Si el usuario es vendedor, ya podemos mostrar el contenido
-  // Para administradores, hay que esperar a que seleccionen un vendedor o elijan "Ver todas"
   const shouldShowContent =
     isSeller ||
     hasSelectedSeller ||
     (isManagerRole && selectedSellerId !== null);
 
-  // Consulta para obtener la lista de vendedores si el usuario es administrador
+  // Consulta para obtener la lista de vendedores según el scope
   const { data: sellersData, isLoading: loadingSellers } = useQuery({
-    queryKey: ["sellers"],
+    queryKey: [
+      "sellers",
+      { countryId: currentUser?.countryId, scope: salesScope },
+    ],
     queryFn: async () => {
       if (!isManagerRole) return { users: [] };
 
-      const response = await fetch(`/api/users?role=${ROLES.SELLER}`);
+      // Construir la URL base
+      let url = `/api/users?`;
+
+      // Agregar filtros según el scope
+      if (salesScope === "team" && currentUser?.countryId) {
+        url += `countryId=${currentUser.countryId}&`;
+      }
+
+      // Agregar filtro de permisos
+      url += `hasPermission=sales.view`;
+
+      const response = await fetch(url);
       if (!response.ok) {
-        throw new Error("Error al obtener vendedores");
+        throw new Error("Error al obtener usuarios");
       }
       return response.json();
     },
-    enabled: isManagerRole,
+    enabled: isManagerRole && !isLoadingCurrentUser,
   });
 
-  // Obtener datos
+  // Obtener datos de ventas con los filtros apropiados
   const { data: sales, isLoading: salesLoading } = useSales({
     searchQuery: searchQuery || undefined,
     status: statusFilter || undefined,
@@ -115,8 +147,10 @@ export default function SalesPage() {
         ? [dateRange.from, dateRange.to]
         : undefined,
     assignedToId,
+    countryId: salesScope === "team" ? currentUser?.countryId : undefined,
   });
 
+  // Obtener datos de reservas con los filtros apropiados
   const { data: reservations, isLoading: reservationsLoading } =
     useReservations({
       searchQuery: searchQuery || undefined,
@@ -127,6 +161,7 @@ export default function SalesPage() {
           ? [dateRange.from, dateRange.to]
           : undefined,
       assignedToId,
+      countryId: salesScope === "team" ? currentUser?.countryId : undefined,
     });
 
   // Usar useEffect para manejar el cambio de roles
@@ -141,6 +176,8 @@ export default function SalesPage() {
   const { data: categories, isLoading: categoriesLoading } =
     useProductCategories();
   const { data: statuses, isLoading: statusesLoading } = useSaleStatuses();
+  const { data: businessTypes, isLoading: businessTypesLoading } =
+    useBusinessTypes();
 
   // Manejar cambios en las pestañas
   const handleTabChange = (value: string) => {
@@ -291,19 +328,26 @@ export default function SalesPage() {
       `${sale.lead?.firstName || ""} ${sale.lead?.lastName || ""}`.trim();
 
     return (
-      <Card key={sale.id} className="p-5 mb-4 bg-gray-900 border-gray-800">
-        <div className="flex items-start justify-between">
+      <Card key={sale.id} className="mb-4">
+        <div className="flex items-start justify-between p-5">
           <div className="flex items-center">
             <span className="text-2xl mr-3">{getProductIcon(productType)}</span>
             <div>
               <div className="flex items-center">
-                <span className="text-gray-400 text-sm uppercase font-medium mr-2">
+                <span className="text-muted-foreground text-sm uppercase font-medium mr-2">
                   {productType} -
                 </span>
-                <span className="text-gray-200 font-semibold uppercase">
-                  {clientName}
-                </span>
-                <Badge className="ml-3 bg-gray-800 text-gray-300 uppercase font-normal text-xs">
+                <span className="font-semibold uppercase">{clientName}</span>
+                <Badge
+                  className="ml-3"
+                  variant={
+                    sale.status === "COMPLETED"
+                      ? "default"
+                      : sale.status === "CANCELLED"
+                        ? "destructive"
+                        : "secondary"
+                  }
+                >
                   {sale.status === "COMPLETED"
                     ? "APROBADA"
                     : sale.status === "CANCELLED"
@@ -314,7 +358,7 @@ export default function SalesPage() {
               <h3 className="text-lg font-semibold mt-1">
                 {sale.lead?.product?.name || "Producto no especificado"}
               </h3>
-              <div className="text-sm text-gray-400 mt-1 flex items-center flex-wrap gap-1">
+              <div className="text-sm text-muted-foreground mt-1 flex items-center flex-wrap gap-1">
                 <span>
                   #{sale.id.substring(0, 3)} | Cod. Int.{" "}
                   {sale.lead?.product?.code || "N/A"}
@@ -331,7 +375,7 @@ export default function SalesPage() {
 
           <div className="flex items-center">
             <div className="text-right mr-3">
-              <div className="text-xs text-gray-400">
+              <div className="text-xs text-muted-foreground">
                 {format(parseISO(sale.createdAt), "dd/MM/yyyy", { locale: es })}
               </div>
               <div className="text-xl font-bold">
@@ -376,22 +420,26 @@ export default function SalesPage() {
     const daysRemaining = getRemainingDays(reservation.deliveryDate);
 
     return (
-      <Card
-        key={reservation.id}
-        className="p-5 mb-4 bg-gray-900 border-gray-800"
-      >
-        <div className="flex items-start justify-between">
+      <Card key={reservation.id} className="mb-4">
+        <div className="flex items-start justify-between p-5">
           <div className="flex items-center">
             <span className="text-2xl mr-3">{getProductIcon(productType)}</span>
             <div>
               <div className="flex items-center">
-                <span className="text-gray-400 text-sm uppercase font-medium mr-2">
+                <span className="text-muted-foreground text-sm uppercase font-medium mr-2">
                   {productType} -
                 </span>
-                <span className="text-gray-200 font-semibold uppercase">
-                  {clientName}
-                </span>
-                <Badge className="ml-3 bg-gray-800 text-gray-300 uppercase font-normal text-xs">
+                <span className="font-semibold uppercase">{clientName}</span>
+                <Badge
+                  className="ml-3"
+                  variant={
+                    reservation.status === "COMPLETED"
+                      ? "default"
+                      : reservation.status === "CANCELLED"
+                        ? "destructive"
+                        : "secondary"
+                  }
+                >
                   {reservation.status === "COMPLETED"
                     ? "ACTIVA"
                     : reservation.status === "CANCELLED"
@@ -402,7 +450,7 @@ export default function SalesPage() {
               <h3 className="text-lg font-semibold mt-1">
                 {reservation.lead?.product?.name || "PRODUCTO NO ESPECIFICADO"}
               </h3>
-              <div className="text-sm text-gray-400 mt-1 flex items-center flex-wrap gap-1">
+              <div className="text-sm text-muted-foreground mt-1 flex items-center flex-wrap gap-1">
                 <span>
                   #{reservation.id.substring(0, 3)} | Cod. Int.{" "}
                   {reservation.lead?.product?.code || "N/A"}
@@ -419,7 +467,7 @@ export default function SalesPage() {
 
           <div className="flex items-center">
             <div className="text-right mr-3">
-              <div className="flex flex-col text-xs text-gray-400">
+              <div className="flex flex-col text-xs text-muted-foreground">
                 <span>
                   Reservado:{" "}
                   {format(parseISO(reservation.createdAt), "dd/MM/yyyy", {
@@ -433,7 +481,8 @@ export default function SalesPage() {
                   })}
                 </span>
                 <Badge
-                  className={`mt-1 self-end ${daysRemaining >= 0 ? "bg-green-900/30 text-green-400" : "bg-red-900/30 text-red-400"}`}
+                  variant={daysRemaining >= 0 ? "default" : "destructive"}
+                  className="mt-1 self-end"
                 >
                   {daysRemaining >= 0
                     ? `${daysRemaining} días restantes`
@@ -610,15 +659,11 @@ export default function SalesPage() {
         <h1 className="text-3xl font-bold tracking-tight">Ventas y Reservas</h1>
 
         <div className="flex gap-2">
-          {isSeller && (
+          {canCreateSales && (
             <>
               <Button size="sm" variant="outline" disabled>
                 <Download className="h-4 w-4 mr-2" />
                 Exportar
-              </Button>
-              <Button>
-                <Plus className="h-5 w-5 mr-2" />
-                Nueva Venta
               </Button>
             </>
           )}
@@ -662,19 +707,101 @@ export default function SalesPage() {
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div className="relative w-full sm:w-96">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500 dark:text-gray-400" />
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
                 placeholder="Buscar por cliente, producto..."
-                className="pl-8 bg-background"
+                className="pl-8"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
 
             <div className="flex flex-wrap items-center gap-2 ml-auto">
-              {/* Filtros existentes */}
-              {/* ... existing code ... */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-[240px] justify-start text-left font-normal"
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {dateRange?.from ? (
+                      dateRange.to ? (
+                        <>
+                          {format(dateRange.from, "dd/MM/yyyy")} -{" "}
+                          {format(dateRange.to, "dd/MM/yyyy")}
+                        </>
+                      ) : (
+                        format(dateRange.from, "dd/MM/yyyy")
+                      )
+                    ) : (
+                      <span>Seleccionar fechas</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <CalendarComponent
+                    initialFocus
+                    mode="range"
+                    defaultMonth={dateRange?.from}
+                    selected={dateRange}
+                    onSelect={(range: DateRange | undefined) =>
+                      setDateRange(range)
+                    }
+                    numberOfMonths={2}
+                  />
+                </PopoverContent>
+              </Popover>
+
+              <Select
+                value={categoryFilter || "all"}
+                onValueChange={setCategoryFilter}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Tipo de negocio" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los tipos</SelectItem>
+                  {businessTypes?.map((type) => (
+                    <SelectItem key={type.id} value={type.id}>
+                      {type.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={statusFilter || "all"}
+                onValueChange={setStatusFilter}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los estados</SelectItem>
+                  {statuses?.map((status) => (
+                    <SelectItem key={status.id} value={status.id}>
+                      {status.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {(dateRange ||
+                categoryFilter !== "all" ||
+                statusFilter !== "all") && (
+                <Button
+                  variant="ghost"
+                  className="h-8 px-2"
+                  onClick={() => {
+                    setDateRange(undefined);
+                    setCategoryFilter("all");
+                    setStatusFilter("all");
+                  }}
+                >
+                  Limpiar filtros
+                </Button>
+              )}
             </div>
           </div>
 

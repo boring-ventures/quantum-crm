@@ -26,6 +26,7 @@ import {
   useLeadSale,
   useLeadReservation,
   useCreateDocumentMutation,
+  useLeadQuotation,
 } from "@/lib/hooks";
 import { uploadDocument } from "@/lib/supabase/upload-document";
 
@@ -47,6 +48,7 @@ export function SaleDialog({
   const { toast } = useToast();
   const { data: existingSale, isLoading: saleLoading } = useLeadSale(leadId);
   const { data: existingReservation } = useLeadReservation(leadId);
+  const { data: existingQuotation } = useLeadQuotation(leadId);
   const createSaleMutation = useCreateSaleMutation();
   const createDocumentMutation = useCreateDocumentMutation();
 
@@ -68,8 +70,12 @@ export function SaleDialog({
   // Inicializar con datos de la reserva si existe
   useEffect(() => {
     if (existingReservation) {
-      setTotalAmount(existingReservation.amount.toString());
-      setPaymentMethod(existingReservation.paymentMethod);
+      setTotalAmount(
+        (
+          (existingQuotation?.totalAmount || 0) - (existingSale?.amount || 0)
+        ).toString()
+      );
+      setPaymentMethod(existingReservation.paymentMethod || "");
     }
   }, [existingReservation]);
 

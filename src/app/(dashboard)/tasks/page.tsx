@@ -17,9 +17,9 @@ import { TaskCalendar } from "./components/task-calendar";
 import { TaskModal } from "./components/task-modal";
 import { TaskQuickViewModal } from "./components/task-quick-view-modal";
 import { Task } from "@/types/lead";
-import { useUserRole } from "@/lib/hooks";
+import { useUserStore } from "@/store/userStore";
+import { hasPermission, getScope } from "@/lib/utils/permissions";
 import { useTasks } from "@/lib/hooks/use-tasks";
-import { ROLES } from "@/lib/hooks/use-user-role";
 import { useQuery } from "@tanstack/react-query";
 import {
   Table,
@@ -39,39 +39,63 @@ export default function TasksPage() {
   const [isQuickViewModalOpen, setIsQuickViewModalOpen] = useState(false);
   const { toast } = useToast();
 
-  // Obtener el rol del usuario actual
-  const { isAdmin, isSuperAdmin, isSeller, user } = useUserRole();
-  const isManagerRole = isAdmin || isSuperAdmin;
+  // Obtener el usuario actual y sus permisos
+  const { user: currentUser, isLoading: isLoadingCurrentUser } = useUserStore();
+
+  // Verificar permisos específicos
+  const canViewTasks = hasPermission(currentUser, "tasks", "view");
+  const canCreateTasks = hasPermission(currentUser, "tasks", "create");
+  const canEditTasks = hasPermission(currentUser, "tasks", "edit");
+  const canDeleteTasks = hasPermission(currentUser, "tasks", "delete");
+  const tasksScope = getScope(currentUser, "tasks", "view");
+
+  // Determinar si es rol administrativo y el alcance
+  const isManagerRole = tasksScope === "all" || tasksScope === "team";
+  const isSeller = tasksScope === "self";
 
   // Estado para la selección de vendedor (solo para administradores)
-  // Inicializar showSellerSelector basado en el rol - true para admin, false para vendedor
   const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null);
   const [showSellerSelector, setShowSellerSelector] = useState(isManagerRole);
 
   // Para vendedores, mostrar siempre sus propias tareas
-  // Para administradores, mostrar tareas del vendedor seleccionado
+  // Para administradores, mostrar tareas según el scope
   const assignedToId = !isManagerRole
-    ? user?.id
+    ? currentUser?.id
     : selectedSellerId || undefined;
 
   // Cargar tareas con el filtro de vendedor apropiado
   const { data: tasksData, isLoading: loadingTasks } = useTasks({
     assignedToId,
+    countryId: tasksScope === "team" ? currentUser?.countryId : undefined,
   });
 
-  // Si es administrador, cargar la lista de vendedores
+  // Si es administrador, cargar la lista de vendedores según el scope
   const { data: sellersData, isLoading: loadingSellers } = useQuery({
-    queryKey: ["sellers"],
+    queryKey: [
+      "sellers",
+      { countryId: currentUser?.countryId, scope: tasksScope },
+    ],
     queryFn: async () => {
       if (!isManagerRole) return { users: [] };
 
-      const response = await fetch(`/api/users?role=${ROLES.SELLER}`);
+      // Construir la URL base
+      let url = `/api/users?`;
+
+      // Agregar filtros según el scope
+      if (tasksScope === "team" && currentUser?.countryId) {
+        url += `countryId=${currentUser.countryId}&`;
+      }
+
+      // Agregar filtro de permisos
+      url += `hasPermission=tasks.view`;
+
+      const response = await fetch(url);
       if (!response.ok) {
-        throw new Error("Error al obtener vendedores");
+        throw new Error("Error al obtener usuarios");
       }
       return response.json();
     },
-    enabled: isManagerRole,
+    enabled: isManagerRole && !isLoadingCurrentUser,
   });
 
   // Filtrar tareas según los criterios de búsqueda y filtro
@@ -173,7 +197,7 @@ export default function TasksPage() {
             Gestiona y visualiza todas tus tareas programadas
           </p>
         </div>
-        {isSeller && (
+        {canCreateTasks && (
           <Button
             onClick={() => setIsCreateModalOpen(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white"
