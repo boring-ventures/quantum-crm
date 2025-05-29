@@ -95,10 +95,10 @@ export default function LeadsPage() {
   });
 
   // Procesar los leads para estadísticas
-  let leadsData =
-    rawLeadsData?.items?.filter(
-      (lead) => lead.qualification !== "BAD_LEAD" && !lead.isArchived
-    ) || [];
+  let leadsData = Array.isArray(rawLeadsData?.items) ? rawLeadsData.items : [];
+  leadsData = leadsData.filter(
+    (lead) => lead.qualification !== "BAD_LEAD" && !lead.isArchived
+  );
 
   const leadCounts = {
     all: leadsData?.length || 0,
