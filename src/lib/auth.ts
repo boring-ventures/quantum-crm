@@ -1,9 +1,8 @@
-"use server";
-
 // This is a placeholder implementation for authentication
 // In a real application, you would use a proper auth library like NextAuth.js
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
+import { NextAuthOptions } from "next-auth";
 
 // Crear cliente de Supabase para componentes del servidor
 const getSupabase = async () => {
@@ -223,3 +222,20 @@ export async function canAccess(path: string): Promise<boolean> {
 
   return true;
 }
+
+export const authOptions: NextAuthOptions = {
+  // Tu configuración de autenticación aquí
+  // Por ejemplo:
+  providers: [],
+  session: {
+    strategy: "jwt",
+  },
+  callbacks: {
+    async session({ session, token }) {
+      return session;
+    },
+    async jwt({ token }) {
+      return token;
+    },
+  },
+};

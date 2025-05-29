@@ -10,21 +10,29 @@ export type UserPermission = {
 };
 
 // Definiciones de tipos para usuarios
-export type User = {
+export interface User {
   id: string;
-  name: string;
   email: string;
-  roleId?: string | null;
-  role?: string;
+  name: string;
+  role: string;
   isActive: boolean;
-  userRole?: Role;
-  createdAt?: string;
-  updatedAt?: string;
-  deletedAt?: string;
-  isDeleted?: boolean;
-  countryId?: string;
-  userPermission?: UserPermission;
-};
+  isDeleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  deletedBy: string | null;
+  conversionRate: number | null;
+  responseTime: number | null;
+  roleId: string | null;
+  countryId: string | null;
+  userPermission?: {
+    id: string;
+    userId: string;
+    permissions: any;
+    createdAt: string;
+    updatedAt: string;
+  } | null;
+}
 
 export type CreateUserPayload = Omit<User, "id" | "createdAt" | "updatedAt">;
 export type UpdateUserPayload = Partial<CreateUserPayload>;
