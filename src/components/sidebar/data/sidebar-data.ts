@@ -12,6 +12,8 @@ import {
   Globe,
 } from "lucide-react";
 import type { SidebarData } from "../types";
+import { hasPermission } from "@/lib/utils/permissions";
+import { useUserStore } from "@/store/userStore";
 
 // Datos estáticos del sidebar
 export const sidebarDataStatic: SidebarData = {
@@ -106,13 +108,9 @@ export const sidebarDataStatic: SidebarData = {
 };
 
 // Función para filtrar elementos del sidebar basado en permisos
-export function filterSidebarByPermissions(
-  canViewSection: (key: string) => boolean
-): SidebarData {
-  // Si la función canViewSection no es válida, devolver datos estáticos
-  if (typeof canViewSection !== "function") {
-    return { ...sidebarDataStatic };
-  }
+export function filterSidebarByPermissions(user: any): SidebarData {
+  const canViewSection = (sectionKey: string) =>
+    hasPermission(user, sectionKey, "view");
 
   const filteredData = { ...sidebarDataStatic };
 

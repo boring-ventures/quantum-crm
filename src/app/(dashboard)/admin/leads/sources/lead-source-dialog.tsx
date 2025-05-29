@@ -42,7 +42,7 @@ const formSchema = z.object({
   name: z.string().min(1, "El nombre es requerido"),
   description: z.string().optional(),
   categoryId: z.string().optional().nullable(),
-  costPerLead: z
+  costPerSource: z
     .string()
     .optional()
     .nullable()
@@ -94,7 +94,7 @@ export function LeadSourceDialog({
       name: "",
       description: "",
       categoryId: null,
-      costPerLead: null,
+      costPerSource: null,
       isActive: true,
     },
   });
@@ -106,7 +106,7 @@ export function LeadSourceDialog({
         name: initialData.name,
         description: initialData.description || "",
         categoryId: initialData.categoryId || "none",
-        costPerLead: initialData.costPerLead?.toString() || null,
+        costPerSource: initialData.costPerSource?.toString() || null,
         isActive: initialData.isActive,
       });
     } else {
@@ -114,7 +114,7 @@ export function LeadSourceDialog({
         name: "",
         description: "",
         categoryId: "none",
-        costPerLead: null,
+        costPerSource: null,
         isActive: true,
       });
     }
@@ -131,11 +131,11 @@ export function LeadSourceDialog({
         dataToSubmit.categoryId = null;
       }
 
-      // Si hay un costo por lead, enviar como un objeto con la conversión a número
-      if (dataToSubmit.costPerLead) {
+      // Si hay un costo por fuente, enviar como un objeto con la conversión a número
+      if (dataToSubmit.costPerSource) {
         const submitData = {
           ...dataToSubmit,
-          costPerLead: parseFloat(dataToSubmit.costPerLead),
+          costPerSource: parseFloat(dataToSubmit.costPerSource),
         };
         await onSubmit(submitData as any);
       } else {
@@ -243,15 +243,15 @@ export function LeadSourceDialog({
             />
             <FormField
               control={form.control}
-              name="costPerLead"
+              name="costPerSource"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Costo por Lead</FormLabel>
+                  <FormLabel>Costo por Fuente</FormLabel>
                   <FormControl>
                     <Input
                       type="number"
                       step="0.01"
-                      placeholder="Costo por lead (opcional)"
+                      placeholder="Costo por fuente (opcional)"
                       {...field}
                       value={field.value || ""}
                       onChange={(e) => field.onChange(e.target.value)}

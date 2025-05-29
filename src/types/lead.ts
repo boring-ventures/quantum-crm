@@ -48,7 +48,7 @@ export interface LeadSource {
   name: string;
   description?: string;
   categoryId?: string;
-  costPerLead?: number | string;
+  costPerSource?: number | string;
   isActive: boolean;
   createdAt?: Date;
   updatedAt?: Date;

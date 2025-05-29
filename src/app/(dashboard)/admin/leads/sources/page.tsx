@@ -17,7 +17,7 @@ type LeadSourceFormValues = {
   name: string;
   description?: string;
   categoryId?: string | null;
-  costPerLead?: string | number | null;
+  costPerSource?: string | number | null;
   isActive: boolean;
 };
 
@@ -59,10 +59,10 @@ export default function LeadSourcesPage() {
       // Crear una copia de los datos para no modificar el original
       const submissionData = { ...data };
 
-      // Convertir costPerLead a número si existe
-      if (submissionData.costPerLead) {
-        submissionData.costPerLead = parseFloat(
-          submissionData.costPerLead.toString()
+      // Convertir costPerSource a número si existe
+      if (submissionData.costPerSource) {
+        submissionData.costPerSource = parseFloat(
+          submissionData.costPerSource.toString()
         );
       }
 

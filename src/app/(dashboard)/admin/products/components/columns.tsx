@@ -36,6 +36,39 @@ export const columns = (
     header: "Stock",
   },
   {
+    accessorKey: "brand.name",
+    header: "Marca",
+    cell: ({ row }) => row.original.brand?.name || "-",
+  },
+  {
+    accessorKey: "model.name",
+    header: "Modelo",
+    cell: ({ row }) => row.original.model?.name || "-",
+  },
+  {
+    accessorKey: "businessType.name",
+    header: "Tipo de Negocio",
+    cell: ({ row }) => row.original.businessType?.name || "-",
+  },
+  {
+    accessorKey: "validUntil",
+    header: "Vigencia",
+    cell: ({ row }) =>
+      row.original.validUntil
+        ? new Date(row.original.validUntil).toLocaleDateString()
+        : "-",
+  },
+  {
+    accessorKey: "isActive",
+    header: "Estado",
+    cell: ({ row }) =>
+      row.original.isActive ? (
+        <Badge variant="success">Activo</Badge>
+      ) : (
+        <Badge variant="destructive">Inactivo</Badge>
+      ),
+  },
+  {
     id: "actions",
     cell: ({ row }) => {
       const product = row.original;

@@ -204,16 +204,16 @@ model SourceCategory {
 }
 
 model LeadSource {
-  id          String          @id @default(uuid())
-  createdAt   DateTime        @default(now()) @map("created_at")
-  updatedAt   DateTime        @updatedAt @map("updated_at")
-  name        String          @unique
-  description String?
-  categoryId  String?         @map("category_id")
-  costPerLead Decimal?        @map("cost_per_lead") @db.Decimal(10, 2)
-  isActive    Boolean         @default(true) @map("is_active")
-  category    SourceCategory? @relation(fields: [categoryId], references: [id])
-  leads       Lead[]
+  id            String          @id @default(uuid())
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+  name          String          @unique
+  description   String?
+  categoryId    String?         @map("category_id")
+  costPerSource Decimal?        @map("cost_per_source") @db.Decimal(10, 2)
+  isActive      Boolean         @default(true) @map("is_active")
+  category      SourceCategory? @relation(fields: [categoryId], references: [id])
+  leads         Lead[]
 
   @@index([categoryId])
   @@index([isActive])

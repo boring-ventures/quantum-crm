@@ -13,6 +13,7 @@ import { BasicInfoTab } from "./tabs/basic-info-tab";
 import { SpecificationsTab } from "./tabs/specifications-tab";
 import { PricesDiscountsTab } from "./tabs/prices-discounts-tab";
 import { useToast } from "@/components/ui/use-toast";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type ProductFormData = {
   code: string;
@@ -115,54 +116,55 @@ export function ProductsCreateDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px]">
+      <DialogContent className="sm:max-w-[900px] max-h-[90vh] p-0">
         <DialogHeader>
           <DialogTitle>Crear Nuevo Producto</DialogTitle>
           <DialogDescription>
             Completa la información del producto en las diferentes secciones.
           </DialogDescription>
         </DialogHeader>
+        <ScrollArea className="h-[70vh] px-6 pb-6 pt-2">
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="w-full mt-4"
+          >
+            <TabsList className="grid grid-cols-3 w-full">
+              <TabsTrigger value="basic-info">Información Básica</TabsTrigger>
+              <TabsTrigger value="specifications">Especificaciones</TabsTrigger>
+              <TabsTrigger value="prices">Precios y Descuentos</TabsTrigger>
+            </TabsList>
 
-        <Tabs
-          value={activeTab}
-          onValueChange={setActiveTab}
-          className="w-full mt-4"
-        >
-          <TabsList className="grid grid-cols-3 w-full">
-            <TabsTrigger value="basic-info">Información Básica</TabsTrigger>
-            <TabsTrigger value="specifications">Especificaciones</TabsTrigger>
-            <TabsTrigger value="prices">Precios y Descuentos</TabsTrigger>
-          </TabsList>
+            <TabsContent value="basic-info">
+              <BasicInfoTab
+                formData={formData}
+                updateFormData={updateFormData}
+                goToNextTab={() => setActiveTab("specifications")}
+                isSubmitting={isSubmitting}
+              />
+            </TabsContent>
 
-          <TabsContent value="basic-info">
-            <BasicInfoTab
-              formData={formData}
-              updateFormData={updateFormData}
-              goToNextTab={() => setActiveTab("specifications")}
-              isSubmitting={isSubmitting}
-            />
-          </TabsContent>
+            <TabsContent value="specifications">
+              <SpecificationsTab
+                formData={formData}
+                updateFormData={updateFormData}
+                goToNextTab={() => setActiveTab("prices")}
+                goToPreviousTab={() => setActiveTab("basic-info")}
+                isSubmitting={isSubmitting}
+              />
+            </TabsContent>
 
-          <TabsContent value="specifications">
-            <SpecificationsTab
-              formData={formData}
-              updateFormData={updateFormData}
-              goToNextTab={() => setActiveTab("prices")}
-              goToPreviousTab={() => setActiveTab("basic-info")}
-              isSubmitting={isSubmitting}
-            />
-          </TabsContent>
-
-          <TabsContent value="prices">
-            <PricesDiscountsTab
-              formData={formData}
-              updateFormData={updateFormData}
-              onSubmit={handleSubmit}
-              goToPreviousTab={() => setActiveTab("specifications")}
-              isSubmitting={isSubmitting}
-            />
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="prices">
+              <PricesDiscountsTab
+                formData={formData}
+                updateFormData={updateFormData}
+                onSubmit={handleSubmit}
+                goToPreviousTab={() => setActiveTab("specifications")}
+                isSubmitting={isSubmitting}
+              />
+            </TabsContent>
+          </Tabs>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );

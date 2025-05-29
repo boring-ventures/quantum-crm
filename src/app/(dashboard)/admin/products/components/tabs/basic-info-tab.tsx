@@ -13,11 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PlusIcon, Loader2 } from "lucide-react";
+import { PlusIcon, Loader2, UploadCloud } from "lucide-react";
 import { BusinessTypeDialog } from "../dialogs/business-type-dialog";
 import { BrandDialog } from "../dialogs/brand-dialog";
 import { ModelDialog } from "../dialogs/model-dialog";
 import { Switch } from "@/components/ui/switch";
+import Image from "next/image";
 
 interface BasicInfoTabProps {
   formData: any;
@@ -282,7 +283,66 @@ export function BasicInfoTab({
           />
         </div>
 
-        {/* Aquí se agregaría la subida de imágenes */}
+        <div className="space-y-1">
+          <Label>Imágenes del Producto</Label>
+          <div className="border rounded-md p-4 min-h-[120px] flex flex-wrap gap-4 items-center">
+            {formData.images?.length > 0 ? (
+              formData.images.map((img: any, idx: number) => (
+                <div key={idx} className="relative w-24 h-24">
+                  <Image
+                    src={img.url}
+                    alt="preview"
+                    fill
+                    className="object-cover rounded"
+                  />
+                  {img.isMain && (
+                    <span className="absolute top-1 left-1 bg-primary text-xs px-2 py-0.5 rounded">
+                      Principal
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    className="absolute top-1 right-1 bg-white/80 rounded-full p-1"
+                    onClick={() =>
+                      updateFormData({
+                        images: formData.images.filter(
+                          (_: any, i: number) => i !== idx
+                        ),
+                      })
+                    }
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))
+            ) : (
+              <span className="text-muted-foreground">No hay imágenes</span>
+            )}
+            <label className="flex flex-col items-center justify-center w-24 h-24 border-2 border-dashed rounded cursor-pointer hover:bg-muted transition">
+              <UploadCloud className="h-8 w-8 text-muted-foreground" />
+              <span className="text-xs">Agregar</span>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={async (e) => {
+                  const files = Array.from(e.target.files || []);
+                  if (!files.length) return;
+                  // Simulación de subida, reemplazar por lógica real si es necesario
+                  const urls = await Promise.all(
+                    files.map(async (file) => {
+                      return { url: URL.createObjectURL(file), isMain: false };
+                    })
+                  );
+                  updateFormData({
+                    images: [...(formData.images || []), ...urls],
+                  });
+                }}
+              />
+            </label>
+          </div>
+        </div>
       </CardContent>
       <CardFooter className="flex justify-between pt-2">
         <Button variant="ghost" disabled={isSubmitting}>

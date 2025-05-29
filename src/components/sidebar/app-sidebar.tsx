@@ -10,15 +10,19 @@ import {
 import { NavGroup } from "./nav-group";
 import { NavUser } from "./nav-user";
 import { NavGroupProps } from "./types";
-import { useRolePermissions } from "@/lib/hooks/useRolePermissions";
 import { useMemo, useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSidebarData } from "./hooks/use-sidebar-data";
 import { TeamSwitcher } from "./team-switcher";
 import { sidebarDataStatic } from "./data/sidebar-data";
+import { useUserStore } from "@/store/userStore";
+import { hasPermission } from "@/lib/utils/permissions";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { canViewSection, loading: permissionsLoading } = useRolePermissions();
+  const { user } = useUserStore();
+  // Función para verificar permisos usando hasPermission
+  const canViewSection = (sectionKey: string) =>
+    hasPermission(user, sectionKey, "view");
   const {
     data: sidebarData,
     loading: sidebarLoading,
@@ -98,7 +102,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   }, [sidebarData, canViewSection]);
 
   // Esperar a que se carguen permisos y datos antes de mostrar
-  const isLoading = permissionsLoading || sidebarLoading;
+  const isLoading = sidebarLoading;
 
   // Mostrar el sidebar cuando los datos estén listos
   useEffect(() => {

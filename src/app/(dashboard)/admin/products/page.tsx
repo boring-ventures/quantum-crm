@@ -20,6 +20,7 @@ import { ProductsCreateDialog } from "./components/products-create-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserStore } from "@/store/userStore";
 import { hasPermission } from "@/lib/utils/permissions";
+import { ProductFilters } from "./components/product-filters";
 
 export default function ProductsPage() {
   const { toast } = useToast();
@@ -30,6 +31,9 @@ export default function ProductsPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const { user: currentUser } = useUserStore();
+  const [filters, setFilters] = useState({});
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Permisos
   const canCreateProducts = hasPermission(currentUser, "products", "create");
@@ -51,14 +55,16 @@ export default function ProductsPage() {
   const fetchProducts = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(
-        `/api/products?search=${debouncedSearchTerm}`
-      );
-      if (!response.ok) {
-        throw new Error("Error al cargar productos");
-      }
-      const data = await response.json();
+      const params = new URLSearchParams({
+        search: debouncedSearchTerm,
+        page: String(page),
+        ...filters,
+      });
+      const response = await fetch(`/api/products?${params.toString()}`);
+      if (!response.ok) throw new Error("Error al cargar productos");
+      const { data, totalPages: total } = await response.json();
       setProducts(data);
+      setTotalPages(total);
     } catch (error) {
       console.error("Error fetching products:", error);
       toast({
@@ -69,7 +75,7 @@ export default function ProductsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [debouncedSearchTerm, toast]);
+  }, [debouncedSearchTerm, filters, page, toast]);
 
   useEffect(() => {
     fetchProducts();
@@ -103,7 +109,7 @@ export default function ProductsPage() {
         description="Administra el catálogo de productos y su inventario"
       />
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-4">
         <div className="flex-1 max-w-sm">
           <Input
             placeholder="Buscar productos..."
@@ -111,6 +117,7 @@ export default function ProductsPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+        <ProductFilters filters={filters} setFilters={setFilters} />
         {canCreateProducts && (
           <Button onClick={handleCreateProduct}>
             <PlusIcon className="mr-2 h-4 w-4" />
@@ -133,6 +140,20 @@ export default function ProductsPage() {
             isLoading={isLoading}
             noResultsMessage="No se encontraron productos"
           />
+          <div className="flex justify-end mt-4 gap-2">
+            <Button disabled={page === 1} onClick={() => setPage(page - 1)}>
+              Anterior
+            </Button>
+            <span>
+              Página {page} de {totalPages}
+            </span>
+            <Button
+              disabled={page === totalPages}
+              onClick={() => setPage(page + 1)}
+            >
+              Siguiente
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
