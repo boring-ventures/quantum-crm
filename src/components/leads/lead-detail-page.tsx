@@ -39,6 +39,7 @@ import {
   useDeleteLeadMutation,
   useToggleFavoriteMutation,
   useLeadQuery,
+  useLeadDocuments,
 } from "@/lib/hooks";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -52,6 +53,7 @@ import { TaskTypeDialog } from "@/components/leads/task-type-dialog";
 import { useQueryClient } from "@tanstack/react-query";
 import { hasPermission } from "@/lib/utils/permissions";
 import { ReassignLeadDialog } from "@/components/leads/reassign-lead-dialog";
+import { QualifyLeadDialog } from "@/components/leads/qualify-lead-dialog";
 
 interface LeadDetailPageProps {
   lead: LeadWithRelations;
@@ -86,11 +88,16 @@ export function LeadDetailPage({
   const [isArchiving, setIsArchiving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showReassignDialog, setShowReassignDialog] = useState(false);
+  const [showQualifyDialog, setShowQualifyDialog] = useState(false);
+  const [pendingAction, setPendingAction] = useState<null | (() => void)>(null);
   const updateLeadMutation = useUpdateLeadMutation();
   const deleteLeadMutation = useDeleteLeadMutation();
   const toggleFavoriteMutation = useToggleFavoriteMutation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: documents, isLoading: isLoadingDocuments } = useLeadDocuments(
+    lead.id
+  );
 
   // Consulta para obtener datos actualizados del lead
   const { data: updatedLeadData } = useLeadQuery(lead.id);
@@ -336,6 +343,76 @@ export function LeadDetailPage({
     setOpenTaskDialog(true);
   };
 
+  // Componente para mostrar los documentos
+  function LeadDocumentsTab() {
+    if (isLoadingDocuments) {
+      return <div className="p-6">Cargando documentos...</div>;
+    }
+    if (!documents || documents.length === 0) {
+      return (
+        <div className="p-6 text-gray-500">
+          No hay documentos subidos para este lead.
+        </div>
+      );
+    }
+    return (
+      <div className="p-6 space-y-4">
+        <h3 className="text-lg font-semibold mb-4">Archivos subidos</h3>
+        <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+          {documents.map((doc) => (
+            <li key={doc.id} className="flex items-center justify-between py-2">
+              <div>
+                <span className="font-medium text-gray-900 dark:text-gray-100">
+                  {doc.name}
+                </span>
+                <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                  ({(doc.size / 1024).toFixed(1)} KB)
+                </span>
+              </div>
+              <a
+                href={doc.url}
+                download={doc.name}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline dark:text-blue-400"
+              >
+                Descargar
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
+  // Wrapper para acciones protegidas
+  const handleAction = (action: () => void) => {
+    if (
+      lead.qualification === "GOOD_LEAD" ||
+      lead.qualification === "BAD_LEAD"
+    ) {
+      action();
+    } else {
+      setPendingAction(() => action);
+      setShowQualifyDialog(true);
+    }
+  };
+
+  // Cuando se califica el lead
+  const handleQualify = (isGoodLead: boolean) => {
+    setShowQualifyDialog(false);
+    if (isGoodLead && pendingAction) {
+      // Esperar a que el backend actualice el estado antes de ejecutar la acción
+      setTimeout(() => {
+        pendingAction();
+        setPendingAction(null);
+      }, 300);
+    } else if (!isGoodLead) {
+      setPendingAction(null);
+      onBack();
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Cabecera del Lead */}
@@ -354,7 +431,7 @@ export function LeadDetailPage({
             {canEditLeads && (
               <Star
                 className={`h-5 w-5 cursor-pointer ${isFavorite ? "fill-yellow-400 text-yellow-400" : "text-gray-400"}`}
-                onClick={handleToggleFavorite}
+                onClick={() => handleAction(handleToggleFavorite)}
               />
             )}
             <Badge className="ml-2 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
@@ -421,6 +498,12 @@ export function LeadDetailPage({
                   className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:rounded-none data-[state=active]:shadow-none rounded-none px-6 py-3"
                 >
                   Línea de tiempo
+                </TabsTrigger>
+                <TabsTrigger
+                  value="documentos"
+                  className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:rounded-none data-[state=active]:shadow-none rounded-none px-6 py-3"
+                >
+                  Documentos
                 </TabsTrigger>
               </TabsList>
 
@@ -540,6 +623,10 @@ export function LeadDetailPage({
               <TabsContent value="lineaTiempo" className="p-6">
                 <LeadTimeline lead={lead} isFavorite={isFavorite} />
               </TabsContent>
+
+              <TabsContent value="documentos" className="p-0">
+                <LeadDocumentsTab />
+              </TabsContent>
             </Tabs>
           </div>
         </div>
@@ -561,7 +648,9 @@ export function LeadDetailPage({
                 ) : (
                   <div className="space-y-1">
                     <button
-                      onClick={() => setOpenModal("quotation")}
+                      onClick={() =>
+                        handleAction(() => setOpenModal("quotation"))
+                      }
                       className="w-full flex items-center gap-3 mb-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md p-2 transition-colors"
                     >
                       {salesProcess.quotation ? (
@@ -584,7 +673,8 @@ export function LeadDetailPage({
 
                     <button
                       onClick={() =>
-                        salesProcess.quotation && setOpenModal("reservation")
+                        salesProcess.quotation &&
+                        handleAction(() => setOpenModal("reservation"))
                       }
                       disabled={!salesProcess.quotation}
                       className={`w-full flex items-center gap-3 mb-2 ${salesProcess.quotation ? "hover:bg-gray-50 dark:hover:bg-gray-800" : "cursor-not-allowed"} rounded-md p-2 transition-colors`}
@@ -619,7 +709,8 @@ export function LeadDetailPage({
 
                     <button
                       onClick={() =>
-                        salesProcess.reservation && setOpenModal("sale")
+                        salesProcess.reservation &&
+                        handleAction(() => setOpenModal("sale"))
                       }
                       disabled={!salesProcess.reservation}
                       className={`w-full flex items-center gap-3 ${salesProcess.reservation ? "hover:bg-gray-50 dark:hover:bg-gray-800" : "cursor-not-allowed"} rounded-md p-2 transition-colors`}
@@ -664,7 +755,7 @@ export function LeadDetailPage({
                   <Button
                     className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700"
                     variant="ghost"
-                    onClick={handleContactLead}
+                    onClick={() => handleAction(handleContactLead)}
                   >
                     <MessageCircle className="mr-3 h-5 w-5" />
                     Contactar
@@ -674,7 +765,7 @@ export function LeadDetailPage({
                     <Button
                       className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700"
                       variant="ghost"
-                      onClick={handleScheduleAppointment}
+                      onClick={() => handleAction(handleScheduleAppointment)}
                     >
                       <CalendarClock className="mr-3 h-5 w-5" />
                       Agendar cita
@@ -684,7 +775,7 @@ export function LeadDetailPage({
                   <Button
                     className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700 text-yellow-500"
                     variant="ghost"
-                    onClick={handleToggleFavorite}
+                    onClick={() => handleAction(handleToggleFavorite)}
                     disabled={toggleFavoriteMutation.isPending}
                   >
                     {toggleFavoriteMutation.isPending ? (
@@ -714,7 +805,9 @@ export function LeadDetailPage({
                         <Button
                           className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700"
                           variant="ghost"
-                          onClick={() => setShowArchiveDialog(true)}
+                          onClick={() =>
+                            handleAction(() => setShowArchiveDialog(true))
+                          }
                         >
                           <Archive className="mr-3 h-5 w-5 text-gray-500" />
                           Archivar lead
@@ -725,7 +818,9 @@ export function LeadDetailPage({
                         <Button
                           className="w-full justify-start rounded-none py-3 h-auto font-normal text-base text-red-500"
                           variant="ghost"
-                          onClick={() => setShowDeleteDialog(true)}
+                          onClick={() =>
+                            handleAction(() => setShowDeleteDialog(true))
+                          }
                         >
                           <Trash2 className="mr-3 h-5 w-5" />
                           Eliminar lead
@@ -736,7 +831,9 @@ export function LeadDetailPage({
                         <Button
                           className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700"
                           variant="ghost"
-                          onClick={() => setShowReassignDialog(true)}
+                          onClick={() =>
+                            handleAction(() => setShowReassignDialog(true))
+                          }
                         >
                           <ArrowRightLeft className="mr-3 h-5 w-5 text-orange-500" />
                           Reasignar lead
@@ -956,6 +1053,14 @@ export function LeadDetailPage({
           assignedToId={lead.assignedTo?.id}
         />
       )}
+
+      {/* Diálogo de calificación si es necesario */}
+      <QualifyLeadDialog
+        open={showQualifyDialog}
+        onOpenChange={setShowQualifyDialog}
+        lead={lead}
+        onQualify={handleQualify}
+      />
     </div>
   );
 }

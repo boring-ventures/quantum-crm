@@ -222,6 +222,7 @@ export default function LeadsPage() {
             <TableRow
               key={seller.id}
               className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+              onClick={() => handleSelectSeller(seller.id)}
             >
               <TableCell className="font-medium">{seller.name}</TableCell>
               <TableCell>{seller.email}</TableCell>
@@ -237,9 +238,9 @@ export default function LeadsPage() {
               </TableCell>
               <TableCell className="text-right">
                 <Button
-                  onClick={() => handleSelectSeller(seller.id)}
                   variant="outline"
                   size="sm"
+                  className="hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
                   <UserIcon className="mr-2 h-4 w-4" />
                   Ver Leads
@@ -404,21 +405,6 @@ export default function LeadsPage() {
               <CardContent className="p-4">
                 <Tabs defaultValue="all" className="w-full">
                   <TabsList className="bg-gray-100 dark:bg-gray-800 p-1 flex flex-wrap gap-1 mb-4">
-                    {/* Si tiene scope "team" o "all" y no es la vista de "self", mostrar pestaña "Mis Leads" */}
-                    {canCreateLeads &&
-                      leadsScope !== "self" &&
-                      currentUser?.id && (
-                        <TabsTrigger
-                          value="my-leads"
-                          className="flex gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
-                        >
-                          Mis Leads{" "}
-                          <span className="ml-2 px-2 py-0.5 bg-blue-200 dark:bg-blue-900 text-blue-900 dark:text-blue-200 rounded-full text-xs">
-                            {leadCounts.myLeads}
-                          </span>
-                        </TabsTrigger>
-                      )}
-
                     <TabsTrigger
                       value="all"
                       className="flex gap-2 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700"
@@ -474,22 +460,6 @@ export default function LeadsPage() {
                       </span>
                     </TabsTrigger>
                   </TabsList>
-
-                  {/* Pestaña de Mis Leads */}
-                  {canCreateLeads &&
-                    leadsScope !== "self" &&
-                    currentUser?.id && (
-                      <TabsContent value="my-leads">
-                        <LeadsList
-                          filterBadLeads={true}
-                          searchTerm={searchTerm}
-                          filterType="my-leads"
-                          interestLevel={getInterestScore(interestFilter)}
-                          assignedToId={currentUser.id}
-                          currentUser={currentUser}
-                        />
-                      </TabsContent>
-                    )}
 
                   <TabsContent value="all">
                     <LeadsList

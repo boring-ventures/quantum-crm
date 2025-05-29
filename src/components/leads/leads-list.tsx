@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Star } from "lucide-react";
+import { Star, Package, CheckCircle2, XCircle, HelpCircle } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,7 +15,6 @@ import {
 import type { LeadWithRelations } from "@/types/lead";
 import { formatDistanceToNow, format } from "date-fns";
 import { es } from "date-fns/locale";
-import { QualifyLeadDialog } from "@/components/leads/qualify-lead-dialog";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { EditLeadDialog } from "@/components/leads/edit-lead-dialog";
@@ -61,7 +60,6 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
     lead.id
   );
   const [isFavorite, setIsFavorite] = useState(lead.isFavorite || false);
-  const [showQualifyDialog, setShowQualifyDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -136,27 +134,8 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
   };
 
   const handleCardClick = () => {
-    // Si el lead ya está calificado como bueno, ir directamente a la página de detalles
-    if (lead.qualification === "GOOD_LEAD") {
-      router.push(`/leads/${lead.id}`);
-    } else {
-      // Si no está calificado, mostrar el diálogo
-      setShowQualifyDialog(true);
-    }
-  };
-
-  const handleQualify = (isGoodLead: boolean) => {
-    setShowQualifyDialog(false);
-
-    if (isGoodLead) {
-      // Si es un buen lead, redirigir a la página detallada del lead
-      router.push(`/leads/${lead.id}`);
-    } else {
-      // Si es un bad lead, actualizar la data
-      if (onLeadUpdated) {
-        onLeadUpdated();
-      }
-    }
+    // Siempre navegar al detalle del lead
+    router.push(`/leads/${lead.id}`);
   };
 
   const handleToggleFavorite = async (e: React.MouseEvent) => {
@@ -342,6 +321,38 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
             </svg>
             {formatDistanceToNow(new Date(lead.createdAt), { locale: es })}
           </div>
+          {/* Producto asociado */}
+          {lead.product && (
+            <div className="flex items-center mr-4">
+              <Package className="mr-1 h-4 w-4 text-blue-400 dark:text-blue-300" />
+              <span className="text-gray-700 dark:text-gray-200">
+                {typeof lead.product === "string"
+                  ? lead.product
+                  : typeof lead.product === "object" &&
+                      lead.product !== null &&
+                      "name" in lead.product
+                    ? (lead.product as any).name
+                    : ""}
+              </span>
+            </div>
+          )}
+          {/* Estado de calificación */}
+          <div className="flex items-center mr-4">
+            {lead.qualification === "GOOD_LEAD" ? (
+              <CheckCircle2 className="mr-1 h-4 w-4 text-green-500" />
+            ) : lead.qualification === "BAD_LEAD" ? (
+              <XCircle className="mr-1 h-4 w-4 text-red-500" />
+            ) : (
+              <HelpCircle className="mr-1 h-4 w-4 text-yellow-500" />
+            )}
+            <span className="text-gray-700 dark:text-gray-200">
+              {lead.qualification === "GOOD_LEAD"
+                ? "Calificado"
+                : lead.qualification === "BAD_LEAD"
+                  ? "Descartado"
+                  : "Sin calificar"}
+            </span>
+          </div>
           {lead.phone && (
             <div className="flex items-center">
               <svg
@@ -406,14 +417,6 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
           </div>
         )}
       </div>
-
-      {/* Diálogo de calificación de lead */}
-      <QualifyLeadDialog
-        open={showQualifyDialog}
-        onOpenChange={setShowQualifyDialog}
-        lead={lead}
-        onQualify={handleQualify}
-      />
 
       {/* Diálogo de edición de lead */}
       <EditLeadDialog

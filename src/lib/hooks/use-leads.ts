@@ -4,6 +4,7 @@ import type {
   CreateLeadPayload,
   UpdateLeadPayload,
   LeadsResponse,
+  Document,
 } from "@/types/lead";
 
 interface LeadsFilter {
@@ -266,5 +267,20 @@ export const useToggleFavoriteMutation = () => {
       queryClient.invalidateQueries({ queryKey: ["leads", variables.leadId] });
       queryClient.invalidateQueries({ queryKey: ["leads"] });
     },
+  });
+};
+
+// Hook para obtener documentos de un lead
+export const useLeadDocuments = (leadId?: string) => {
+  return useQuery<Document[]>({
+    queryKey: ["leadDocuments", leadId],
+    queryFn: async () => {
+      const response = await fetch(`/api/documents?leadId=${leadId}`);
+      if (!response.ok) {
+        throw new Error("Error al obtener documentos del lead");
+      }
+      return response.json();
+    },
+    enabled: !!leadId,
   });
 };

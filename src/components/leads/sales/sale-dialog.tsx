@@ -53,7 +53,7 @@ export function SaleDialog({
   const createDocumentMutation = useCreateDocumentMutation();
 
   // Estado para datos de venta
-  const [totalAmount, setTotalAmount] = useState("");
+  const [saldo, setSaldo] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
 
   // Estado para documentos
@@ -67,17 +67,17 @@ export function SaleDialog({
   // Estado para carga
   const [isUploading, setIsUploading] = useState(false);
 
-  // Inicializar con datos de la reserva si existe
+  // Autocompletar saldo solo si el usuario no lo ha cambiado
   useEffect(() => {
-    if (existingReservation) {
-      setTotalAmount(
-        (
-          (existingQuotation?.totalAmount || 0) - (existingSale?.amount || 0)
-        ).toString()
-      );
+    console.log("saldo: ", existingQuotation, existingReservation);
+    if (open && existingQuotation && existingReservation) {
+      const s =
+        Number(existingQuotation.totalAmount || 0) -
+        Number(existingReservation.amount || 0);
+      setSaldo(s > 0 ? s.toString() : "0");
       setPaymentMethod(existingReservation.paymentMethod || "");
     }
-  }, [existingReservation]);
+  }, [open, existingQuotation, existingReservation]);
 
   // Comprobar si ya hay una venta existente para saltar este paso
   useEffect(() => {
@@ -101,8 +101,7 @@ export function SaleDialog({
   };
 
   // Validar el formulario
-  const isFormValid =
-    parseFloat(totalAmount) > 0 && paymentMethod && saleContract;
+  const isFormValid = parseFloat(saldo) > 0 && paymentMethod && saleContract;
 
   // Manejar envío del formulario
   const handleSubmit = async () => {
@@ -137,7 +136,7 @@ export function SaleDialog({
       await createSaleMutation.mutateAsync({
         leadId,
         reservationId: existingReservation?.id,
-        amount: parseFloat(totalAmount),
+        amount: parseFloat(saldo),
         paymentMethod,
         saleContractUrl,
         additionalNotes: notes,
@@ -195,13 +194,13 @@ export function SaleDialog({
             {/* Monto total */}
             <div>
               <Label>
-                Monto total <span className="text-red-500">*</span>
+                Saldo <span className="text-red-500">*</span>
               </Label>
               <Input
                 type="number"
                 min={0}
-                value={totalAmount}
-                onChange={(e) => setTotalAmount(e.target.value)}
+                value={saldo}
+                onChange={(e) => setSaldo(e.target.value)}
                 placeholder="$ 0.00"
               />
             </div>

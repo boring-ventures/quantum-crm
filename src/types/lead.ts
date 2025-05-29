@@ -115,6 +115,18 @@ export interface LeadReassignment {
   reassignedByUser?: User;
 }
 
+// Tipo para documentos
+export interface Document {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  name: string;
+  type: string;
+  size: number;
+  url: string;
+  leadId: string;
+}
+
 // Interfaces para respuestas API con relaciones
 export interface LeadWithRelations extends Lead {
   status: LeadStatus;
@@ -126,6 +138,7 @@ export interface LeadWithRelations extends Lead {
   reservations?: Reservation[];
   sales?: Sale[];
   reassignments?: LeadReassignment[];
+  documents?: Document[];
 }
 
 // Tipos para respuestas de API paginadas

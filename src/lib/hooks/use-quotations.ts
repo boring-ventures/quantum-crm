@@ -118,3 +118,20 @@ export function useCreateDocumentMutation() {
     },
   });
 }
+
+// Hook para obtener productos de una cotización
+export function useQuotationProducts(quotationId: string) {
+  return useQuery<
+    Array<{ id: string; name: string; quantity: number; price: number }>
+  >({
+    queryKey: ["quotation-products", quotationId],
+    queryFn: async () => {
+      if (!quotationId) return [];
+      const response = await fetch(`/api/quotations/${quotationId}/products`);
+      if (!response.ok)
+        throw new Error("Error al obtener productos de la cotización");
+      return response.json();
+    },
+    enabled: !!quotationId,
+  });
+}

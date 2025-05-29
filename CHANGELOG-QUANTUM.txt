@@ -441,3 +441,11 @@
 
 [2024-03-21] [Refactor] - Implementación de permisos en módulos administrativos (countries, products, roles, leads) - [AI]
 
+[2024-06-08] [Feature] - Agregada pestaña de documentos en LeadDetailPage para mostrar y descargar archivos subidos por lead - [AI]
+[2024-06-08] [Feature] - Implementado endpoint GET en /api/documents para obtener documentos por leadId - [AI]
+[2024-06-08] [Feature] - Añadido hook useLeadDocuments para consultar documentos de un lead - [AI]
+[2024-06-08] [Refactor] - Migrada lógica de QualifyLeadDialog a page.tsx para controlar calificación antes de acciones - [AI]
+[2024-06-08] [Schema] - Prisma generate y migración: add-documents-get-endpoint - [AI]
+
+[2024-05-10] [Feature] - Endpoint /api/quotations/[id]/products para obtener productos de cotización, hook useQuotationProducts, autocompletado de producto/cantidad en reserva y saldo editable en venta - [AI]
+

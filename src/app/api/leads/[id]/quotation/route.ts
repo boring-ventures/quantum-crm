@@ -39,7 +39,19 @@ export async function GET(
     }
 
     // Si quotation es un array, devolver el primer elemento
-    const result = Array.isArray(quotation) ? quotation[0] : quotation;
+    const raw = Array.isArray(quotation) ? quotation[0] : quotation;
+
+    // Mapear a camelCase
+    const result = {
+      id: raw.id,
+      createdAt: raw.created_at,
+      updatedAt: raw.updated_at,
+      leadId: raw.lead_id,
+      totalAmount: raw.total_amount,
+      proformaUrl: raw.proforma_url,
+      additionalNotes: raw.additional_notes,
+      status: raw.status,
+    };
 
     return NextResponse.json(result);
   } catch (error) {

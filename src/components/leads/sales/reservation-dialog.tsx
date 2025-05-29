@@ -34,6 +34,7 @@ import {
   useCreateReservationMutation,
   useLeadReservation,
   useLeadQuotation,
+  useQuotationProducts,
 } from "@/lib/hooks";
 import { uploadDocument } from "@/lib/supabase/upload-document";
 
@@ -57,6 +58,9 @@ export function ReservationDialog({
   const { data: existingReservation, isLoading: reservationLoading } =
     useLeadReservation(leadId);
   const { data: existingQuotation } = useLeadQuotation(leadId);
+  const { data: quotationProducts } = useQuotationProducts(
+    existingQuotation?.id || ""
+  );
   const createReservationMutation = useCreateReservationMutation();
 
   // Estado para productos
@@ -91,6 +95,20 @@ export function ReservationDialog({
 
   // Estado para carga
   const [isUploading, setIsUploading] = useState(false);
+
+  // Autocompletar producto/cantidad desde la cotización si existe y si el usuario no ha seleccionado nada
+  useEffect(() => {
+    if (
+      open &&
+      quotationProducts &&
+      quotationProducts.length > 0 &&
+      !productId // solo si el usuario no ha seleccionado
+    ) {
+      setProductId(quotationProducts[0].id);
+      setQuantity(quotationProducts[0].quantity);
+      setTotalPrice(quotationProducts[0].price.toString());
+    }
+  }, [open, quotationProducts]);
 
   // Manejar selección de producto
   const handleProductChange = (productId: string) => {
