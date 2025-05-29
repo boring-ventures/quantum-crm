@@ -4,76 +4,56 @@ import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { ProductActionsCell } from "./product-actions-cell";
 import { formatCurrency } from "@/lib/utils";
+import { Product } from "@/types/product";
+import { Button } from "@/components/ui/button";
+import { Edit, Trash } from "lucide-react";
 
-export type Product = {
-  id: string;
-  code: string;
-  name: string;
-  nameProduct: string;
-  descriptionProduct?: string;
-  price?: number;
-  isActive: boolean;
-  brand?: {
-    name: string;
-    company?: {
-      name: string;
-    };
-  };
-  model?: {
-    name: string;
-  };
-  businessType?: {
-    name: string;
-  };
-};
-
-export const columns: ColumnDef<Product>[] = [
+export const columns = (
+  canEdit: boolean,
+  canDelete: boolean
+): ColumnDef<Product>[] => [
+  {
+    accessorKey: "name",
+    header: "Nombre",
+  },
   {
     accessorKey: "code",
     header: "Código",
   },
   {
-    accessorKey: "nameProduct",
-    header: "Versión",
-  },
-  {
-    accessorKey: "brand.name",
-    header: "Marca",
-    cell: ({ row }) => {
-      const brand = row.original.brand;
-      return brand ? brand.name : "-";
-    },
-  },
-  {
-    accessorKey: "model.name",
-    header: "Modelo",
-    cell: ({ row }) => {
-      const model = row.original.model;
-      return model ? model.name : "-";
-    },
-  },
-  {
     accessorKey: "price",
     header: "Precio",
     cell: ({ row }) => {
-      const price = row.original.price;
-      return price ? formatCurrency(price) : "-";
+      const price = parseFloat(row.getValue("price"));
+      return new Intl.NumberFormat("es-BO", {
+        style: "currency",
+        currency: "BOB",
+      }).format(price);
     },
   },
   {
-    accessorKey: "isActive",
-    header: "Estado",
-    cell: ({ row }) => {
-      const isActive = row.original.isActive;
-      return (
-        <Badge variant={isActive ? "success" : "destructive"}>
-          {isActive ? "Activo" : "Inactivo"}
-        </Badge>
-      );
-    },
+    accessorKey: "stock",
+    header: "Stock",
   },
   {
     id: "actions",
-    cell: ({ row }) => <ProductActionsCell product={row.original} />,
+    cell: ({ row }) => {
+      const product = row.original;
+
+      return (
+        <div className="flex items-center gap-2">
+          {canEdit && (
+            <Button variant="ghost" size="icon">
+              <Edit className="h-4 w-4" />
+            </Button>
+          )}
+          {canDelete && (
+            <Button variant="ghost" size="icon">
+              <Trash className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      );
+    },
   },
 ];

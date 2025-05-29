@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { useUserStore } from "@/store/userStore";
+import { hasPermission } from "@/lib/utils/permissions";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -85,6 +87,24 @@ export default function RolesPage() {
   const [applyingPermissions, setApplyingPermissions] = useState(false);
   const [editedPermissions, setEditedPermissions] = useState<PermissionMap>({});
   const { toast } = useToast();
+  const { user: currentUser } = useUserStore();
+
+  // Permisos
+  const canViewRoles = hasPermission(currentUser, "roles", "view");
+  const canCreateRoles = hasPermission(currentUser, "roles", "create");
+  const canEditRoles = hasPermission(currentUser, "roles", "edit");
+  const canDeleteRoles = hasPermission(currentUser, "roles", "delete");
+
+  // Validar acceso a la página
+  if (!canViewRoles) {
+    return (
+      <div className="flex h-[400px] w-full items-center justify-center">
+        <p className="text-muted-foreground">
+          No tienes permisos para ver esta sección
+        </p>
+      </div>
+    );
+  }
 
   // Cargar roles al iniciar
   useEffect(() => {
@@ -118,6 +138,15 @@ export default function RolesPage() {
 
   // Cargar detalles de un rol específico
   const loadRoleDetails = async (role: Role) => {
+    if (!canViewRoles) {
+      toast({
+        title: "Error",
+        description: "No tienes permisos para ver detalles de roles",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setSelectedRole(role);
 
@@ -143,12 +172,27 @@ export default function RolesPage() {
 
   // Manejar cambios en los permisos editados
   const handlePermissionsChange = (permissions: PermissionMap) => {
+    if (!canEditRoles) {
+      toast({
+        title: "Error",
+        description: "No tienes permisos para editar roles",
+        variant: "destructive",
+      });
+      return;
+    }
     setEditedPermissions(permissions);
   };
 
   // Aplicar los permisos del rol a todos los usuarios
   const applyPermissionsToUsers = async () => {
-    if (!selectedRole) return;
+    if (!selectedRole || !canEditRoles) {
+      toast({
+        title: "Error",
+        description: "No tienes permisos para aplicar permisos a usuarios",
+        variant: "destructive",
+      });
+      return;
+    }
 
     // Preparar los permisos a aplicar (usar los editados si existen, sino los originales)
     const permissionsToApply =
@@ -203,6 +247,15 @@ export default function RolesPage() {
 
   // Actualizar los permisos del rol
   const updateRolePermissions = async (roleId: string, permissions: any) => {
+    if (!canEditRoles) {
+      toast({
+        title: "Error",
+        description: "No tienes permisos para actualizar roles",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const response = await fetch(`/api/roles/${roleId}`, {
         method: "PUT",
@@ -333,155 +386,160 @@ export default function RolesPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => loadRoleDetails(role)}
-                        >
-                          <Eye className="h-4 w-4" />
-                          <span className="sr-only">Ver detalles</span>
-                        </Button>
-                      </DialogTrigger>
-
-                      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
-                        <DialogHeader>
-                          <DialogTitle>Rol: {selectedRole?.name}</DialogTitle>
-                          <DialogDescription>
-                            Administra los permisos y usuarios asociados a este
-                            rol
-                          </DialogDescription>
-                        </DialogHeader>
-
-                        <div className="flex-1 overflow-hidden">
-                          <Tabs
-                            defaultValue="permissions"
-                            className="mt-4 h-full"
+                    {canViewRoles && (
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => loadRoleDetails(role)}
                           >
-                            <TabsList>
-                              <TabsTrigger value="permissions">
-                                <Key className="h-4 w-4 mr-2" />
-                                Permisos
-                              </TabsTrigger>
-                              <TabsTrigger value="users">
-                                <Users className="h-4 w-4 mr-2" />
-                                Usuarios ({usersWithRole.length})
-                              </TabsTrigger>
-                            </TabsList>
+                            <Eye className="h-4 w-4" />
+                            <span className="sr-only">Ver detalles</span>
+                          </Button>
+                        </DialogTrigger>
 
-                            <TabsContent
-                              value="permissions"
+                        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+                          <DialogHeader>
+                            <DialogTitle>Rol: {selectedRole?.name}</DialogTitle>
+                            <DialogDescription>
+                              Administra los permisos y usuarios asociados a
+                              este rol
+                            </DialogDescription>
+                          </DialogHeader>
+
+                          <div className="flex-1 overflow-hidden">
+                            <Tabs
+                              defaultValue="permissions"
                               className="mt-4 h-full"
                             >
-                              <div className="flex justify-end mb-4">
-                                <Button
-                                  onClick={() => setShowApplyDialog(true)}
-                                  disabled={!usersWithRole.length}
-                                >
-                                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                                  Aplicar a todos los usuarios
-                                </Button>
-                              </div>
+                              <TabsList>
+                                <TabsTrigger value="permissions">
+                                  <Key className="h-4 w-4 mr-2" />
+                                  Permisos
+                                </TabsTrigger>
+                                <TabsTrigger value="users">
+                                  <Users className="h-4 w-4 mr-2" />
+                                  Usuarios ({usersWithRole.length})
+                                </TabsTrigger>
+                              </TabsList>
 
-                              <div className="overflow-hidden">
-                                {selectedRole && (
-                                  <PermissionEditor
-                                    permissions={selectedRole.permissions}
-                                    onChange={handlePermissionsChange}
-                                    onExportJson={() =>
-                                      copyToClipboard(
-                                        Object.keys(editedPermissions).length >
-                                          0
-                                          ? editedPermissions
-                                          : selectedRole.permissions
-                                      )
-                                    }
+                              <TabsContent
+                                value="permissions"
+                                className="mt-4 h-full"
+                              >
+                                <div className="flex justify-end mb-4">
+                                  {canEditRoles && (
+                                    <Button
+                                      onClick={() => setShowApplyDialog(true)}
+                                      disabled={!usersWithRole.length}
+                                    >
+                                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                                      Aplicar a todos los usuarios
+                                    </Button>
+                                  )}
+                                </div>
+
+                                <div className="overflow-hidden">
+                                  {selectedRole && (
+                                    <PermissionEditor
+                                      permissions={selectedRole.permissions}
+                                      onChange={handlePermissionsChange}
+                                      onExportJson={() =>
+                                        copyToClipboard(
+                                          Object.keys(editedPermissions)
+                                            .length > 0
+                                            ? editedPermissions
+                                            : selectedRole.permissions
+                                        )
+                                      }
+                                    />
+                                  )}
+                                </div>
+                              </TabsContent>
+
+                              <TabsContent value="users" className="mt-4">
+                                <div className="relative w-full max-w-sm mb-4">
+                                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                  <Input
+                                    type="search"
+                                    placeholder="Buscar usuarios..."
+                                    className="pl-8"
                                   />
-                                )}
-                              </div>
-                            </TabsContent>
+                                </div>
 
-                            <TabsContent value="users" className="mt-4">
-                              <div className="relative w-full max-w-sm mb-4">
-                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                  type="search"
-                                  placeholder="Buscar usuarios..."
-                                  className="pl-8"
-                                />
-                              </div>
-
-                              <ScrollArea className="h-[300px]">
-                                <Table>
-                                  <TableHeader>
-                                    <TableRow>
-                                      <TableHead>Nombre</TableHead>
-                                      <TableHead>Email</TableHead>
-                                      <TableHead>País</TableHead>
-                                      <TableHead>
-                                        Permisos personalizados
-                                      </TableHead>
-                                    </TableRow>
-                                  </TableHeader>
-                                  <TableBody>
-                                    {usersWithRole.length === 0 ? (
+                                <ScrollArea className="h-[300px]">
+                                  <Table>
+                                    <TableHeader>
                                       <TableRow>
-                                        <TableCell
-                                          colSpan={5}
-                                          className="h-32 text-center"
-                                        >
-                                          No hay usuarios con este rol
-                                        </TableCell>
+                                        <TableHead>Nombre</TableHead>
+                                        <TableHead>Email</TableHead>
+                                        <TableHead>País</TableHead>
+                                        <TableHead>
+                                          Permisos personalizados
+                                        </TableHead>
                                       </TableRow>
-                                    ) : (
-                                      usersWithRole.map((user) => (
-                                        <TableRow key={user.id}>
-                                          <TableCell className="font-medium">
-                                            {user.name}
-                                          </TableCell>
-                                          <TableCell>{user.email}</TableCell>
-                                          <TableCell>
-                                            {user.country?.name || "-"}
-                                          </TableCell>
-                                          <TableCell>
-                                            {user.userPermission ? (
-                                              <Badge>Personalizados</Badge>
-                                            ) : (
-                                              <Badge variant="outline">
-                                                Predet.
-                                              </Badge>
-                                            )}
+                                    </TableHeader>
+                                    <TableBody>
+                                      {usersWithRole.length === 0 ? (
+                                        <TableRow>
+                                          <TableCell
+                                            colSpan={5}
+                                            className="h-32 text-center"
+                                          >
+                                            No hay usuarios con este rol
                                           </TableCell>
                                         </TableRow>
-                                      ))
-                                    )}
-                                  </TableBody>
-                                </Table>
-                              </ScrollArea>
-                            </TabsContent>
-                          </Tabs>
-                        </div>
+                                      ) : (
+                                        usersWithRole.map((user) => (
+                                          <TableRow key={user.id}>
+                                            <TableCell className="font-medium">
+                                              {user.name}
+                                            </TableCell>
+                                            <TableCell>{user.email}</TableCell>
+                                            <TableCell>
+                                              {user.country?.name || "-"}
+                                            </TableCell>
+                                            <TableCell>
+                                              {user.userPermission ? (
+                                                <Badge>Personalizados</Badge>
+                                              ) : (
+                                                <Badge variant="outline">
+                                                  Predet.
+                                                </Badge>
+                                              )}
+                                            </TableCell>
+                                          </TableRow>
+                                        ))
+                                      )}
+                                    </TableBody>
+                                  </Table>
+                                </ScrollArea>
+                              </TabsContent>
+                            </Tabs>
+                          </div>
 
-                        <DialogFooter>
-                          <DialogClose asChild>
-                            <Button variant="outline">Cerrar</Button>
-                          </DialogClose>
-                          {Object.keys(editedPermissions).length > 0 && (
-                            <Button
-                              onClick={() =>
-                                updateRolePermissions(
-                                  selectedRole!.id,
-                                  editedPermissions
-                                )
-                              }
-                            >
-                              Guardar cambios
-                            </Button>
-                          )}
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
+                          <DialogFooter>
+                            <DialogClose asChild>
+                              <Button variant="outline">Cerrar</Button>
+                            </DialogClose>
+                            {canEditRoles &&
+                              Object.keys(editedPermissions).length > 0 && (
+                                <Button
+                                  onClick={() =>
+                                    updateRolePermissions(
+                                      selectedRole!.id,
+                                      editedPermissions
+                                    )
+                                  }
+                                >
+                                  Guardar cambios
+                                </Button>
+                              )}
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    )}
                   </TableCell>
                 </TableRow>
               ))

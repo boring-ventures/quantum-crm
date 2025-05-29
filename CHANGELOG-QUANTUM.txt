@@ -439,3 +439,5 @@
 [2024-06-09] [Refactor] - Personalización de permisos en creación de usuario ahora se realiza en un segundo diálogo modal, el diálogo principal es scrolleable y el select de rol muestra 'Personalizado' si corresponde (src/app/(dashboard)/users/components/create-user-form.tsx) - [AI]
 [2024-06-09] [Fix] - Eliminado bypass de Super Administrador en funciones de permisos (hasPermission, getScope, canAccessResource) para que solo dependan de la estructura de permisos - [IR]
 
+[2024-03-21] [Refactor] - Implementación de permisos en módulos administrativos (countries, products, roles, leads) - [AI]
+

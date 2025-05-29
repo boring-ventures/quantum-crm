@@ -10,6 +10,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import Link from "next/link";
+import { useUserStore } from "@/store/userStore";
+import { hasPermission } from "@/lib/utils/permissions";
 
 // Opciones de configuración para leads
 const LEAD_CONFIG_OPTIONS = [
@@ -20,16 +22,16 @@ const LEAD_CONFIG_OPTIONS = [
     href: "/admin/leads/statuses",
   },
   {
-    title: "Fuentes de Lead",
-    description:
-      "Gestiona las fuentes específicas como Facebook, Instagram, Google Ads",
-    href: "/admin/leads/sources",
-  },
-  {
     title: "Categorías de Fuente",
     description:
       "Agrupa las fuentes de leads como Sitio Web, Publicidad Digital, Evento, etc.",
     href: "/admin/leads/source-categories",
+  },
+  {
+    title: "Fuentes de Lead",
+    description:
+      "Gestiona las fuentes específicas como Facebook, Instagram, Google Ads",
+    href: "/admin/leads/sources",
   },
   // {
   //   title: "Motivos de Cierre",
@@ -39,6 +41,26 @@ const LEAD_CONFIG_OPTIONS = [
 ];
 
 export default function LeadsConfigPage() {
+  const { user: currentUser } = useUserStore();
+
+  // Permisos generales
+  const canViewLeadConfig = hasPermission(
+    currentUser,
+    "leads-settings",
+    "view"
+  );
+
+  // Validar acceso a la página
+  if (!canViewLeadConfig) {
+    return (
+      <div className="flex h-[400px] w-full items-center justify-center">
+        <p className="text-muted-foreground">
+          No tienes permisos para ver esta sección
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6 p-6">
       <div className="flex flex-col gap-2">
@@ -48,7 +70,7 @@ export default function LeadsConfigPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
+      <div className="grid max-w-4xl gap-4 md:grid-cols-1 lg:grid-cols-1">
         {LEAD_CONFIG_OPTIONS.map((option) => (
           <Card key={option.href} className="transition-all hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

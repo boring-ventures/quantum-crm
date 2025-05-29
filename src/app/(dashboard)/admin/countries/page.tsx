@@ -18,14 +18,30 @@ export default function CountriesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [countries, setCountries] = useState<Country[]>([]);
-  const { user: currentUserObtained, isLoading: isLoadingCurrentUser } =
-    useUserStore();
+  const { user: currentUser, isLoading: isLoadingCurrentUser } = useUserStore();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCountry, setEditingCountry] = useState<Country | null>(null);
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingCountry, setDeletingCountry] = useState<Country | null>(null);
+
+  // Permisos
+  const canCreateCountries = hasPermission(currentUser, "countries", "create");
+  const canEditCountries = hasPermission(currentUser, "countries", "edit");
+  const canDeleteCountries = hasPermission(currentUser, "countries", "delete");
+  const canViewCountries = hasPermission(currentUser, "countries", "view");
+
+  // Validar acceso a la página
+  if (!canViewCountries) {
+    return (
+      <div className="flex h-[400px] w-full items-center justify-center">
+        <p className="text-muted-foreground">
+          No tienes permisos para ver esta sección
+        </p>
+      </div>
+    );
+  }
 
   // Filtrar países por búsqueda
   const filteredCountries = countries.filter((country) =>
@@ -61,6 +77,15 @@ export default function CountriesPage() {
   async function handleSubmit(data: { name: string; code: string }) {
     try {
       if (editingCountry) {
+        if (!canEditCountries) {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "No tienes permisos para editar países",
+          });
+          return;
+        }
+
         // Actualizar país existente
         const response = await fetch(
           `/api/admin/countries/${editingCountry.id}`,
@@ -90,6 +115,15 @@ export default function CountriesPage() {
           description: "El país ha sido actualizado exitosamente.",
         });
       } else {
+        if (!canCreateCountries) {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "No tienes permisos para crear países",
+          });
+          return;
+        }
+
         // Crear nuevo país
         const response = await fetch("/api/admin/countries", {
           method: "POST",
@@ -129,6 +163,15 @@ export default function CountriesPage() {
 
   // Manejar eliminación
   async function handleDelete(id: string) {
+    if (!canDeleteCountries) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No tienes permisos para eliminar países",
+      });
+      return;
+    }
+
     try {
       const response = await fetch(`/api/admin/countries/${id}`, {
         method: "DELETE",
@@ -161,16 +204,40 @@ export default function CountriesPage() {
   }
 
   function handleOpenCreateDialog() {
+    if (!canCreateCountries) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No tienes permisos para crear países",
+      });
+      return;
+    }
     setEditingCountry(null);
     setDialogOpen(true);
   }
 
   function handleOpenEditDialog(country: Country) {
+    if (!canEditCountries) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No tienes permisos para editar países",
+      });
+      return;
+    }
     setEditingCountry(country);
     setDialogOpen(true);
   }
 
   function handleOpenDeleteDialog(country: Country) {
+    if (!canDeleteCountries) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No tienes permisos para eliminar países",
+      });
+      return;
+    }
     setDeletingCountry(country);
     setDeleteDialogOpen(true);
   }
@@ -179,7 +246,7 @@ export default function CountriesPage() {
     <div className="w-full p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Administración de Países</h1>
-        {hasPermission(currentUserObtained, "countries", "create") && (
+        {canCreateCountries && (
           <Button onClick={handleOpenCreateDialog}>
             <Plus className="h-4 w-4 mr-2" />
             Nuevo País
@@ -203,24 +270,18 @@ export default function CountriesPage() {
       <CountryTable
         countries={filteredCountries}
         isLoading={isLoading}
-        onEdit={
-          hasPermission(currentUserObtained, "countries", "edit")
-            ? handleOpenEditDialog
-            : undefined
-        }
-        onDelete={
-          hasPermission(currentUserObtained, "countries", "delete")
-            ? handleOpenDeleteDialog
-            : undefined
-        }
+        onEdit={canEditCountries ? handleOpenEditDialog : undefined}
+        onDelete={canDeleteCountries ? handleOpenDeleteDialog : undefined}
       />
 
-      <CountryDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        country={editingCountry}
-        onSubmit={handleSubmit}
-      />
+      {dialogOpen && (
+        <CountryDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          country={editingCountry}
+          onSubmit={handleSubmit}
+        />
+      )}
 
       {deletingCountry && (
         <DeleteCountryDialog
