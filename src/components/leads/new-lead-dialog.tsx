@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -223,6 +223,27 @@ export function NewLeadDialog({
     { value: "SCOOTERS", label: "Patinetas" },
   ];
 
+  const [sourceDropdownOpen, setSourceDropdownOpen] = useState(false);
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+  const [productDropdownOpen, setProductDropdownOpen] = useState(false);
+
+  // Para cada autocomplete, usar un estado para el texto de búsqueda y mostrar el nombre seleccionado cuando el dropdown está cerrado
+  // Fuente
+  const selectedSource = sources?.find((s) => s.id === watchedSourceId);
+  const sourceInputValue = sourceDropdownOpen
+    ? searchSource
+    : selectedSource?.name || "";
+  // Estado
+  const selectedStatus = statuses?.find((s) => s.id === watchedStatusId);
+  const statusInputValue = statusDropdownOpen
+    ? searchStatus
+    : selectedStatus?.name || "";
+  // Producto
+  const selectedProduct = products?.find((p) => p.id === watchedProductId);
+  const productInputValue = productDropdownOpen
+    ? searchProduct
+    : selectedProduct?.name || "";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] bg-background border-border dark:bg-gray-900 dark:border-gray-800">
@@ -393,38 +414,63 @@ export function NewLeadDialog({
                   Fuente <span className="text-red-500">*</span>
                 </Label>
                 <div className="relative">
-                  {isSearchableSources && (
-                    <div className="relative mb-2">
-                      <Input
-                        placeholder="Buscar fuente..."
-                        value={searchSource}
-                        onChange={(e) => setSearchSource(e.target.value)}
-                        className="bg-input dark:bg-gray-800 dark:border-gray-700 pl-8"
-                      />
-                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar fuente..."
+                    value={sourceInputValue}
+                    onChange={(e) => {
+                      setSearchSource(e.target.value);
+                      setSourceDropdownOpen(true);
+                      if (e.target.value === "") setValue("sourceId", "");
+                    }}
+                    className="bg-input dark:bg-gray-800 dark:border-gray-700 mb-2 pl-8"
+                    aria-label="Buscar fuente"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        if (searchSource && filteredSources?.length === 1) {
+                          setValue("sourceId", filteredSources[0].id);
+                          setSearchSource("");
+                          setSourceDropdownOpen(false);
+                          e.preventDefault();
+                        } else if (!searchSource) {
+                          setSourceDropdownOpen(true);
+                        }
+                      }
+                      if (e.key === "ArrowDown") setSourceDropdownOpen(true);
+                    }}
+                    onFocus={() => setSourceDropdownOpen(true)}
+                    autoComplete="off"
+                  />
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  {sourceDropdownOpen && (
+                    <div className="absolute z-20 w-full bg-white border rounded shadow max-h-48 overflow-auto">
+                      {(filteredSources || []).length === 0 && (
+                        <div className="px-3 py-2 text-muted-foreground text-sm">
+                          No hay coincidencias
+                        </div>
+                      )}
+                      {(filteredSources || []).map((source) => (
+                        <div
+                          key={source.id}
+                          className="cursor-pointer px-3 py-2 hover:bg-muted"
+                          onClick={() => {
+                            setValue("sourceId", source.id);
+                            setSearchSource("");
+                            setSourceDropdownOpen(false);
+                          }}
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              setValue("sourceId", source.id);
+                              setSearchSource("");
+                              setSourceDropdownOpen(false);
+                            }
+                          }}
+                        >
+                          {source.name}
+                        </div>
+                      ))}
                     </div>
                   )}
-                  <Select
-                    value={watchedSourceId}
-                    onValueChange={(value) => setValue("sourceId", value)}
-                  >
-                    <SelectTrigger className="bg-input dark:bg-gray-800 dark:border-gray-700">
-                      <SelectValue placeholder="Seleccionar fuente" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-background dark:bg-gray-800 dark:border-gray-700 max-h-[200px]">
-                      {isLoadingSources ? (
-                        <SelectItem value="loading" disabled>
-                          Cargando...
-                        </SelectItem>
-                      ) : (
-                        (filteredSources || sources)?.map((source) => (
-                          <SelectItem key={source.id} value={source.id}>
-                            {source.name}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
                 </div>
                 {errors.sourceId && (
                   <p className="text-red-500 text-xs">
@@ -434,110 +480,71 @@ export function NewLeadDialog({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="companyId">Empresa</Label>
-                <div className="relative">
-                  {isSearchableCompanies && (
-                    <div className="relative mb-2">
-                      <Input
-                        placeholder="Buscar empresa..."
-                        value={searchCompany}
-                        onChange={(e) => setSearchCompany(e.target.value)}
-                        className="bg-input dark:bg-gray-800 dark:border-gray-700 pl-8"
-                      />
-                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                    </div>
-                  )}
-                  <Select
-                    value={watchedCompanyId || "none"}
-                    onValueChange={(value) =>
-                      setValue("companyId", value === "none" ? "" : value)
-                    }
-                  >
-                    <SelectTrigger className="bg-input dark:bg-gray-800 dark:border-gray-700">
-                      <SelectValue placeholder="Seleccionar empresa" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-background dark:bg-gray-800 dark:border-gray-700 max-h-[200px]">
-                      {isLoadingCompanies ? (
-                        <SelectItem value="loading" disabled>
-                          Cargando...
-                        </SelectItem>
-                      ) : (
-                        <>
-                          <SelectItem value="none">Sin empresa</SelectItem>
-                          {(filteredCompanies || companies)?.map(
-                            (company: Company) => (
-                              <SelectItem key={company.id} value={company.id}>
-                                {company.name}
-                              </SelectItem>
-                            )
-                          )}
-                        </>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
                 <Label htmlFor="status">
                   Estado <span className="text-red-500">*</span>
                 </Label>
                 <div className="relative">
-                  {isSearchableStatuses && (
-                    <div className="relative mb-2">
-                      <Input
-                        placeholder="Buscar estado..."
-                        value={searchStatus}
-                        onChange={(e) => setSearchStatus(e.target.value)}
-                        className="bg-input dark:bg-gray-800 dark:border-gray-700 pl-8"
-                      />
-                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar estado..."
+                    value={statusInputValue}
+                    onChange={(e) => {
+                      setSearchStatus(e.target.value);
+                      setStatusDropdownOpen(true);
+                      if (e.target.value === "") setValue("statusId", "");
+                    }}
+                    className="bg-input dark:bg-gray-800 dark:border-gray-700 mb-2 pl-8"
+                    aria-label="Buscar estado"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        if (searchStatus && filteredStatuses?.length === 1) {
+                          setValue("statusId", filteredStatuses[0].id);
+                          setSearchStatus("");
+                          setStatusDropdownOpen(false);
+                          e.preventDefault();
+                        } else if (!searchStatus) {
+                          setStatusDropdownOpen(true);
+                        }
+                      }
+                      if (e.key === "ArrowDown") setStatusDropdownOpen(true);
+                    }}
+                    onFocus={() => setStatusDropdownOpen(true)}
+                    autoComplete="off"
+                  />
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  {statusDropdownOpen && (
+                    <div className="absolute z-20 w-full bg-white border rounded shadow max-h-48 overflow-auto">
+                      {(filteredStatuses || []).length === 0 && (
+                        <div className="px-3 py-2 text-muted-foreground text-sm">
+                          No hay coincidencias
+                        </div>
+                      )}
+                      {(filteredStatuses || []).map((status) => (
+                        <div
+                          key={status.id}
+                          className="cursor-pointer px-3 py-2 hover:bg-muted flex items-center"
+                          onClick={() => {
+                            setValue("statusId", status.id);
+                            setSearchStatus("");
+                            setStatusDropdownOpen(false);
+                          }}
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              setValue("statusId", status.id);
+                              setSearchStatus("");
+                              setStatusDropdownOpen(false);
+                            }
+                          }}
+                        >
+                          <div
+                            className="w-2 h-2 rounded-full mr-2"
+                            style={{ backgroundColor: status.color }}
+                          />
+                          {status.name}
+                        </div>
+                      ))}
                     </div>
                   )}
-                  <Select
-                    value={watchedStatusId}
-                    onValueChange={(value) => setValue("statusId", value)}
-                  >
-                    <SelectTrigger className="bg-input dark:bg-gray-800 dark:border-gray-700">
-                      <SelectValue placeholder="Seleccionar estado">
-                        {watchedStatusId && statuses && (
-                          <div className="flex items-center">
-                            <div
-                              className="w-2 h-2 rounded-full mr-2"
-                              style={{
-                                backgroundColor: statuses.find(
-                                  (s) => s.id === watchedStatusId
-                                )?.color,
-                              }}
-                            />
-                            {
-                              statuses.find((s) => s.id === watchedStatusId)
-                                ?.name
-                            }
-                          </div>
-                        )}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent className="bg-background dark:bg-gray-800 dark:border-gray-700 max-h-[200px]">
-                      {isLoadingStatuses ? (
-                        <SelectItem value="loading" disabled>
-                          Cargando...
-                        </SelectItem>
-                      ) : (
-                        (filteredStatuses || statuses)?.map((status) => (
-                          <SelectItem key={status.id} value={status.id}>
-                            <div className="flex items-center">
-                              <div
-                                className="w-2 h-2 rounded-full mr-2"
-                                style={{ backgroundColor: status.color }}
-                              />
-                              {status.name}
-                            </div>
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
                 </div>
                 {errors.statusId && (
                   <p className="text-red-500 text-xs">
@@ -586,45 +593,63 @@ export function NewLeadDialog({
               <div className="space-y-2">
                 <Label htmlFor="productId">Producto de interés</Label>
                 <div className="relative">
-                  {isSearchableProducts && (
-                    <div className="relative mb-2">
-                      <Input
-                        placeholder="Buscar producto..."
-                        value={searchProduct}
-                        onChange={(e) => setSearchProduct(e.target.value)}
-                        className="bg-input dark:bg-gray-800 dark:border-gray-700 pl-8"
-                      />
-                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar producto..."
+                    value={productInputValue}
+                    onChange={(e) => {
+                      setSearchProduct(e.target.value);
+                      setProductDropdownOpen(true);
+                      if (e.target.value === "") setValue("productId", "");
+                    }}
+                    className="bg-input dark:bg-gray-800 dark:border-gray-700 mb-2 pl-8"
+                    aria-label="Buscar producto"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        if (searchProduct && filteredProducts?.length === 1) {
+                          setValue("productId", filteredProducts[0].id);
+                          setSearchProduct("");
+                          setProductDropdownOpen(false);
+                          e.preventDefault();
+                        } else if (!searchProduct) {
+                          setProductDropdownOpen(true);
+                        }
+                      }
+                      if (e.key === "ArrowDown") setProductDropdownOpen(true);
+                    }}
+                    onFocus={() => setProductDropdownOpen(true)}
+                    autoComplete="off"
+                  />
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  {productDropdownOpen && (
+                    <div className="absolute z-20 w-full bg-white border rounded shadow max-h-48 overflow-auto">
+                      {(filteredProducts || []).length === 0 && (
+                        <div className="px-3 py-2 text-muted-foreground text-sm">
+                          No hay coincidencias
+                        </div>
+                      )}
+                      {(filteredProducts || []).map((product) => (
+                        <div
+                          key={product.id}
+                          className="cursor-pointer px-3 py-2 hover:bg-muted"
+                          onClick={() => {
+                            setValue("productId", product.id);
+                            setSearchProduct("");
+                            setProductDropdownOpen(false);
+                          }}
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              setValue("productId", product.id);
+                              setSearchProduct("");
+                              setProductDropdownOpen(false);
+                            }
+                          }}
+                        >
+                          {product.name}
+                        </div>
+                      ))}
                     </div>
                   )}
-                  <Select
-                    value={watchedProductId || "none"}
-                    onValueChange={(value) =>
-                      setValue("productId", value === "none" ? "" : value)
-                    }
-                  >
-                    <SelectTrigger className="bg-input dark:bg-gray-800 dark:border-gray-700">
-                      <SelectValue placeholder="Seleccionar producto" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-background dark:bg-gray-800 dark:border-gray-700 max-h-[200px]">
-                      {isLoadingProducts ? (
-                        <SelectItem value="loading" disabled>
-                          Cargando...
-                        </SelectItem>
-                      ) : (
-                        <>
-                          <SelectItem value="none">Sin producto</SelectItem>
-                          {(filteredProducts || products)?.map(
-                            (product: Product) => (
-                              <SelectItem key={product.id} value={product.id}>
-                                {product.name}
-                              </SelectItem>
-                            )
-                          )}
-                        </>
-                      )}
-                    </SelectContent>
-                  </Select>
                 </div>
               </div>
 

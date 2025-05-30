@@ -475,6 +475,9 @@ export interface LeadsListProps {
   canEdit?: boolean;
   canDelete?: boolean;
   currentUser?: any;
+  showSelectionColumn?: boolean;
+  selectedLeads?: string[];
+  onLeadSelect?: (leadId: string, isSelected: boolean) => void;
 }
 
 export function LeadsList({
@@ -487,6 +490,9 @@ export function LeadsList({
   canEdit = false,
   canDelete = false,
   currentUser,
+  showSelectionColumn = false,
+  selectedLeads = [],
+  onLeadSelect,
 }: LeadsListProps) {
   const { data, isLoading, isError } = useLeadsQuery({
     assignedToId,
@@ -639,14 +645,44 @@ export function LeadsList({
 
   return (
     <div className="space-y-4">
-      {filteredLeads.map((lead) => (
-        <LeadCard
-          key={lead.id}
-          lead={lead}
-          onLeadUpdated={handleLeadUpdated}
-          currentUser={currentUser}
-        />
-      ))}
+      {isLoading ? (
+        // Mostrar skeletons mientras carga
+        Array.from({ length: 3 }).map((_, index) => (
+          <LeadCardSkeleton key={index} />
+        ))
+      ) : filteredLeads.length === 0 ? (
+        // Mostrar mensaje cuando no hay leads
+        <div className="text-center py-10">
+          <h3 className="text-lg font-medium">No hay leads disponibles</h3>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">
+            No se encontraron leads con los criterios actuales.
+          </p>
+        </div>
+      ) : (
+        // Mostrar lista de leads
+        <div className="space-y-4">
+          {filteredLeads.map((lead) => (
+            <div key={lead.id} className="flex items-center gap-4">
+              {showSelectionColumn && (
+                <input
+                  type="checkbox"
+                  checked={selectedLeads.includes(lead.id)}
+                  onChange={(e) => onLeadSelect?.(lead.id, e.target.checked)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-5 h-5 rounded border-gray-300 dark:border-gray-600"
+                />
+              )}
+              <div className="flex-1">
+                <LeadCard
+                  lead={lead}
+                  onLeadUpdated={handleLeadUpdated}
+                  currentUser={currentUser}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

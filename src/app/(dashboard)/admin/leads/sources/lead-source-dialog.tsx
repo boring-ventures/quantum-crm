@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -216,30 +216,108 @@ export function LeadSourceDialog({
             <FormField
               control={form.control}
               name="categoryId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Categoría</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value || "none"}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccione una categoría (opcional)" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="none">Sin categoría</SelectItem>
-                      {activeCategories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                const [search, setSearch] = useState("");
+                const [dropdownOpen, setDropdownOpen] = useState(false);
+                const inputRef = useRef<HTMLInputElement>(null);
+                const filteredCategories = activeCategories.filter((category) =>
+                  category.name.toLowerCase().includes(search.toLowerCase())
+                );
+
+                // Obtener la categoría seleccionada
+                const selectedCategory = activeCategories.find(
+                  (c) => c.id === field.value
+                );
+                const categoryInputValue = dropdownOpen
+                  ? search
+                  : selectedCategory?.name || "";
+
+                // Manejar selección rápida con Enter
+                const handleInputKeyDown = (
+                  e: React.KeyboardEvent<HTMLInputElement>
+                ) => {
+                  if (e.key === "Enter") {
+                    if (search && filteredCategories.length === 1) {
+                      // Selecciona automáticamente si hay una coincidencia
+                      field.onChange(filteredCategories[0].id);
+                      setSearch("");
+                      setDropdownOpen(false);
+                      e.preventDefault();
+                    } else if (!search) {
+                      // Si está vacío, abre el dropdown
+                      setDropdownOpen(true);
+                    }
+                  }
+                  if (e.key === "ArrowDown") {
+                    setDropdownOpen(true);
+                  }
+                };
+
+                // Selección con click
+                const handleSelect = (id: string) => {
+                  field.onChange(id);
+                  setSearch("");
+                  setDropdownOpen(false);
+                  if (inputRef.current) inputRef.current.blur();
+                };
+
+                return (
+                  <FormItem>
+                    <FormLabel>Categoría de Fuente</FormLabel>
+                    <div className="relative">
+                      <Input
+                        ref={inputRef}
+                        placeholder="Buscar categoría..."
+                        value={categoryInputValue}
+                        onChange={(e) => {
+                          setSearch(e.target.value);
+                          setDropdownOpen(true);
+                          if (e.target.value === "") field.onChange("none");
+                        }}
+                        className="mb-2"
+                        aria-label="Buscar categoría de fuente"
+                        onKeyDown={handleInputKeyDown}
+                        onFocus={() => setDropdownOpen(true)}
+                        autoComplete="off"
+                      />
+                      {dropdownOpen && (
+                        <div className="absolute z-20 w-full bg-white border rounded shadow max-h-48 overflow-auto">
+                          <div
+                            className="cursor-pointer px-3 py-2 hover:bg-muted"
+                            onClick={() => handleSelect("none")}
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handleSelect("none");
+                            }}
+                          >
+                            Sin categoría de fuente
+                          </div>
+                          {filteredCategories.length === 0 && (
+                            <div className="px-3 py-2 text-muted-foreground text-sm">
+                              No hay coincidencias
+                            </div>
+                          )}
+                          {filteredCategories.map((category) => (
+                            <div
+                              key={category.id}
+                              className="cursor-pointer px-3 py-2 hover:bg-muted"
+                              onClick={() => handleSelect(category.id)}
+                              tabIndex={0}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter")
+                                  handleSelect(category.id);
+                              }}
+                            >
+                              {category.name}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
             />
             <FormField
               control={form.control}

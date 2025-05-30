@@ -45,8 +45,6 @@ export default function LeadsPage() {
   const { toast } = useToast();
   const { user: currentUser, isLoading: isLoadingCurrentUser } = useUserStore();
 
-  console.log("currentUser LeadsPage: ", currentUser);
-
   // Verificar los permisos y scope para leads
   const canViewLeads = hasPermission(currentUser, "leads", "view");
   const canCreateLeads = hasPermission(currentUser, "leads", "create");
