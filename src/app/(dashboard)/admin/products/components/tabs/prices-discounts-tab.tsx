@@ -135,19 +135,26 @@ export function PricesDiscountsTab({
                   : "Seleccionar fecha"}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <Calendar
-                mode="single"
-                selected={date}
-                onSelect={(d) => {
-                  setDate(d);
-                  updateFormData({
-                    validUntil: d ? d.toISOString().split("T")[0] : null,
-                  });
-                }}
-                initialFocus
-                disabled={(d) => d < new Date()}
-              />
+            <PopoverContent
+              className="w-auto p-0"
+              onOpenAutoFocus={(e) => e.preventDefault()}
+              onCloseAutoFocus={(e) => e.preventDefault()}
+            >
+              <div style={{ pointerEvents: "auto" }}>
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={(d) => {
+                    setDate(d);
+                    updateFormData({
+                      validUntil: d ? d.toISOString().split("T")[0] : null,
+                    });
+                  }}
+                  initialFocus
+                  disabled={(d) => d < new Date()}
+                  style={{ pointerEvents: "auto" }}
+                />
+              </div>
             </PopoverContent>
           </Popover>
         </div>

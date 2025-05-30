@@ -28,6 +28,11 @@ interface CreateReservationPayload {
   reservationContractUrl?: string;
   vehicleDetails?: string;
   additionalNotes?: string;
+  reservationProducts: {
+    productId: string;
+    quantity: number;
+    price: number;
+  }[];
 }
 
 // Obtener reserva por id de lead

@@ -29,14 +29,15 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useToast } from "@/components/ui/use-toast";
+import { QuotationProductsTable } from "./quotation-products-table";
 import {
-  useProducts,
   useCreateReservationMutation,
   useLeadReservation,
   useLeadQuotation,
   useQuotationProducts,
 } from "@/lib/hooks";
 import { uploadDocument } from "@/lib/supabase/upload-document";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface ReservationDialogProps {
   open: boolean;
@@ -54,7 +55,6 @@ export function ReservationDialog({
   onComplete,
 }: ReservationDialogProps) {
   const { toast } = useToast();
-  const { data: products, isLoading: productsLoading } = useProducts();
   const { data: existingReservation, isLoading: reservationLoading } =
     useLeadReservation(leadId);
   const { data: existingQuotation } = useLeadQuotation(leadId);
@@ -63,17 +63,18 @@ export function ReservationDialog({
   );
   const createReservationMutation = useCreateReservationMutation();
 
-  // Estado para productos
-  const [productId, setProductId] = useState("");
-  const [quantity, setQuantity] = useState(1);
-  const [totalPrice, setTotalPrice] = useState("");
-  const [vehicleDetails, setVehicleDetails] = useState("");
-
   // Estado para datos de reserva
   const [reservationAmount, setReservationAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(undefined);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [vehicleDetails, setVehicleDetails] = useState("");
+  const [notes, setNotes] = useState("");
+
+  // Estado para productos modificados
+  const [modifiedProducts, setModifiedProducts] = useState<{
+    [key: string]: number;
+  }>({});
 
   // Estado para documentos
   const [formDocument, setFormDocument] = useState<File | null>(null);
@@ -91,38 +92,17 @@ export function ReservationDialog({
     "Ningún archivo seleccionado"
   );
 
-  const [notes, setNotes] = useState("");
-
   // Estado para carga
   const [isUploading, setIsUploading] = useState(false);
 
-  // Autocompletar producto/cantidad desde la cotización si existe y si el usuario no ha seleccionado nada
-  useEffect(() => {
-    if (
-      open &&
-      quotationProducts &&
-      quotationProducts.length > 0 &&
-      !productId // solo si el usuario no ha seleccionado
-    ) {
-      setProductId(quotationProducts[0].id);
-      setQuantity(quotationProducts[0].quantity);
-      setTotalPrice(quotationProducts[0].price.toString());
-    }
-  }, [open, quotationProducts]);
+  const handlePriceChange = (productId: string, newPrice: number) => {
+    setModifiedProducts((prev) => ({ ...prev, [productId]: newPrice }));
+  };
 
-  // Manejar selección de producto
-  const handleProductChange = (productId: string) => {
-    setProductId(productId);
-
-    // Autocompletar el precio si el producto existe
-    if (products) {
-      const selectedProductData = products.find((p: any) => p.id === productId);
-      if (selectedProductData && selectedProductData.price) {
-        setTotalPrice(selectedProductData.price.toString());
-      } else {
-        setTotalPrice("");
-      }
-    }
+  // Handler mejorado para selección de fecha
+  const handleDateSelect = (date: Date | undefined) => {
+    setDeliveryDate(date);
+    setCalendarOpen(false);
   };
 
   // Manejadores para subir archivos
@@ -164,8 +144,8 @@ export function ReservationDialog({
 
   // Validar el formulario
   const isFormValid =
-    productId &&
-    parseFloat(totalPrice) > 0 &&
+    quotationProducts &&
+    quotationProducts.length > 0 &&
     parseFloat(reservationAmount) > 0 &&
     paymentMethod &&
     deliveryDate &&
@@ -174,7 +154,7 @@ export function ReservationDialog({
 
   // Manejar envío del formulario
   const handleSubmit = async () => {
-    if (!isFormValid) return;
+    if (!isFormValid || !quotationProducts) return;
 
     setIsUploading(true);
 
@@ -184,7 +164,7 @@ export function ReservationDialog({
       let depositReceiptUrl = "";
       let reservationContractUrl = "";
 
-      // 1. Subir el formulario de reserva (requerido)
+      // 1. Subir documentos
       if (formDocument) {
         const formDocUpload = await uploadDocument(
           formDocument,
@@ -194,7 +174,6 @@ export function ReservationDialog({
         reservationFormUrl = formDocUpload.url;
       }
 
-      // 2. Subir el comprobante de depósito (requerido)
       if (depositDocument) {
         const depositDocUpload = await uploadDocument(
           depositDocument,
@@ -204,7 +183,6 @@ export function ReservationDialog({
         depositReceiptUrl = depositDocUpload.url;
       }
 
-      // 3. Subir el contrato de reserva (opcional)
       if (contractDocument) {
         const contractDocUpload = await uploadDocument(
           contractDocument,
@@ -214,41 +192,43 @@ export function ReservationDialog({
         reservationContractUrl = contractDocUpload.url;
       }
 
-      // 4. Crear la reserva
+      // 2. Crear la reserva
       await createReservationMutation.mutateAsync({
         leadId,
-        quotationId: existingQuotation?.id,
+        quotationId: existingQuotation?.id || "",
         amount: parseFloat(reservationAmount),
-        paymentMethod: paymentMethod,
-        deliveryDate: deliveryDate as Date,
-        reservationFormUrl,
-        depositReceiptUrl,
-        reservationContractUrl,
+        paymentMethod,
+        deliveryDate,
         vehicleDetails,
         additionalNotes: notes,
+        reservationFormUrl,
+        depositReceiptUrl,
+        reservationContractUrl: reservationContractUrl || undefined,
+        reservationProducts: quotationProducts.map((product) => ({
+          productId: product.id,
+          quantity: product.quantity,
+          price: modifiedProducts[product.id] || product.price,
+        })),
       });
 
-      // 5. Mostrar mensaje de éxito
+      // 3. Mostrar mensaje de éxito
       toast({
-        title: "Reserva registrada",
-        description: "La reserva se ha registrado correctamente",
-        variant: "default",
+        title: "Reserva creada",
+        description: "La reserva se ha creado correctamente",
       });
 
-      // 6. Completar el proceso
+      // 4. Completar el proceso
       if (onComplete) {
         onComplete();
       }
 
-      // 7. Cerrar el diálogo
+      // 5. Cerrar el diálogo
       onClose();
     } catch (error) {
-      console.error("Error al crear reserva:", error);
-
+      console.error("Error al crear la reserva:", error);
       toast({
         title: "Error",
-        description:
-          error instanceof Error ? error.message : "Error al crear la reserva",
+        description: "No se pudo crear la reserva",
         variant: "destructive",
       });
     } finally {
@@ -258,295 +238,247 @@ export function ReservationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl">
-            Registrar reserva para {leadName}
-          </DialogTitle>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Ingresa los detalles del pago de reserva
-          </p>
+          <DialogTitle>Nueva Reserva - {leadName}</DialogTitle>
         </DialogHeader>
 
-        {productsLoading || reservationLoading ? (
-          <div className="flex flex-col items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-gray-400 mb-2" />
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Cargando...
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-8 mt-4 pb-2">
-            {/* Datos del producto */}
-            <div>
-              <h3 className="text-lg font-medium mb-4">Datos del producto</h3>
-
-              <div className="space-y-4">
-                <div>
-                  <Label>
-                    Producto <span className="text-red-500">*</span>
-                  </Label>
-                  <Select value={productId} onValueChange={handleProductChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar producto" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {products?.map((product: any) => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label>
-                      Cantidad <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      value={quantity}
-                      onChange={(e) =>
-                        setQuantity(parseInt(e.target.value) || 1)
-                      }
-                      disabled={true} // Cantidad fija en 1 por ahora
-                    />
-                  </div>
-                  <div>
-                    <Label>
-                      Precio total <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={totalPrice}
-                      onChange={(e) => setTotalPrice(e.target.value)}
-                      placeholder="$ 0.00"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label>Detalles del vehículo</Label>
-                  <Textarea
-                    placeholder="Color, características especiales, etc."
-                    value={vehicleDetails}
-                    onChange={(e) => setVehicleDetails(e.target.value)}
-                    className="min-h-[80px]"
-                  />
-                </div>
-              </div>
+        <div className="space-y-8">
+          {/* Tabla de productos de la cotización */}
+          {quotationProducts && quotationProducts.length > 0 ? (
+            <QuotationProductsTable
+              products={quotationProducts.map((product) => ({
+                ...product,
+                price: modifiedProducts[product.id] || product.price,
+              }))}
+              onPriceChange={handlePriceChange}
+            />
+          ) : (
+            <div className="text-center text-sm text-muted-foreground py-4">
+              No hay productos en la cotización
             </div>
+          )}
 
-            {/* Detalles de la reserva */}
-            <div>
-              <h3 className="text-lg font-medium mb-4">
-                Detalles de la reserva
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>
-                    Monto de reserva <span className="text-red-500">*</span>
+          {/* Detalles de la reserva */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg font-medium">
+                Detalles de la reserva <span className="text-red-500">*</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Monto de reserva */}
+                <div className="space-y-2">
+                  <Label htmlFor="reservationAmount">
+                    Monto de Reserva <span className="text-red-500">*</span>
                   </Label>
                   <Input
-                    type="text"
+                    id="reservationAmount"
+                    type="number"
                     value={reservationAmount}
                     onChange={(e) => setReservationAmount(e.target.value)}
-                    placeholder="$ 0.00"
+                    placeholder="0.00"
+                    step="0.01"
+                    min="0"
                   />
                 </div>
-                <div>
-                  <Label>
-                    Método de pago <span className="text-red-500">*</span>
+
+                {/* Método de pago */}
+                <div className="space-y-2">
+                  <Label htmlFor="paymentMethod">
+                    Método de Pago <span className="text-red-500">*</span>
                   </Label>
                   <Select
                     value={paymentMethod}
                     onValueChange={setPaymentMethod}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar método de pago" />
+                      <SelectValue placeholder="Seleccionar método" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="CASH">Efectivo</SelectItem>
-                      <SelectItem value="CARD">
-                        Tarjeta de crédito/débito
-                      </SelectItem>
-                      <SelectItem value="TRANSFER">
-                        Transferencia bancaria
-                      </SelectItem>
-                      <SelectItem value="CHECK">Cheque</SelectItem>
-                      <SelectItem value="FINANCING">Financiamiento</SelectItem>
+                      <SelectItem value="TRANSFER">Transferencia</SelectItem>
+                      <SelectItem value="CARD">Tarjeta</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
-              <div className="mt-4">
+              {/* Fecha de entrega - CALENDARIO CORREGIDO */}
+              <div className="space-y-2">
                 <Label>
-                  Fecha de entrega <span className="text-red-500">*</span>
+                  Fecha de Entrega <span className="text-red-500">*</span>
                 </Label>
                 <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-full justify-start text-left font-normal"
+                      className={`w-full justify-start text-left font-normal ${
+                        !deliveryDate && "text-muted-foreground"
+                      }`}
+                      onClick={() => setCalendarOpen(!calendarOpen)}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {deliveryDate ? (
-                        format(deliveryDate, "PPP", { locale: es })
-                      ) : (
-                        <span>Seleccionar fecha</span>
-                      )}
+                      {deliveryDate
+                        ? format(deliveryDate, "PPP", { locale: es })
+                        : "Seleccionar fecha"}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={deliveryDate}
-                      onSelect={(date) => {
-                        setDeliveryDate(date);
-                        setCalendarOpen(false);
-                      }}
-                      initialFocus
-                    />
+                  <PopoverContent
+                    className="w-auto p-0"
+                    align="start"
+                    side="bottom"
+                    sideOffset={4}
+                    style={{ zIndex: 9999 }}
+                    onOpenAutoFocus={(e) => e.preventDefault()}
+                    onCloseAutoFocus={(e) => e.preventDefault()}
+                  >
+                    <div style={{ pointerEvents: "auto" }}>
+                      <Calendar
+                        mode="single"
+                        selected={deliveryDate}
+                        onSelect={handleDateSelect}
+                        disabled={(date) => {
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          return date < today;
+                        }}
+                        initialFocus
+                        locale={es}
+                        className="rounded-md border-0"
+                        style={{ pointerEvents: "auto" }}
+                      />
+                    </div>
                   </PopoverContent>
                 </Popover>
               </div>
-            </div>
 
-            {/* Documentos */}
-            <div>
-              <h3 className="text-lg font-medium mb-4">Documentos</h3>
+              {/* Detalles del vehículo */}
+              <div className="space-y-2">
+                <Label htmlFor="vehicleDetails">Detalles del Vehículo</Label>
+                <Input
+                  id="vehicleDetails"
+                  value={vehicleDetails}
+                  onChange={(e) => setVehicleDetails(e.target.value)}
+                  placeholder="Ej: Color, características especiales"
+                />
+              </div>
+            </CardContent>
+          </Card>
 
+          {/* Documentos */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg font-medium">
+                Documentos <span className="text-red-500">*</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
               <div className="space-y-4">
-                <div>
-                  <Label className="block mb-2">
-                    Formulario de reserva{" "}
+                <div className="space-y-2">
+                  <Label>
+                    Formulario de Reserva{" "}
                     <span className="text-red-500">*</span>
                   </Label>
                   <div className="flex items-center gap-2">
-                    <div className="border rounded-md p-3 flex-1 text-sm text-gray-500 dark:text-gray-400">
-                      {formDocumentName}
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="shrink-0"
-                      onClick={() =>
-                        document.getElementById("form-upload")?.click()
-                      }
-                      disabled={isUploading}
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Subir
-                    </Button>
-                    <input
-                      id="form-upload"
+                    <Input
                       type="file"
-                      className="hidden"
-                      accept=".pdf,.doc,.docx"
                       onChange={handleFormDocUpload}
-                      disabled={isUploading}
+                      className="hidden"
+                      id="formDoc"
+                      accept=".pdf,.doc,.docx"
                     />
+                    <Label
+                      htmlFor="formDoc"
+                      className="cursor-pointer flex items-center gap-2 px-4 py-2 border rounded-md hover:bg-gray-50 transition-colors"
+                    >
+                      <Upload className="h-4 w-4" />
+                      Subir archivo
+                    </Label>
+                    <span className="text-sm text-gray-500 truncate max-w-xs">
+                      {formDocumentName}
+                    </span>
                   </div>
                 </div>
 
-                <div>
-                  <Label className="block mb-2">
-                    Comprobante de depósito{" "}
+                <div className="space-y-2">
+                  <Label>
+                    Comprobante de Depósito{" "}
                     <span className="text-red-500">*</span>
                   </Label>
                   <div className="flex items-center gap-2">
-                    <div className="border rounded-md p-3 flex-1 text-sm text-gray-500 dark:text-gray-400">
-                      {depositDocumentName}
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="shrink-0"
-                      onClick={() =>
-                        document.getElementById("deposit-upload")?.click()
-                      }
-                      disabled={isUploading}
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Subir
-                    </Button>
-                    <input
-                      id="deposit-upload"
+                    <Input
                       type="file"
-                      className="hidden"
-                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                       onChange={handleDepositDocUpload}
-                      disabled={isUploading}
+                      className="hidden"
+                      id="depositDoc"
+                      accept=".pdf,.jpg,.jpeg,.png"
                     />
+                    <Label
+                      htmlFor="depositDoc"
+                      className="cursor-pointer flex items-center gap-2 px-4 py-2 border rounded-md hover:bg-gray-50 transition-colors"
+                    >
+                      <Upload className="h-4 w-4" />
+                      Subir archivo
+                    </Label>
+                    <span className="text-sm text-gray-500 truncate max-w-xs">
+                      {depositDocumentName}
+                    </span>
                   </div>
                 </div>
 
-                <div>
-                  <Label className="block mb-2">Contrato de reserva</Label>
+                <div className="space-y-2">
+                  <Label>Contrato de Reserva (Opcional)</Label>
                   <div className="flex items-center gap-2">
-                    <div className="border rounded-md p-3 flex-1 text-sm text-gray-500 dark:text-gray-400">
-                      {contractDocumentName}
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="shrink-0"
-                      onClick={() =>
-                        document.getElementById("contract-upload")?.click()
-                      }
-                      disabled={isUploading}
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Subir
-                    </Button>
-                    <input
-                      id="contract-upload"
+                    <Input
                       type="file"
-                      className="hidden"
-                      accept=".pdf,.doc,.docx"
                       onChange={handleContractDocUpload}
-                      disabled={isUploading}
+                      className="hidden"
+                      id="contractDoc"
+                      accept=".pdf,.doc,.docx"
                     />
+                    <Label
+                      htmlFor="contractDoc"
+                      className="cursor-pointer flex items-center gap-2 px-4 py-2 border rounded-md hover:bg-gray-50 transition-colors"
+                    >
+                      <Upload className="h-4 w-4" />
+                      Subir archivo
+                    </Label>
+                    <span className="text-sm text-gray-500 truncate max-w-xs">
+                      {contractDocumentName}
+                    </span>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Notas adicionales */}
-            <div>
-              <h3 className="text-lg font-medium mb-4">Notas adicionales</h3>
-              <Textarea
-                placeholder="Detalles adicionales sobre la reserva..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="min-h-[100px]"
-              />
-            </div>
-          </div>
-        )}
+              {/* Notas adicionales */}
+              <div className="space-y-2">
+                <Label htmlFor="notes">Notas Adicionales</Label>
+                <Textarea
+                  id="notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Agregar notas o comentarios adicionales"
+                  rows={3}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-        <DialogFooter className="mt-6">
+        <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onClose} disabled={isUploading}>
             Cancelar
           </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={!isFormValid || isUploading}
-            className="relative"
-          >
+          <Button onClick={handleSubmit} disabled={!isFormValid || isUploading}>
             {isUploading ? (
               <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Procesando...
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creando reserva...
               </>
             ) : (
-              "Registrar reserva"
+              "Crear Reserva"
             )}
           </Button>
         </DialogFooter>

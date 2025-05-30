@@ -253,13 +253,20 @@ export function TaskTypeDialog({
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <CalendarComponent
-                      mode="single"
-                      selected={date}
-                      onSelect={setDate}
-                      initialFocus
-                    />
+                  <PopoverContent
+                    className="w-auto p-0"
+                    onOpenAutoFocus={(e) => e.preventDefault()}
+                    onCloseAutoFocus={(e) => e.preventDefault()}
+                  >
+                    <div style={{ pointerEvents: "auto" }}>
+                      <CalendarComponent
+                        mode="single"
+                        selected={date}
+                        onSelect={setDate}
+                        initialFocus
+                        style={{ pointerEvents: "auto" }}
+                      />
+                    </div>
                   </PopoverContent>
                 </Popover>
               </div>

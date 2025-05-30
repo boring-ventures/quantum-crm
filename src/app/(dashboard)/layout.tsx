@@ -1,12 +1,9 @@
-"use client";
-
-import { useEffect } from "react";
-import { useUserStore } from "@/store/userStore";
+import { Suspense } from "react";
 import { DashboardLayoutClient } from "@/components/dashboard/dashboard-layout-client";
-import { auth } from "@/lib/auth";
+import { AuthProvider } from "@/components/auth/auth-provider";
 import Link from "next/link";
 
-// Componente estático para errores de autenticación - sin redirecciones
+// Componente estático para errores de autenticación
 function AuthError() {
   return (
     <div className="flex items-center justify-center h-screen bg-gray-900">
@@ -29,26 +26,21 @@ function AuthError() {
   );
 }
 
+// Loading fallback minimalista
+function LoadingFallback() {
+  return null;
+}
+
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user, fetchUser, isLoading } = useUserStore();
-
-  useEffect(() => {
-    if (!user && !isLoading) {
-      fetchUser();
-    }
-  }, []);
-
-  if (isLoading) {
-    return <div>Cargando...</div>;
-  }
-
-  if (!user?.roleId) {
-    return <AuthError />;
-  }
-
-  return <DashboardLayoutClient>{children}</DashboardLayoutClient>;
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <AuthProvider>
+        <DashboardLayoutClient>{children}</DashboardLayoutClient>
+      </AuthProvider>
+    </Suspense>
+  );
 }
