@@ -14,26 +14,37 @@ interface UserState {
 
 export const useUserStore = create<UserState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       isLoading: false,
       error: null,
       fetchUser: async () => {
+        if (get().user || get().isLoading) return;
+
         set({ isLoading: true, error: null });
         try {
           const user = await getCurrentUser();
-          set({ user, isLoading: false });
+          if (!get().user) {
+            set({ user, isLoading: false });
+          }
         } catch (error) {
           set({ error: (error as Error).message, isLoading: false });
         }
       },
-      setUser: (user) => set({ user }),
-      clearUser: () => set({ user: null, error: null }),
+      setUser: (user) => set({ user, isLoading: false, error: null }),
+      clearUser: () => set({ user: null, error: null, isLoading: false }),
     }),
     {
       name: "user-storage",
-      // Solo persistimos el usuario, no el estado de carga o errores
-      partialize: (state) => ({ user: state.user }),
+      partialize: (state) => ({
+        user: state.user,
+        error: state.error,
+      }),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.isLoading = false;
+        }
+      },
     }
   )
 );
