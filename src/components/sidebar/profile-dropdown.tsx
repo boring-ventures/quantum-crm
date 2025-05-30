@@ -16,10 +16,12 @@ import { Button } from "@/components/ui/button";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/providers/auth-provider";
+import { useUserStore } from "@/store/userStore";
 
 export function ProfileDropdown() {
   const { profile, user, isLoading } = useCurrentUser();
   const { signOut } = useAuth();
+  const { clearUser } = useUserStore();
 
   if (isLoading) {
     return (
@@ -110,8 +112,10 @@ export function ProfileDropdown() {
           onClick={async () => {
             try {
               await signOut();
+              clearUser();
             } catch (error) {
               console.error("Error al cerrar sesión:", error);
+              clearUser();
               window.location.href = "/sign-in";
             }
           }}

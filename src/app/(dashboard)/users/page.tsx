@@ -66,6 +66,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import type { User } from "@/types/user";
+import { hasPermission } from "@/lib/utils/permissions";
+import { useUserStore } from "@/store/userStore";
 
 // Componente de diálogo para restablecer contraseña
 function ResetPasswordDialog({ open, onClose, user, onSuccess }) {
@@ -168,6 +170,17 @@ function ResetPasswordDialog({ open, onClose, user, onSuccess }) {
     }
   };
 
+  const copyCredentialsToClipboard = () => {
+    if (!user) return;
+    let text = `Nombre: ${user.name}\nEmail: ${user.email}\nContraseña: ${password}\nRol: ${user.userRole?.name || user.role}`;
+    if (user.country) text += `\nPaís: ${user.country}`;
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Copiado",
+      description: "Credenciales copiadas al portapapeles",
+    });
+  };
+
   const handleCloseCredentials = () => {
     setShowCredentials(false);
     setPassword("");
@@ -219,6 +232,13 @@ function ResetPasswordDialog({ open, onClose, user, onSuccess }) {
           <DialogFooter className="flex flex-col sm:flex-row gap-2">
             <Button onClick={downloadAsImage} className="w-full sm:w-auto">
               Descargar como imagen
+            </Button>
+            <Button
+              onClick={copyCredentialsToClipboard}
+              variant="secondary"
+              className="w-full sm:w-auto"
+            >
+              Copiar credenciales
             </Button>
             <Button
               onClick={handleCloseCredentials}
@@ -303,21 +323,6 @@ const useUsers = (includeDeleted: boolean = false) => {
   });
 };
 
-// Hook para obtener el usuario actual y sus permisos
-const useCurrentUser = () => {
-  return useQuery({
-    queryKey: ["currentUser"],
-    queryFn: async () => {
-      const response = await fetch("/api/users/me");
-      if (!response.ok) {
-        throw new Error("Error al obtener usuario actual");
-      }
-      const data = await response.json();
-      return data.user || null;
-    },
-  });
-};
-
 // Componente de confirmación para eliminar usuario
 function DeleteUserConfirmation({ isOpen, onClose, onConfirm, userName }) {
   return (
@@ -352,8 +357,7 @@ export default function UsersPage() {
   const [deleteConfirmUser, setDeleteConfirmUser] = useState<User | null>(null);
   const [showDeleted, setShowDeleted] = useState(false);
 
-  const { data: currentUser, isLoading: isLoadingCurrentUser } =
-    useCurrentUser();
+  const { user: currentUser, isLoading: isLoadingCurrentUser } = useUserStore();
   const { data: users = [], isLoading } = useUsers(showDeleted);
   const queryClient = useQueryClient();
 
@@ -398,10 +402,42 @@ export default function UsersPage() {
   };
 
   // Función para procesar la eliminación de un usuario
-  const processDeleteUser = () => {
+  const processDeleteUser = async () => {
     if (deleteConfirmUser) {
-      deleteUserMutation.mutate(deleteConfirmUser.id);
-      setDeleteConfirmUser(null);
+      try {
+        // Verificar si el usuario tiene leads activos
+        const response = await fetch(
+          `/api/users/${deleteConfirmUser.id}/check-leads`
+        );
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Error al verificar leads");
+        }
+
+        if (data.hasActiveLeads) {
+          toast({
+            title: "No se puede eliminar",
+            description:
+              "Este usuario tiene leads activos con ventas pendientes",
+            variant: "destructive",
+          });
+          setDeleteConfirmUser(null);
+          return;
+        }
+
+        // Proceder con la eliminación
+        deleteUserMutation.mutate(deleteConfirmUser.id);
+        setDeleteConfirmUser(null);
+      } catch (error) {
+        console.error("Error:", error);
+        toast({
+          title: "Error",
+          description:
+            error instanceof Error ? error.message : "Error al verificar leads",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -457,8 +493,10 @@ export default function UsersPage() {
             user.userRole?.name === "Super Administrador";
 
           // Deshabilitar acciones para usuarios eliminados o para usuarios inapropiados
-          const canEdit = !user.isDeleted;
-          const canResetPassword = !user.isDeleted;
+          const canEdit =
+            !user.isDeleted && hasPermission(currentUser, "users", "edit");
+          const canResetPassword =
+            !user.isDeleted && hasPermission(currentUser, "users", "edit");
           const canDelete =
             !user.isDeleted &&
             !isSelfUser &&
@@ -478,24 +516,20 @@ export default function UsersPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                  <DropdownMenuItem
-                    onClick={() => (canEdit ? setEditingUser(user) : null)}
-                    className={!canEdit ? "opacity-50 cursor-not-allowed" : ""}
-                  >
-                    <Pencil className="mr-2 h-4 w-4" />
-                    Editar
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() =>
-                      canResetPassword ? setResetPasswordUser(user) : null
-                    }
-                    className={
-                      !canResetPassword ? "opacity-50 cursor-not-allowed" : ""
-                    }
-                  >
-                    <Key className="mr-2 h-4 w-4" />
-                    Restablecer contraseña
-                  </DropdownMenuItem>
+                  {canEdit && (
+                    <DropdownMenuItem onClick={() => setEditingUser(user)}>
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Editar
+                    </DropdownMenuItem>
+                  )}
+                  {canResetPassword && (
+                    <DropdownMenuItem
+                      onClick={() => setResetPasswordUser(user)}
+                    >
+                      <Key className="mr-2 h-4 w-4" />
+                      Restablecer contraseña
+                    </DropdownMenuItem>
+                  )}
                   {!user.isDeleted && (
                     <>
                       <DropdownMenuSeparator />

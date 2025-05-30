@@ -1,0 +1,47 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+description: CRM-specific functionality patterns and error handling standards
+globs: ["src/**/*.{ts,tsx}", "src/app/api/**/*.ts"]
+alwaysApply: true
+---
+
+## CRM Entity Management
+- **Data consistency**: Always validate entity relationships (Lead → Company, Product → Brand)
+- **Status transitions**: Enforce valid state changes (e.g., Lead: NEW → CONTACTED → QUALIFIED)
+- **Audit trail**: Include updatedAt, updatedBy fields when modifying CRM entities
+- **Required fields**: Validate based on entity status (qualified leads need phone + email)
+
+## Error Handling and User Experience
+- **API responses**: Always return structured format: `{ success: boolean, data?: T, error?: string }`
+- **User feedback**: Show immediate feedback for all user actions (toast notifications, loading states)
+- **Graceful degradation**: Handle Prisma/Supabase errors gracefully with user-friendly messages
+- **Validation**: Use Zod schemas for all API inputs and form validation
+
+## UI/UX Consistency
+- **Design system**: Use shadcn/ui components as base, customize for CRM aesthetic
+- **Responsive design**: Mobile-first approach using Tailwind breakpoints
+- **Loading states**: Implement skeleton loaders for all async operations
+- **Accessibility**: Proper ARIA labels, keyboard navigation, focus management
+
+## Bug Fixes and Improvements
+- **Incremental fixes**: Make small, focused changes rather than large refactors
+- **Test locally**: Validate functionality before committing changes
+- **Preserve existing behavior**: When fixing bugs, maintain existing working functionality
+- **Documentation**: Update inline comments for complex business logic
+
+## Forms and Data Handling
+- **Form libraries**: Use react-hook-form for complex forms with validation
+- **Optimistic updates**: Update UI immediately, handle rollback on errors
+- **Auto-save**: Implement for long forms (leads, companies) every 30 seconds
+- **File uploads**: Use Supabase Storage with proper path structure: `{bucket}/{entityType}/{entityId}/{filename}`
+
+## Database and API Patterns
+- **Prisma best practices**: Use transactions for multi-table operations
+- **API structure**: Follow RESTful patterns under src/app/api
+- **Caching**: Leverage TanStack Query for intelligent caching and invalidation
+
+- **Security**: Validate sessions server-side for sensitive operations

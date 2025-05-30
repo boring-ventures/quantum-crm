@@ -2,16 +2,34 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Task } from "@/types/lead";
 
 // Obtener todas las tareas con filtros opcionales
-export const useTasks = ({ assignedToId }: { assignedToId?: string } = {}) => {
+export const useTasks = ({
+  assignedToId,
+  countryId,
+}: {
+  assignedToId?: string;
+  countryId?: string;
+} = {}) => {
   return useQuery<Task[]>({
-    queryKey: ["tasks", assignedToId],
+    queryKey: ["tasks", assignedToId, countryId],
     queryFn: async () => {
       try {
         let url = "/api/tasks/user";
+        const params = new URLSearchParams();
 
         // Si se proporciona assignedToId, agregar como parámetro
         if (assignedToId) {
-          url += `?assignedToId=${assignedToId}`;
+          params.append("assignedToId", assignedToId);
+        }
+
+        // Si se proporciona countryId, agregar como parámetro
+        if (countryId) {
+          params.append("countryId", countryId);
+        }
+
+        // Agregar parámetros a la URL si existen
+        const queryString = params.toString();
+        if (queryString) {
+          url += `?${queryString}`;
         }
 
         const response = await fetch(url);

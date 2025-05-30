@@ -37,6 +37,8 @@ import { RefreshCw } from "lucide-react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import type { Role } from "@/types/role";
 import type { User } from "@/types/user";
+import type { Country } from "@/types/country";
+import { hasPermission } from "@/lib/utils/permissions";
 
 // Hook interno para obtener roles
 function useRoles() {
@@ -68,6 +70,38 @@ function useRoles() {
   }, []);
 
   return { roles, isLoading, error };
+}
+
+// Hook para obtener países
+function useCountries() {
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch("/api/admin/countries");
+
+        if (!response.ok) {
+          throw new Error("Error al obtener países");
+        }
+
+        const data = await response.json();
+        setCountries(data || []);
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error("Error desconocido"));
+        console.error("Error al obtener países:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCountries();
+  }, []);
+
+  return { countries, isLoading, error };
 }
 
 // Función para generar contraseña
@@ -103,6 +137,7 @@ const editUserSchema = z.object({
     .min(8, { message: "La contraseña debe tener al menos 8 caracteres" })
     .optional(),
   roleId: z.string({ required_error: "El rol es obligatorio" }),
+  countryId: z.string().optional(),
   isActive: z.boolean().default(true),
 });
 
@@ -114,6 +149,7 @@ type UserCredentials = {
   email: string;
   password: string;
   role: string;
+  country?: string;
 };
 
 type EditUserFormProps = {
@@ -131,11 +167,21 @@ export function EditUserForm({
 }: EditUserFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { roles, isLoading: isLoadingRoles } = useRoles();
+  const { countries, isLoading: isLoadingCountries } = useCountries();
   const [isResetPassword, setIsResetPassword] = useState(false);
   const [showCredentials, setShowCredentials] = useState(false);
   const [userCredentials, setUserCredentials] =
     useState<UserCredentials | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
+  // Obtener usuario actual para permisos
+  useEffect(() => {
+    fetch("/api/users/me")
+      .then((res) => res.json())
+      .then((data) => setCurrentUser(data.user || null));
+  }, []);
+
+  // Setear valores iniciales de rol y país correctamente
   const form = useForm<EditUserFormValues>({
     resolver: zodResolver(editUserSchema),
     defaultValues: {
@@ -143,9 +189,24 @@ export function EditUserForm({
       name: user.name,
       email: user.email,
       roleId: user.roleId || "",
+      countryId: user.countryId || "none",
       isActive: user.isActive,
     },
   });
+
+  // Si roles ya están cargados y el valor es vacío, setear el primero
+  useEffect(() => {
+    if (!form.getValues("roleId") && roles.length > 0) {
+      form.setValue("roleId", roles[0].id);
+    }
+  }, [roles]);
+
+  // Si countryId es vacío, setear a 'none'
+  useEffect(() => {
+    if (!form.getValues("countryId")) {
+      form.setValue("countryId", "none");
+    }
+  }, [countries]);
 
   const generateRandomPassword = () => {
     const newPassword = generatePassword();
@@ -155,41 +216,40 @@ export function EditUserForm({
   async function onSubmit(data: EditUserFormValues) {
     setIsLoading(true);
     try {
+      // Normalizar countryId
+      const submitData: any = { ...data };
+      if (submitData.countryId === "none") submitData.countryId = undefined;
       // Si no se está cambiando la contraseña y el campo password existe pero está vacío, lo eliminamos
-      if (!isResetPassword && data.password === "") {
-        delete data.password;
+      if (!isResetPassword && submitData.password === "") {
+        delete submitData.password;
       }
-
       const response = await fetch("/api/users", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(submitData),
       });
-
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.error || "Error al actualizar usuario");
       }
-
       const result = await response.json();
-
       // Si se actualizó la contraseña, mostrar credenciales
-      if (isResetPassword && data.password) {
-        // Buscar el nombre del rol
-        const roleName = roles.find((r) => r.id === data.roleId)?.name || "";
-
-        // Guardar credenciales para mostrarlas
+      if (isResetPassword && submitData.password) {
+        const roleName =
+          roles.find((r) => r.id === submitData.roleId)?.name || "";
+        const countryName = submitData.countryId
+          ? countries.find((c) => c.id === submitData.countryId)?.name || ""
+          : undefined;
         setUserCredentials({
           id: result.user.id,
           name: result.user.name,
           email: result.user.email,
-          password: data.password,
+          password: submitData.password,
           role: roleName,
+          country: countryName,
         });
-
-        // Mostrar diálogo de credenciales
         setShowCredentials(true);
       } else {
         toast({
@@ -236,6 +296,17 @@ export function EditUserForm({
           });
         });
     }
+  };
+
+  const copyCredentialsToClipboard = () => {
+    if (!userCredentials) return;
+    let text = `Nombre: ${userCredentials.name}\nEmail: ${userCredentials.email}\nContraseña: ${userCredentials.password}\nRol: ${userCredentials.role}`;
+    if (userCredentials.country) text += `\nPaís: ${userCredentials.country}`;
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Copiado",
+      description: "Credenciales copiadas al portapapeles",
+    });
   };
 
   const handleCloseCredentials = () => {
@@ -344,7 +415,7 @@ export function EditUserForm({
                     <FormLabel>Rol</FormLabel>
                     <Select
                       onValueChange={field.onChange}
-                      defaultValue={field.value}
+                      value={field.value}
                       disabled={isLoadingRoles}
                     >
                       <FormControl>
@@ -360,6 +431,39 @@ export function EditUserForm({
                         ))}
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="countryId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>País</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                      disabled={isLoadingCountries}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona un país" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">Sin país asignado</SelectItem>
+                        {countries?.map((country) => (
+                          <SelectItem key={country.id} value={country.id}>
+                            {country.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      El país es necesario para usuarios con permisos de alcance
+                      "equipo"
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -390,9 +494,11 @@ export function EditUserForm({
                 <Button type="button" variant="outline" onClick={onClose}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? "Actualizando..." : "Actualizar usuario"}
-                </Button>
+                {hasPermission(currentUser, "users", "edit") && (
+                  <Button type="submit" disabled={isLoading}>
+                    {isLoading ? "Actualizando..." : "Actualizar usuario"}
+                  </Button>
+                )}
               </DialogFooter>
             </form>
           </Form>
@@ -434,6 +540,13 @@ export function EditUserForm({
 
                   <span className="font-semibold">Rol:</span>
                   <span>{userCredentials?.role}</span>
+
+                  {userCredentials?.country && (
+                    <>
+                      <span className="font-semibold">País:</span>
+                      <span>{userCredentials.country}</span>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -442,6 +555,13 @@ export function EditUserForm({
           <DialogFooter className="flex flex-col sm:flex-row gap-2">
             <Button onClick={downloadAsImage} className="w-full sm:w-auto">
               Descargar como imagen
+            </Button>
+            <Button
+              onClick={copyCredentialsToClipboard}
+              variant="secondary"
+              className="w-full sm:w-auto"
+            >
+              Copiar credenciales
             </Button>
             <Button
               onClick={handleCloseCredentials}

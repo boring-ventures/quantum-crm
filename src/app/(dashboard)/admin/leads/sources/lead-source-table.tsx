@@ -40,7 +40,7 @@ export function LeadSourceTable({
             <TableHead>Nombre</TableHead>
             <TableHead>Descripción</TableHead>
             <TableHead>Categoría</TableHead>
-            <TableHead>Costo por Lead</TableHead>
+            <TableHead>Costo por Fuente</TableHead>
             <TableHead>Estado</TableHead>
             <TableHead className="text-right">Acciones</TableHead>
           </TableRow>
@@ -61,8 +61,8 @@ export function LeadSourceTable({
                   {source.category?.name || "Sin categoría"}
                 </TableCell>
                 <TableCell>
-                  {source.costPerLead
-                    ? `$${parseFloat(source.costPerLead.toString()).toFixed(2)}`
+                  {source.costPerSource
+                    ? `$${parseFloat(source.costPerSource.toString()).toFixed(2)}`
                     : "N/A"}
                 </TableCell>
                 <TableCell>

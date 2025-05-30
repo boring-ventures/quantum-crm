@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { getCurrentUser } from "@/lib/utils/auth-utils";
+import {
+  checkPermission,
+  getScope,
+  hasPermission,
+} from "@/lib/utils/permissions";
 
 // Esquema de validación para la creación de leads
 const createLeadSchema = z.object({
@@ -21,10 +26,19 @@ const createLeadSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    // Verificar autenticación
-    const session = await auth();
-    if (!session) {
+    // Obtener usuario actual con sus permisos
+    const currentUser = await getCurrentUser();
+
+    if (!currentUser) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    // Verificar permiso de visualización de leads
+    if (!hasPermission(currentUser, "leads", "view")) {
+      return NextResponse.json(
+        { error: "No tienes permiso para ver leads" },
+        { status: 403 }
+      );
     }
 
     // Obtener parámetros de consulta
@@ -37,7 +51,7 @@ export async function GET(request: NextRequest) {
     const assignedTo = searchParams.get("assignedTo");
     const assignedToId = searchParams.get("assignedToId");
 
-    // Construir condiciones de búsqueda
+    // Construir condiciones de búsqueda base
     const where: any = {};
 
     // Búsqueda por texto
@@ -46,7 +60,6 @@ export async function GET(request: NextRequest) {
         { firstName: { contains: search, mode: "insensitive" } },
         { lastName: { contains: search, mode: "insensitive" } },
         { email: { contains: search, mode: "insensitive" } },
-        { company: { contains: search, mode: "insensitive" } },
       ];
     }
 
@@ -55,6 +68,21 @@ export async function GET(request: NextRequest) {
     if (sourceId) where.sourceId = sourceId;
     if (assignedTo) where.assignedTo = assignedTo;
     if (assignedToId) where.assignedToId = assignedToId;
+
+    // Aplicar restricciones basadas en el scope de permisos
+    const viewScope = getScope(currentUser, "leads", "view");
+
+    // Aplicar filtros basados en el scope
+    if (viewScope === "self") {
+      // Solo puede ver sus propios leads
+      where.assignedToId = currentUser.id;
+    } else if (viewScope === "team" && currentUser.countryId) {
+      // Puede ver leads de usuarios de su mismo país
+      where.assignedTo = {
+        countryId: currentUser.countryId,
+      };
+    }
+    // Si viewScope es "all", no aplicamos filtros adicionales
 
     // Consultar leads con paginación
     const [leads, total] = await Promise.all([
@@ -66,7 +94,11 @@ export async function GET(request: NextRequest) {
         include: {
           status: true,
           source: true,
-          assignedTo: true,
+          assignedTo: {
+            include: {
+              country: true,
+            },
+          },
           tags: {
             include: {
               tag: true,
@@ -108,10 +140,19 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Verificar autenticación
-    const session = await auth();
-    if (!session) {
+    // Obtener usuario actual con sus permisos
+    const currentUser = await getCurrentUser();
+
+    if (!currentUser) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    // Verificar permiso de creación de leads
+    if (!hasPermission(currentUser, "leads", "create")) {
+      return NextResponse.json(
+        { error: "No tienes permiso para crear leads" },
+        { status: 403 }
+      );
     }
 
     // Obtener y validar el cuerpo de la solicitud
@@ -137,11 +178,12 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      console.log("Datos validados:", validatedData);
-
       // Verificar existencia de las relaciones
       const [user, status, source] = await Promise.all([
-        prisma.user.findUnique({ where: { id: validatedData.assignedToId } }),
+        prisma.user.findUnique({
+          where: { id: validatedData.assignedToId },
+          include: { country: true },
+        }),
         prisma.leadStatus.findUnique({ where: { id: validatedData.statusId } }),
         prisma.leadSource.findUnique({ where: { id: validatedData.sourceId } }),
       ]);
@@ -173,6 +215,33 @@ export async function POST(request: NextRequest) {
             details: `No existe una fuente con ID ${validatedData.sourceId}`,
           },
           { status: 400 }
+        );
+      }
+
+      // Verificar si el usuario tiene permiso según el scope
+      const createScope = getScope(currentUser, "leads", "create");
+
+      // Si el scope es "self", solo puede asignar leads a sí mismo
+      if (
+        createScope === "self" &&
+        validatedData.assignedToId !== currentUser.id
+      ) {
+        return NextResponse.json(
+          { error: "Solo puedes crear leads asignados a ti mismo" },
+          { status: 403 }
+        );
+      }
+
+      // Si el scope es "team", solo puede asignar leads a usuarios de su país
+      if (
+        createScope === "team" &&
+        currentUser.countryId &&
+        user.countryId &&
+        user.countryId !== currentUser.countryId
+      ) {
+        return NextResponse.json(
+          { error: "Solo puedes crear leads asignados a usuarios de tu país" },
+          { status: 403 }
         );
       }
 

@@ -2,16 +2,39 @@
 
 import { useState } from "react";
 import { DashboardMetrics } from "@/components/dashboard/dashboard-metrics";
-import { PortfolioManagement } from "@/components/dashboard/portfolio-management";
-import { SalesRanking } from "@/components/dashboard/sales-ranking";
 import { DashboardFilters } from "@/components/dashboard/dashboard-filters";
+import { useUserStore } from "@/store/userStore";
+import { useQuery } from "@tanstack/react-query";
 
 export function DashboardContent() {
+  const { user } = useUserStore();
   const [activeFilters, setActiveFilters] = useState({
     company: "all-companies",
     brand: "all-brands",
-    branch: "all-branches",
     business: "all-businesses",
+  });
+
+  // Consulta para métricas del dashboard
+  const { data: metrics } = useQuery({
+    queryKey: ["dashboard-metrics", user?.id, activeFilters],
+    queryFn: async () => {
+      const response = await fetch("/api/dashboard/metrics", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          filters: activeFilters,
+          userId: user?.id,
+          countryId: user?.countryId,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error("Error al cargar métricas");
+      }
+      return response.json();
+    },
+    enabled: !!user,
   });
 
   const handleFilterChange = (filterType: string, value: string) => {
@@ -28,7 +51,7 @@ export function DashboardContent() {
           Tablero de Gestión
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Bienvenido al panel de control de gerencia
+          Bienvenido al panel de control de gerencia, {user?.name}
         </p>
       </div>
 
@@ -38,12 +61,7 @@ export function DashboardContent() {
       />
 
       <div>
-        <DashboardMetrics />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <PortfolioManagement />
-        <SalesRanking />
+        <DashboardMetrics metrics={metrics} />
       </div>
     </div>
   );

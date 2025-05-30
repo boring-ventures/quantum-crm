@@ -38,7 +38,7 @@ export async function GET(
     }
 
     // Obtener el ID del lead desde los parámetros de ruta (await)
-    const { id } = await params;
+    const { id } = params;
 
     // Obtener el lead con sus relaciones
     const lead = await prisma.lead.findUnique({
@@ -62,6 +62,14 @@ export async function GET(
         quotations: true,
         reservations: true,
         sales: true,
+        reassignments: {
+          include: {
+            fromUser: true,
+            toUser: true,
+            reassignedByUser: true,
+          },
+          orderBy: { createdAt: "asc" },
+        },
       },
     });
 

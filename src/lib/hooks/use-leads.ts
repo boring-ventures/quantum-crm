@@ -4,6 +4,7 @@ import type {
   CreateLeadPayload,
   UpdateLeadPayload,
   LeadsResponse,
+  Document,
 } from "@/types/lead";
 
 interface LeadsFilter {
@@ -14,6 +15,7 @@ interface LeadsFilter {
   source?: string;
   assignedTo?: string;
   assignedToId?: string;
+  countryId?: string;
 }
 
 // Consulta de leads con filtros
@@ -30,6 +32,7 @@ export const useLeadsQuery = (filters: LeadsFilter = {}) => {
   if (filters.assignedTo) queryParams.append("assignedTo", filters.assignedTo);
   if (filters.assignedToId)
     queryParams.append("assignedToId", filters.assignedToId);
+  if (filters.countryId) queryParams.append("countryId", filters.countryId);
 
   return useQuery<LeadsResponse>({
     queryKey: ["leads", filters],
@@ -264,5 +267,20 @@ export const useToggleFavoriteMutation = () => {
       queryClient.invalidateQueries({ queryKey: ["leads", variables.leadId] });
       queryClient.invalidateQueries({ queryKey: ["leads"] });
     },
+  });
+};
+
+// Hook para obtener documentos de un lead
+export const useLeadDocuments = (leadId?: string) => {
+  return useQuery<Document[]>({
+    queryKey: ["leadDocuments", leadId],
+    queryFn: async () => {
+      const response = await fetch(`/api/documents?leadId=${leadId}`);
+      if (!response.ok) {
+        throw new Error("Error al obtener documentos del lead");
+      }
+      return response.json();
+    },
+    enabled: !!leadId,
   });
 };

@@ -42,7 +42,9 @@ export function useProducts(
       if (!response.ok) {
         throw new Error("Error al obtener productos");
       }
-      return response.json();
+      const data = await response.json();
+      // Si la respuesta tiene .data, retorna eso, si no, retorna el array directamente
+      return Array.isArray(data) ? data : (data.data ?? []);
     },
   });
 }

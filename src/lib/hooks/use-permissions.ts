@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import { Role } from "@/types/user";
+import { Role } from "@/types/role";
 import { NestedSectionPermissions, SectionPermission } from "@/types/dashboard";
+import {
+  hasPermission as sharedHasPermission,
+  getScope as sharedGetScope,
+  PermissionScope,
+} from "@/lib/utils/permissions";
 
 /**
  * Hook para gestionar los permisos de un usuario basado en su rol
@@ -36,42 +41,31 @@ export function usePermissions(userRole?: Role | null) {
 
   /**
    * Verifica si el usuario tiene un permiso específico
-   * @param sectionKey - Clave de la sección (por ejemplo, 'leads', 'users')
+   * @param sectionKey - Clave de la sección (por ejemplo, 'leads', 'users', 'admin.roles')
    * @param permission - Tipo de permiso ('view', 'create', 'edit', 'delete')
-   * @param subsectionKey - Clave de la subsección (opcional)
    */
   const hasPermission = useCallback(
     (
       sectionKey: string,
-      permission: keyof SectionPermission = "view",
-      subsectionKey?: string
+      permission: keyof SectionPermission = "view"
     ): boolean => {
-      if (!permissions || !permissions.sections) return false;
+      return sharedHasPermission(permissions, sectionKey, permission as string);
+    },
+    [permissions, userRole]
+  );
 
-      // Caso 1: Verificar una subsección
-      if (subsectionKey) {
-        const section = permissions.sections[sectionKey];
-        if (!section || typeof section !== "object") return false;
-
-        // @ts-ignore - Necesitamos acceder dinámicamente
-        const subsection = section[subsectionKey];
-        if (!subsection) return false;
-
-        return !!subsection[permission];
-      }
-
-      // Caso 2: Verificar una sección principal
-      const section = permissions.sections[sectionKey];
-      if (!section) return false;
-
-      if (typeof section === "object" && !Array.isArray(section)) {
-        // Si es un objeto con propiedades de permiso directas
-        if (permission in section) {
-          return !!section[permission as keyof typeof section];
-        }
-      }
-
-      return false;
+  /**
+   * Obtiene el scope de un permiso específico
+   * @param sectionKey - Clave de la sección (por ejemplo, 'leads', 'users')
+   * @param permission - Tipo de permiso ('view', 'create', 'edit', 'delete')
+   * @returns "all" | "team" | "self" | false
+   */
+  const getScope = useCallback(
+    (
+      sectionKey: string,
+      permission: keyof SectionPermission = "view"
+    ): PermissionScope => {
+      return sharedGetScope(permissions, sectionKey, permission as string);
     },
     [permissions]
   );
@@ -92,6 +86,7 @@ export function usePermissions(userRole?: Role | null) {
     loading,
     error,
     hasPermission,
+    getScope,
     getAccessibleSections,
   };
 }

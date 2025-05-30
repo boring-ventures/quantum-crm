@@ -9,8 +9,10 @@ import {
   UserCog,
   Settings2,
   PackageSearch,
+  Globe,
 } from "lucide-react";
 import type { SidebarData } from "../types";
+import { hasPermission } from "@/lib/utils/permissions";
 
 // Datos estáticos del sidebar
 export const sidebarDataStatic: SidebarData = {
@@ -43,7 +45,7 @@ export const sidebarDataStatic: SidebarData = {
           key: "leads",
         },
         {
-          title: "Ventas",
+          title: "Ventas y Reservas",
           url: "/sales",
           icon: ShoppingCart,
           key: "sales",
@@ -92,19 +94,22 @@ export const sidebarDataStatic: SidebarData = {
           key: "admin.products",
           parentKey: "admin",
         },
+        {
+          title: "Países",
+          url: "/admin/countries",
+          icon: Globe,
+          key: "admin.countries",
+          parentKey: "admin",
+        },
       ],
     },
   ],
 };
 
 // Función para filtrar elementos del sidebar basado en permisos
-export function filterSidebarByPermissions(
-  canViewSection: (key: string) => boolean
-): SidebarData {
-  // Si la función canViewSection no es válida, devolver datos estáticos
-  if (typeof canViewSection !== "function") {
-    return { ...sidebarDataStatic };
-  }
+export function filterSidebarByPermissions(user: any): SidebarData {
+  const canViewSection = (sectionKey: string) =>
+    hasPermission(user, sectionKey, "view");
 
   const filteredData = { ...sidebarDataStatic };
 

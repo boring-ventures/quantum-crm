@@ -71,3 +71,34 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// Nuevo método GET para obtener documentos por leadId
+export async function GET(request: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const leadId = searchParams.get("leadId");
+    if (!leadId) {
+      return NextResponse.json(
+        { error: "leadId es requerido" },
+        { status: 400 }
+      );
+    }
+
+    const documents = await prisma.document.findMany({
+      where: { leadId },
+      orderBy: { createdAt: "desc" },
+    });
+    return NextResponse.json(documents);
+  } catch (error) {
+    console.error("Error al obtener documentos:", error);
+    return NextResponse.json(
+      { error: "Error al obtener documentos" },
+      { status: 500 }
+    );
+  }
+}

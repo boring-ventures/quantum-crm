@@ -1,3 +1,43 @@
+[2025-06-25] [Schema] - Añadido modelo LeadReassignment para seguimiento de reasignaciones de leads - [IR]
+- Creado modelo LeadReassignment en schema.prisma con relaciones a Lead y User
+- Implementadas relaciones múltiples con User para fromUser, toUser y reassignedBy
+- Actualizado tipo LeadWithRelations para incluir relación de reasignaciones
+- Modificado componente LeadTimeline para mostrar eventos de reasignación con UI dedicada
+- Añadido icono ArrowRightLeft para eventos de reasignación en la línea de tiempo
+
+[2025-06-25] [Refactor] - Implementado flujo de 3 pasos en el diálogo de creación de leads con UX mejorada - [IR]
+- Refactorizado componente NewLeadDialog para implementar navegación en 3 pasos: Información Personal, Contacto y Negocio
+- Añadido soporte para tema claro/oscuro con clases Tailwind
+- Implementada funcionalidad de búsqueda en dropdowns con más de 5 opciones
+- Añadidos RadioGroups para tipos de contacto y tipos de negocio
+- Reemplazada interfaz plana por un flujo dirigido con botones Siguiente/Crear Lead
+- Eliminado el botón "Guardar y crear otro" conforme a requerimientos
+- Mejorada la validación de formularios entre pasos
+
+[2025-05-22] [Fix] - Corregidos errores de tipado en rutas API de usuarios - [XX]
+- Arreglada ruta de API users/route.ts: Eliminada dependencia de módulo inexistente y corregidos tipos de variables
+- Corregida ruta de API users/[id]/permissions/route.ts para compatibilidad con función hasPermission_user
+- Mejorada transformación de modelos de base de datos a tipos del frontend para validación de permisos
+- Solucionados problemas de tipado con JsonValue para actualización de permisos de usuario
+
+[2023-11-27] [Fix] - Actualizado sistema de permisos para el sidebar con soporte para formato plano - [AI]
+- Rediseñado hook useRolePermissions para trabajar con el nuevo formato plano de permisos
+- Agregados logs detallados para facilitar depuración de problemas con permisos
+- Implementado soporte para valores de permiso 'all', 'team' y 'self' en verificación de acceso
+- Mejorada lógica para secciones anidadas con verificación directa en formato plano
+
+[2023-11-26] [Fix] - Adaptado sistema de validación de permisos para soportar nuevo formato plano - [AI]
+- Modificada función isValidPermissionsObject para validar formato plano de permisos sin sección 'sections'
+- Actualizado endpoint user-permissions para retornar objetos de permisos con nuevo formato 
+- Añadidos logs detallados para mejorar diagnóstico de problemas en la estructura de permisos
+- Corregida respuesta fallback para API de permisos con formato de permisos vacío compatible
+
+[2023-11-25] [Fix] - Corregido error en API de permisos que fallaba al procesar objetos JSON - [AI]
+- Mejorado endpoint /api/roles/permissions para manejar correctamente objetos ya parseados
+- Actualizada función isValidPermissionsObject con mejor validación y mensajes de error
+- Agregados logs detallados para facilitar depuración de errores de permisos
+- Corregido endpoint /api/auth/user-permissions para validar formato de respuesta
+
 [2023-06-02] [Fix] - Mejorado sistema de cierre de sesión utilizando AuthProvider - [AB]
 - Actualizado componente NavUser para usar método signOut de AuthProvider
 - Actualizado componente ProfileDropdown para usar método signOut de AuthProvider
@@ -313,4 +353,99 @@
 - Forzado uso del dominio principal (quantum-crm-leads.vercel.app) para evitar redirecciones en URLs de preview
 - Añadidas cabeceras específicas para evitar la intercepción por la autenticación de Vercel
 - Implementada detección inteligente del entorno para usar diferentes URLs y configuraciones según se ejecute en desarrollo o producción
+
+[2025-05-22] [Schema] - Implementado sistema de permisos basado en usuarios con alcance por país - [XX]
+- Añadidos modelos Country y UserPermission al schema de Prisma
+- Agregada relación countryId a modelo User para definir país del usuario
+- Actualizado tipo User para incluir nuevos campos countryId y userPermission
+- Creado hook useUserAccess.ts que reemplaza a use-user-role.ts con soporte para permisos detallados
+- Mejorado middleware.ts para incluir verificación de permisos por país y scope (self/team/all)
+- Implementadas funciones hasPermission y getScope para validación granular de permisos
+
+[2023-11-17] [Feature] - Actualizado sistema de permisos: se agregó permisos de visualización de tareas para vendedores y permisos para las secciones admin.products y admin.leads para administradores - [IR]
+
+[2023-11-17] [Fix] - Corregido error crítico en middleware que bloqueaba las rutas de API de usuarios causando redirecciones infinitas - [IR]
+- Añadida excepción explícita para las rutas /api/users/[id] utilizadas por el propio middleware
+- Mejorado manejo de rutas de API para prevenir ciclos de redirección
+
+[2025-08-15] [Feature] - Implementado panel de administración de roles con funcionalidad completa - [AI]
+- Desarrollada página funcional /admin/roles para gestionar roles y permisos
+- Creado endpoint API para aplicar permisos de rol a todos los usuarios con ese rol
+- Implementado visualizador de JSON para los permisos de cada rol
+- Añadida función para copiar estructura de permisos al portapapeles
+- Mejorada relación entre usuarios, roles y permisos para permitir gestión centralizada
+- Añadida visualización de usuarios con permisos personalizados vs. predeterminados
+
+[2025-08-16] [Feature] - Actualizado sistema de permisos en la administración de roles - [AI]
+- Implementado nuevo editor de permisos con soporte para alcances: "all", "team", "self", false
+- Reemplazado visualizador JSON por una interfaz de usuario dinámica basada en secciones del dashboard
+- Añadido soporte para editar permisos por sección y acción (view, edit, create, delete)
+- Mejorados indicadores visuales con códigos de color para cada nivel de acceso
+- Implementada actualización de los permisos para el rol y sus usuarios de manera independiente
+- Actualizado endpoint de aplicación de permisos para soportar nuevo formato
+
+[2023-05-22] [Refactor] - Refactorizado editor de permisos en roles a formato tabular - [AI]
+[2023-05-22] [Fix] - Corregido problema de visualización en editor de permisos en tema oscuro - [AI]
+[2023-05-22] [Fix] - Solucionado problema de tamaño del diálogo en página de roles para mejor visualización - [AI]
+
+[2025-06-12] [Refactor] - Unificado sistema de permisos en todo Quantum CRM - [AI]
+- Creada librería compartida src/lib/permissions.ts con funciones comunes para cliente y servidor
+- Actualizado hook use-permissions.ts para utilizar la lógica compartida y añadido getScope
+- Refactorizado middleware.ts para usar sistema de permisos centralizado con mejor detección de rutas
+- Creado hook use-sidebar-data.ts para cargar secciones del dashboard desde la API
+- Implementado endpoint API /api/dashboard/sections para obtener secciones dinámicamente
+- Actualizado AppSidebar para mostrar elementos basados en permisos reales del usuario
+
+[2023-11-27] [Fix] - Corregida lógica de permisos para aceptar valores "team" y "self" como válidos, no solo "all" - [AI]
+[2023-11-27] [Fix] - Arreglado error en TeamSwitcher para evitar fallo cuando teams no está disponible - [AI]
+[2023-11-28] [Fix] - Corregido problema de renderizado del sidebar: especificada acción "view" en verificación de permisos - [AI]
+[2023-11-28] [Fix] - Reemplazado hook usePermissions por useRolePermissions en app-sidebar.tsx para obtener permisos reales del usuario - [AI]
+
+[2023-11-28] [Feature] - Añadida sección de Países en el sidebar bajo Administración - [AI]
+- Incorporado elemento de Países con icono Globe en el sidebar estático
+- Actualizado sistema de permisos para manejar correctamente la validación de admin.countries
+- Mejorado manejo de permisos anidados para compatibilidad con múltiples formatos
+
+[2025-05-20] [Fix] - Corregido el mapeo de iconos en el sidebar para mostrar correctamente los iconos desde la API - [CD]
+
+[2025-05-21] [Fix] - Corregido menú desplegable de Administración para mostrar correctamente subsecciones agrupadas - [CD]
+- Implementado concepto de "padres virtuales" para secciones como "admin" que no tienen pantalla propia
+- Mejorada la lógica de filtrado para mostrar secciones padre solo si al menos un hijo tiene permisos
+- Optimizada la organización visual de secciones en el sidebar con agrupación jerárquica correcta
+- Reforzada la consistencia en el estilo con el resto de la interfaz de usuario
+
+[2025-05-21] [Feature] - Implementado módulo completo de administración de países con permisos y validación - [CRM]
+- Creada página de administración de países en src/app/(dashboard)/admin/countries
+- Implementada interfaz de usuario con componentes de tabla, diálogos de creación/edición/eliminación
+- Desarrollados endpoints API en src/app/api/admin/countries para CRUD completo
+- Añadida validación para impedir duplicación de códigos o nombres de países
+- Implementada restricción para evitar eliminación de países con usuarios asignados
+- Integrado sistema de permisos para controlar acceso a operaciones según rol del usuario
+
+[2023-10-30] [Feature] - Añadida página detallada de usuarios en `/admin/users/[id]` con tabs para información general y permisos - [AI]
+[2023-10-30] [Schema] - Actualizado el formulario de creación y edición de usuarios para incluir selección de país - [AI]
+[2023-10-30] [Feature] - Implementado editor de permisos de usuario personalizado con botón para resetear a permisos de rol - [AI]
+[2023-10-30] [API] - Creado endpoint /api/users/[id]/permissions para gestionar permisos específicos de usuario - [AI]
+[2023-10-30] [Refactor] - Actualizada la creación de usuarios para generar permisos basados en rol - [AI] 
+[2023-10-30] [Feature] - Implementado filtrado por país según el scope del usuario en la lista de usuarios - [AI]
+
+[2025-05-28] [Refactor] - Reestructurada la página de detalle de usuario para adaptarse a la arquitectura de rutas de Quantum CRM - [AI]
+- Movida la página de detalle desde /admin/users/[id] a /users/[id]
+- Actualizadas todas las importaciones relativas para componentes
+- Corregidas las redirecciones internas para apuntar a /users en lugar de /admin/users
+- Implementada verificación para evitar eliminar usuarios con leads activos
+- Agregado endpoint /api/users/[id]/check-leads para validar la eliminación segura de usuarios
+
+[2024-06-09] [Refactor] - Personalización de permisos en creación de usuario ahora se realiza en un segundo diálogo modal, el diálogo principal es scrolleable y el select de rol muestra 'Personalizado' si corresponde (src/app/(dashboard)/users/components/create-user-form.tsx) - [AI]
+[2024-06-09] [Fix] - Eliminado bypass de Super Administrador en funciones de permisos (hasPermission, getScope, canAccessResource) para que solo dependan de la estructura de permisos - [IR]
+
+[2024-03-21] [Refactor] - Implementación de permisos en módulos administrativos (countries, products, roles, leads) - [AI]
+
+[2024-06-08] [Feature] - Agregada pestaña de documentos en LeadDetailPage para mostrar y descargar archivos subidos por lead - [AI]
+[2024-06-08] [Feature] - Implementado endpoint GET en /api/documents para obtener documentos por leadId - [AI]
+[2024-06-08] [Feature] - Añadido hook useLeadDocuments para consultar documentos de un lead - [AI]
+[2024-06-08] [Refactor] - Migrada lógica de QualifyLeadDialog a page.tsx para controlar calificación antes de acciones - [AI]
+[2024-06-08] [Schema] - Prisma generate y migración: add-documents-get-endpoint - [AI]
+
+[2024-05-10] [Feature] - Endpoint /api/quotations/[id]/products para obtener productos de cotización, hook useQuotationProducts, autocompletado de producto/cantidad en reserva y saldo editable en venta - [AI]
 

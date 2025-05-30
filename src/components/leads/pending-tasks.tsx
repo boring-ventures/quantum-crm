@@ -9,55 +9,57 @@ import { Loader2, CheckCircle2, Calendar } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { useUpdateTaskStatusMutation, useUserRole } from "@/lib/hooks";
+import { useUpdateTaskStatusMutation } from "@/lib/hooks";
 import { Task } from "@/types/lead";
+import { useUserStore } from "@/store/userStore";
+import { hasPermission, getScope } from "@/lib/utils/permissions";
 
 interface PendingTasksProps {
   assignedToId?: string;
+  countryId?: string;
+  currentUser?: any;
 }
 
-export function PendingTasks({ assignedToId }: PendingTasksProps) {
+export function PendingTasks({
+  assignedToId,
+  countryId,
+  currentUser,
+}: PendingTasksProps) {
   const [tasks, setTasks] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { isSeller, user } = useUserRole();
-  const updateTaskStatusMutation = useUpdateTaskStatusMutation();
   const { toast } = useToast();
+  const updateTaskStatusMutation = useUpdateTaskStatusMutation();
+  const { user } = useUserStore();
 
-  // Logging para debug
-  console.log("PendingTasks - Prop assignedToId:", assignedToId);
-  console.log("PendingTasks - isSeller:", isSeller);
-  console.log("PendingTasks - user?.id:", user?.id);
-
-  // Si es vendedor y no se ha recibido un assignedToId específico, usar el ID del usuario actual
+  // Determinar si el usuario es vendedor (solo puede ver sus tareas)
+  const canViewOwnTasks =
+    hasPermission(user, "tasks", "view") &&
+    getScope(user, "tasks", "view") === "self";
   const effectiveAssignedToId =
-    isSeller && !assignedToId ? user?.id : assignedToId;
-  console.log("PendingTasks - effectiveAssignedToId:", effectiveAssignedToId);
+    canViewOwnTasks && !assignedToId ? user?.id : assignedToId;
 
   // Cargar las tareas pendientes
   useEffect(() => {
     const fetchPendingTasks = async () => {
       try {
         setIsLoading(true);
-        // Construir URL con filtro de vendedor si existe
-        const url = effectiveAssignedToId
-          ? `/api/tasks/pending?assignedToId=${effectiveAssignedToId}`
-          : "/api/tasks/pending";
-
-        console.log("PendingTasks - URL para fetch:", url);
-
+        let url = "/api/tasks/pending";
+        const params = new URLSearchParams();
+        if (effectiveAssignedToId) {
+          params.append("assignedToId", effectiveAssignedToId);
+        }
+        if (countryId) {
+          params.append("countryId", countryId);
+        }
+        if (params.toString()) {
+          url += `?${params.toString()}`;
+        }
         const response = await fetch(url);
-
         if (!response.ok) {
           throw new Error("Error al cargar tareas pendientes");
         }
-
         const data = await response.json();
-        console.log("PendingTasks - Tareas recibidas:", data.length);
-
-        // Filtrar tareas de leads no archivados
         const filteredTasks = data.filter((task: any) => !task.lead.isArchived);
-        console.log("PendingTasks - Tareas filtradas:", filteredTasks.length);
-
         setTasks(filteredTasks);
       } catch (error) {
         console.error("Error cargando tareas:", error);
@@ -70,9 +72,8 @@ export function PendingTasks({ assignedToId }: PendingTasksProps) {
         setIsLoading(false);
       }
     };
-
     fetchPendingTasks();
-  }, [toast, effectiveAssignedToId]); // Usar effectiveAssignedToId como dependencia
+  }, [toast, effectiveAssignedToId, countryId]);
 
   // Manejar la actualización del estado de la tarea
   const handleCompleteTask = async (taskId: string, leadId: string) => {
@@ -82,10 +83,7 @@ export function PendingTasks({ assignedToId }: PendingTasksProps) {
         leadId,
         status: "COMPLETED",
       });
-
-      // Actualizar localmente la lista de tareas
       setTasks(tasks.filter((task) => task.id !== taskId));
-
       toast({
         title: "Tarea completada",
         description: "La tarea ha sido marcada como completada correctamente",
@@ -103,27 +101,22 @@ export function PendingTasks({ assignedToId }: PendingTasksProps) {
   // Determinar la prioridad de la tarea basada en la fecha programada
   const getTaskPriority = (task: Task) => {
     if (!task.scheduledFor) return "low";
-
     const now = new Date();
     const scheduledDate = new Date(task.scheduledFor);
     const diffTime = scheduledDate.getTime() - now.getTime();
     const diffDays = diffTime / (1000 * 3600 * 24);
-
-    if (diffDays < 0) return "high"; // Vencida
-    if (diffDays < 1) return "high"; // Hoy
-    if (diffDays < 2) return "medium"; // Mañana
-    return "low"; // Más adelante
+    if (diffDays < 0) return "high";
+    if (diffDays < 1) return "high";
+    if (diffDays < 2) return "medium";
+    return "low";
   };
 
-  // Formatear la fecha/hora programada para una tarea
   const formatScheduledTime = (scheduledFor?: string) => {
     if (!scheduledFor) return "No programada";
-
     const scheduledDate = new Date(scheduledFor);
     const today = new Date();
     const tomorrow = new Date();
     tomorrow.setDate(today.getDate() + 1);
-
     if (
       scheduledDate.getDate() === today.getDate() &&
       scheduledDate.getMonth() === today.getMonth() &&
@@ -141,7 +134,6 @@ export function PendingTasks({ assignedToId }: PendingTasksProps) {
     }
   };
 
-  // Obtener las iniciales del lead
   const getLeadInitials = (firstName: string, lastName: string) => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   };
@@ -211,7 +203,7 @@ export function PendingTasks({ assignedToId }: PendingTasksProps) {
                 </Badge>
               </div>
             </div>
-            {isSeller && (
+            {canViewOwnTasks && (
               <Button
                 size="icon"
                 variant="ghost"

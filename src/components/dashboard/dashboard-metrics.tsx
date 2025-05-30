@@ -12,81 +12,101 @@ import {
   UserX,
   TrendingUp,
   TrendingDown,
+  Users,
+  UserPlus,
+  FileText,
+  ShoppingCart,
+  CheckSquare,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 
-export function DashboardMetrics() {
+interface DashboardMetricsProps {
+  metrics?: {
+    totalLeads: number;
+    leadsThisMonth: number;
+    activeQuotations: number;
+    completedSales: number;
+    pendingTasks: number;
+    overdueTasks: number;
+  };
+}
+
+export function DashboardMetrics({ metrics }: DashboardMetricsProps) {
+  const metricCards = [
+    {
+      title: "Total Leads",
+      value: metrics?.totalLeads ?? 0,
+      icon: Users,
+      description: "Leads activos totales",
+      color: "text-blue-600",
+    },
+    {
+      title: "Leads Nuevos",
+      value: metrics?.leadsThisMonth ?? 0,
+      icon: UserPlus,
+      description: "Leads este mes",
+      color: "text-green-600",
+    },
+    {
+      title: "Cotizaciones",
+      value: metrics?.activeQuotations ?? 0,
+      icon: FileText,
+      description: "Cotizaciones activas",
+      color: "text-purple-600",
+    },
+    {
+      title: "Ventas",
+      value: metrics?.completedSales ?? 0,
+      icon: ShoppingCart,
+      description: "Ventas completadas",
+      color: "text-yellow-600",
+    },
+    {
+      title: "Tareas Pendientes",
+      value: metrics?.pendingTasks ?? 0,
+      icon: CheckSquare,
+      description: "Tareas por realizar",
+      color: "text-orange-600",
+    },
+    {
+      title: "Tareas Vencidas",
+      value: metrics?.overdueTasks ?? 0,
+      icon: AlertTriangle,
+      description: "Tareas atrasadas",
+      color: "text-red-600",
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Métricas Clave</h2>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        <MetricCard
-          value="209"
-          label="Leads sin Gestión"
-          icon={<UserX className="h-5 w-5" />}
-          trend="+5%"
-          trendIcon={<TrendingUp className="h-3 w-3" />}
-          trendType="negative"
-          color="amber"
-          onClick={() => console.log("Clicked Leads sin Gestión")}
-        />
-
-        <MetricCard
-          value="1"
-          label="Leads sin Tarea"
-          icon={<ClipboardList className="h-5 w-5" />}
-          trend="-2%"
-          trendIcon={<TrendingDown className="h-3 w-3" />}
-          trendType="positive"
-          color="red"
-          onClick={() => console.log("Clicked Leads sin Tarea")}
-        />
-
-        <MetricCard
-          value="863"
-          label="Tareas Vencidas"
-          icon={<AlertCircle className="h-5 w-5" />}
-          trend="+12%"
-          trendIcon={<TrendingUp className="h-3 w-3" />}
-          trendType="negative"
-          color="rose"
-          onClick={() => console.log("Clicked Tareas Vencidas")}
-        />
-
-        <MetricCard
-          value="172"
-          label="Tareas para Hoy"
-          icon={<Calendar className="h-5 w-5" />}
-          trend="0%"
-          trendIcon={null}
-          trendType="neutral"
-          color="blue"
-          onClick={() => console.log("Clicked Tareas para Hoy")}
-        />
-
-        <MetricCard
-          value="0.0%"
-          label="Objetivo [#0]"
-          icon={<Goal className="h-5 w-5" />}
-          trend="-"
-          trendIcon={null}
-          trendType="neutral"
-          color="gray"
-          onClick={() => console.log("Clicked Objetivo")}
-        />
-
-        <MetricCard
-          value=""
-          label="Proyectado Ventas"
-          icon={<LineChart className="h-5 w-5" />}
-          chart={<SalesChart />}
-          color="gray"
-          onClick={() => console.log("Clicked Proyectado Ventas")}
-        />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {metricCards.map((metric, index) => {
+          const Icon = metric.icon;
+          return (
+            <Card key={index}>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      {metric.title}
+                    </p>
+                    <h3 className="text-2xl font-bold mt-2">{metric.value}</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {metric.description}
+                    </p>
+                  </div>
+                  <Icon className={`h-8 w-8 ${metric.color}`} />
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );

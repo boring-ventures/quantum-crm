@@ -121,41 +121,42 @@ model Model {
 }
 
 model Lead {
-  id               String            @id @default(uuid())
-  createdAt        DateTime          @default(now()) @map("created_at")
-  updatedAt        DateTime          @updatedAt @map("updated_at")
-  firstName        String            @map("first_name")
-  lastName         String            @map("last_name")
-  email            String?           @unique
+  id               String             @id @default(uuid())
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+  firstName        String             @map("first_name")
+  lastName         String             @map("last_name")
+  email            String?            @unique
   phone            String?
-  qualityScore     Int?              @map("quality_score")
-  statusId         String            @map("status_id")
-  sourceId         String            @map("source_id")
-  assignedToId     String            @map("assigned_to_id")
-  lastContactedAt  DateTime?         @map("last_contacted_at")
-  nextFollowUpDate DateTime?         @map("next_follow_up_date")
-  convertedAt      DateTime?         @map("converted_at")
-  isArchived       Boolean           @default(false) @map("is_archived")
+  qualityScore     Int?               @map("quality_score")
+  statusId         String             @map("status_id")
+  sourceId         String             @map("source_id")
+  assignedToId     String             @map("assigned_to_id")
+  lastContactedAt  DateTime?          @map("last_contacted_at")
+  nextFollowUpDate DateTime?          @map("next_follow_up_date")
+  convertedAt      DateTime?          @map("converted_at")
+  isArchived       Boolean            @default(false) @map("is_archived")
   cellphone        String?
-  companyId        String?           @map("company_id")
-  productId        String?           @map("product_id")
-  extraComments    String?           @map("extra_comments")
-  qualification    LeadQualification @default(NOT_QUALIFIED) @map("qualification")
-  isFavorite       Boolean           @default(false) @map("is_favorite")
-  favoriteAt       DateTime?         @map("favorite_at")
+  companyId        String?            @map("company_id")
+  productId        String?            @map("product_id")
+  extraComments    String?            @map("extra_comments")
+  qualification    LeadQualification  @default(NOT_QUALIFIED) @map("qualification")
+  isFavorite       Boolean            @default(false) @map("is_favorite")
+  favoriteAt       DateTime?          @map("favorite_at")
   communications   Communication[]
   documents        Document[]
   tags             LeadTag[]
-  assignedTo       User              @relation(fields: [assignedToId], references: [id])
-  company          Company?          @relation(fields: [companyId], references: [id])
-  product          Product?          @relation(fields: [productId], references: [id])
-  source           LeadSource        @relation(fields: [sourceId], references: [id])
-  status           LeadStatus        @relation(fields: [statusId], references: [id])
+  assignedTo       User               @relation(fields: [assignedToId], references: [id])
+  company          Company?           @relation(fields: [companyId], references: [id])
+  product          Product?           @relation(fields: [productId], references: [id])
+  source           LeadSource         @relation(fields: [sourceId], references: [id])
+  status           LeadStatus         @relation(fields: [statusId], references: [id])
   notes            Note[]
   quotations       Quotation[]
   reservations     Reservation[]
   sales            Sale[]
   tasks            Task[]
+  reassignments    LeadReassignment[] @relation("reassignedLead")
 
   @@index([statusId])
   @@index([sourceId])
@@ -203,47 +204,65 @@ model SourceCategory {
 }
 
 model LeadSource {
-  id          String          @id @default(uuid())
-  createdAt   DateTime        @default(now()) @map("created_at")
-  updatedAt   DateTime        @updatedAt @map("updated_at")
-  name        String          @unique
-  description String?
-  categoryId  String?         @map("category_id")
-  costPerLead Decimal?        @map("cost_per_lead") @db.Decimal(10, 2)
-  isActive    Boolean         @default(true) @map("is_active")
-  category    SourceCategory? @relation(fields: [categoryId], references: [id])
-  leads       Lead[]
+  id            String          @id @default(uuid())
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+  name          String          @unique
+  description   String?
+  categoryId    String?         @map("category_id")
+  costPerSource Decimal?        @map("cost_per_source") @db.Decimal(10, 2)
+  isActive      Boolean         @default(true) @map("is_active")
+  category      SourceCategory? @relation(fields: [categoryId], references: [id])
+  leads         Lead[]
 
   @@index([categoryId])
   @@index([isActive])
   @@map("lead_sources")
 }
 
+model Country {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  code      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
+
+  @@map("countries")
+}
+
 model User {
-  id             String          @id @default(uuid())
-  createdAt      DateTime        @default(now()) @map("created_at")
-  updatedAt      DateTime        @updatedAt @map("updated_at")
-  email          String          @unique
+  id             String             @id @default(uuid())
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+  email          String             @unique
   name           String
   role           String
-  isActive       Boolean         @default(true) @map("is_active")
-  isDeleted      Boolean         @default(false) @map("is_deleted")
-  deletedAt      DateTime?       @map("deleted_at")
-  deletedBy      String?         @map("deleted_by")
-  conversionRate Float?          @map("conversion_rate")
-  responseTime   Int?            @map("response_time")
-  roleId         String?         @map("role_id")
+  isActive       Boolean            @default(true) @map("is_active")
+  isDeleted      Boolean            @default(false) @map("is_deleted")
+  deletedAt      DateTime?          @map("deleted_at")
+  deletedBy      String?            @map("deleted_by")
+  conversionRate Float?             @map("conversion_rate")
+  responseTime   Int?               @map("response_time")
+  roleId         String?            @map("role_id")
+  countryId      String?            @map("country_id")
   communications Communication[]
   assignedLeads  Lead[]
   notes          Note[]
   tasks          Task[]
-  userRole       Role?           @relation(fields: [roleId], references: [id])
+  userRole       Role?              @relation(fields: [roleId], references: [id])
+  country        Country?           @relation(fields: [countryId], references: [id])
+  userPermission UserPermission?
+  reassignedFrom LeadReassignment[] @relation("reassignedFrom")
+  reassignedTo   LeadReassignment[] @relation("reassignedTo")
+  reassignedBy   LeadReassignment[] @relation("reassignedBy")
 
   @@index([email])
   @@index([role])
   @@index([isActive])
   @@index([isDeleted])
   @@index([roleId])
+  @@index([countryId])
   @@map("users")
 }
 
@@ -517,6 +536,40 @@ model QuotationProduct {
   @@index([quotationId])
   @@index([productId])
   @@map("quotation_products")
+}
+
+model UserPermission {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  permissions Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_permissions")
+}
+
+model LeadReassignment {
+  id           String   @id @default(uuid())
+  createdAt    DateTime @default(now()) @map("created_at")
+  leadId       String   @map("lead_id")
+  fromUserId   String   @map("from_user_id")
+  toUserId     String   @map("to_user_id")
+  reassignedBy String   @map("reassigned_by")
+  reason       String?
+
+  lead             Lead @relation("reassignedLead", fields: [leadId], references: [id], onDelete: Cascade)
+  fromUser         User @relation("reassignedFrom", fields: [fromUserId], references: [id], onDelete: Restrict)
+  toUser           User @relation("reassignedTo", fields: [toUserId], references: [id], onDelete: Restrict)
+  reassignedByUser User @relation("reassignedBy", fields: [reassignedBy], references: [id], onDelete: Restrict)
+
+  @@index([leadId])
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([reassignedBy])
+  @@index([createdAt])
+  @@map("lead_reassignments")
 }
 
 enum UserRole {

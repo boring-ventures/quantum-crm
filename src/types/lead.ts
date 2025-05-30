@@ -48,7 +48,7 @@ export interface LeadSource {
   name: string;
   description?: string;
   categoryId?: string;
-  costPerLead?: number | string;
+  costPerSource?: number | string;
   isActive: boolean;
   createdAt?: Date;
   updatedAt?: Date;
@@ -101,6 +101,32 @@ export interface Product {
 export type CreateLeadPayload = Omit<Lead, "id" | "createdAt" | "updatedAt">;
 export type UpdateLeadPayload = Partial<CreateLeadPayload>;
 
+// Interfaz para el seguimiento de reasignaciones de leads
+export interface LeadReassignment {
+  id: string;
+  createdAt: Date;
+  leadId: string;
+  fromUserId: string;
+  toUserId: string;
+  reassignedBy: string;
+  reason?: string;
+  fromUser?: User;
+  toUser?: User;
+  reassignedByUser?: User;
+}
+
+// Tipo para documentos
+export interface Document {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  name: string;
+  type: string;
+  size: number;
+  url: string;
+  leadId: string;
+}
+
 // Interfaces para respuestas API con relaciones
 export interface LeadWithRelations extends Lead {
   status: LeadStatus;
@@ -111,6 +137,8 @@ export interface LeadWithRelations extends Lead {
   quotations?: Quotation[];
   reservations?: Reservation[];
   sales?: Sale[];
+  reassignments?: LeadReassignment[];
+  documents?: Document[];
 }
 
 // Tipos para respuestas de API paginadas

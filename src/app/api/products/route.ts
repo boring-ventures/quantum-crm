@@ -37,10 +37,13 @@ export async function GET(request: NextRequest) {
 
     // Obtener filtros
     const { searchParams } = new URL(request.url);
-    const businessTypeId = searchParams.get("businessTypeId");
-    const brandId = searchParams.get("brandId");
-    const modelId = searchParams.get("modelId");
+    const businessTypeId = searchParams.get("businessTypeId") || undefined;
+    const brandId = searchParams.get("brandId") || undefined;
+    const modelId = searchParams.get("modelId") || undefined;
     const active = searchParams.get("active");
+    const search = searchParams.get("search") || undefined;
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const limit = parseInt(searchParams.get("limit") || "15", 10);
 
     // Construir condiciones de búsqueda
     const where: any = {};
@@ -49,7 +52,14 @@ export async function GET(request: NextRequest) {
     if (modelId) where.modelId = modelId;
     if (active === "true") where.isActive = true;
     if (active === "false") where.isActive = false;
-
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { code: { contains: search, mode: "insensitive" } },
+      ];
+    }
+    const total = await prisma.product.count({ where });
+    const totalPages = Math.ceil(total / limit);
     const products = await prisma.product.findMany({
       where,
       include: {
@@ -65,9 +75,11 @@ export async function GET(request: NextRequest) {
       orderBy: {
         name: "asc",
       },
+      skip: (page - 1) * limit,
+      take: limit,
     });
 
-    return NextResponse.json(products);
+    return NextResponse.json({ data: products, totalPages });
   } catch (error) {
     console.error("Error fetching products:", error);
     return NextResponse.json(

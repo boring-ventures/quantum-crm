@@ -49,6 +49,7 @@ export function useSales(filters?: {
   status?: string;
   searchQuery?: string;
   assignedToId?: string;
+  countryId?: string;
 }) {
   return useQuery<SaleWithLead[]>({
     queryKey: ["sales", filters],
@@ -61,11 +62,11 @@ export function useSales(filters?: {
         params.append("endDate", filters.dateRange[1].toISOString());
       }
 
-      if (filters?.category) {
+      if (filters?.category && filters.category !== "all") {
         params.append("category", filters.category);
       }
 
-      if (filters?.status) {
+      if (filters?.status && filters.status !== "all") {
         params.append("status", filters.status);
       }
 
@@ -76,6 +77,11 @@ export function useSales(filters?: {
       // Agregar filtro por vendedor asignado
       if (filters?.assignedToId) {
         params.append("assignedToId", filters.assignedToId);
+      }
+
+      // Agregar filtro por país
+      if (filters?.countryId) {
+        params.append("countryId", filters.countryId);
       }
 
       const queryString = params.toString();
@@ -99,6 +105,7 @@ export function useReservations(filters?: {
   status?: string;
   searchQuery?: string;
   assignedToId?: string;
+  countryId?: string;
 }) {
   return useQuery<ReservationWithLead[]>({
     queryKey: ["reservations", filters],
@@ -111,11 +118,11 @@ export function useReservations(filters?: {
         params.append("endDate", filters.dateRange[1].toISOString());
       }
 
-      if (filters?.category) {
+      if (filters?.category && filters.category !== "all") {
         params.append("category", filters.category);
       }
 
-      if (filters?.status) {
+      if (filters?.status && filters.status !== "all") {
         params.append("status", filters.status);
       }
 
@@ -126,6 +133,11 @@ export function useReservations(filters?: {
       // Agregar filtro por vendedor asignado
       if (filters?.assignedToId) {
         params.append("assignedToId", filters.assignedToId);
+      }
+
+      // Agregar filtro por país
+      if (filters?.countryId) {
+        params.append("countryId", filters.countryId);
       }
 
       const queryString = params.toString();
@@ -168,6 +180,22 @@ export function useSaleStatuses() {
         { id: "COMPLETED", name: "Completada" },
         { id: "CANCELLED", name: "Cancelada" },
       ];
+    },
+  });
+}
+
+// Obtener tipos de negocios activos
+export function useBusinessTypes() {
+  return useQuery<{ id: string; name: string }[]>({
+    queryKey: ["businessTypes"],
+    queryFn: async () => {
+      const response = await fetch(`/api/business-types?isActive=true`);
+
+      if (!response.ok) {
+        throw new Error("Error al obtener tipos de negocios");
+      }
+
+      return response.json();
     },
   });
 }

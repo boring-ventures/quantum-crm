@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Star } from "lucide-react";
+import { Star, Package, CheckCircle2, XCircle, HelpCircle } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,10 +15,10 @@ import {
 import type { LeadWithRelations } from "@/types/lead";
 import { formatDistanceToNow, format } from "date-fns";
 import { es } from "date-fns/locale";
-import { QualifyLeadDialog } from "@/components/leads/qualify-lead-dialog";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { EditLeadDialog } from "@/components/leads/edit-lead-dialog";
+import { hasPermission } from "@/lib/utils/permissions";
 
 // Tipo para lead basado en el modelo de Prisma
 export type Lead = {
@@ -49,16 +49,17 @@ export type Lead = {
 interface LeadCardProps {
   lead: LeadWithRelations;
   onLeadUpdated?: () => void;
+  currentUser: any;
 }
 
-function LeadCard({ lead, onLeadUpdated }: LeadCardProps) {
-  const { isSeller } = useUserRole();
+function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
+  const canReadLeads = hasPermission(currentUser, "leads", "view");
+  const canUpdateLeads = hasPermission(currentUser, "leads", "edit");
 
   const { data: updatedLead, isLoading: isLoadingUpdatedLead } = useLeadQuery(
     lead.id
   );
   const [isFavorite, setIsFavorite] = useState(lead.isFavorite || false);
-  const [showQualifyDialog, setShowQualifyDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -133,27 +134,8 @@ function LeadCard({ lead, onLeadUpdated }: LeadCardProps) {
   };
 
   const handleCardClick = () => {
-    // Si el lead ya está calificado como bueno, ir directamente a la página de detalles
-    if (lead.qualification === "GOOD_LEAD") {
-      router.push(`/leads/${lead.id}`);
-    } else {
-      // Si no está calificado, mostrar el diálogo
-      setShowQualifyDialog(true);
-    }
-  };
-
-  const handleQualify = (isGoodLead: boolean) => {
-    setShowQualifyDialog(false);
-
-    if (isGoodLead) {
-      // Si es un buen lead, redirigir a la página detallada del lead
-      router.push(`/leads/${lead.id}`);
-    } else {
-      // Si es un bad lead, actualizar la data
-      if (onLeadUpdated) {
-        onLeadUpdated();
-      }
-    }
+    // Siempre navegar al detalle del lead
+    router.push(`/leads/${lead.id}`);
   };
 
   const handleToggleFavorite = async (e: React.MouseEvent) => {
@@ -270,19 +252,21 @@ function LeadCard({ lead, onLeadUpdated }: LeadCardProps) {
             {showDropdown && (
               <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-10">
                 <ul className="py-1">
-                  <li>
-                    <button
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowDropdown(false);
-                        handleCardClick();
-                      }}
-                    >
-                      Ver detalles
-                    </button>
-                  </li>
-                  {isSeller && (
+                  {canReadLeads && (
+                    <li>
+                      <button
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowDropdown(false);
+                          handleCardClick();
+                        }}
+                      >
+                        Ver detalles
+                      </button>
+                    </li>
+                  )}
+                  {canUpdateLeads && (
                     <>
                       <li>
                         <button
@@ -336,6 +320,38 @@ function LeadCard({ lead, onLeadUpdated }: LeadCardProps) {
               <polyline points="12 6 12 12 16 14" />
             </svg>
             {formatDistanceToNow(new Date(lead.createdAt), { locale: es })}
+          </div>
+          {/* Producto asociado */}
+          {lead.product && (
+            <div className="flex items-center mr-4">
+              <Package className="mr-1 h-4 w-4 text-blue-400 dark:text-blue-300" />
+              <span className="text-gray-700 dark:text-gray-200">
+                {typeof lead.product === "string"
+                  ? lead.product
+                  : typeof lead.product === "object" &&
+                      lead.product !== null &&
+                      "name" in lead.product
+                    ? (lead.product as any).name
+                    : ""}
+              </span>
+            </div>
+          )}
+          {/* Estado de calificación */}
+          <div className="flex items-center mr-4">
+            {lead.qualification === "GOOD_LEAD" ? (
+              <CheckCircle2 className="mr-1 h-4 w-4 text-green-500" />
+            ) : lead.qualification === "BAD_LEAD" ? (
+              <XCircle className="mr-1 h-4 w-4 text-red-500" />
+            ) : (
+              <HelpCircle className="mr-1 h-4 w-4 text-yellow-500" />
+            )}
+            <span className="text-gray-700 dark:text-gray-200">
+              {lead.qualification === "GOOD_LEAD"
+                ? "Calificado"
+                : lead.qualification === "BAD_LEAD"
+                  ? "Descartado"
+                  : "Sin calificar"}
+            </span>
           </div>
           {lead.phone && (
             <div className="flex items-center">
@@ -402,14 +418,6 @@ function LeadCard({ lead, onLeadUpdated }: LeadCardProps) {
         )}
       </div>
 
-      {/* Diálogo de calificación de lead */}
-      <QualifyLeadDialog
-        open={showQualifyDialog}
-        onOpenChange={setShowQualifyDialog}
-        lead={lead}
-        onQualify={handleQualify}
-      />
-
       {/* Diálogo de edición de lead */}
       <EditLeadDialog
         open={showEditDialog}
@@ -459,9 +467,17 @@ export interface LeadsListProps {
     | "no-tasks"
     | "overdue-tasks"
     | "today-tasks"
-    | "favorites";
+    | "favorites"
+    | "my-leads";
   interestLevel?: number;
   assignedToId?: string;
+  countryId?: string;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  currentUser?: any;
+  showSelectionColumn?: boolean;
+  selectedLeads?: string[];
+  onLeadSelect?: (leadId: string, isSelected: boolean) => void;
 }
 
 export function LeadsList({
@@ -470,8 +486,18 @@ export function LeadsList({
   filterType = "all",
   interestLevel = 0,
   assignedToId,
+  countryId,
+  canEdit = false,
+  canDelete = false,
+  currentUser,
+  showSelectionColumn = false,
+  selectedLeads = [],
+  onLeadSelect,
 }: LeadsListProps) {
-  const { data, isLoading, isError } = useLeadsQuery({ assignedToId });
+  const { data, isLoading, isError } = useLeadsQuery({
+    assignedToId,
+    countryId,
+  });
   const queryClient = useQueryClient();
 
   const handleLeadUpdated = () => {
@@ -576,6 +602,12 @@ export function LeadsList({
       // Leads marcados como favoritos
       filteredLeads = filteredLeads.filter((lead) => lead.isFavorite);
       break;
+    case "my-leads":
+      // Leads asignados al usuario actual
+      filteredLeads = filteredLeads.filter(
+        (lead) => lead.assignedToId === assignedToId
+      );
+      break;
   }
 
   // Paso 3: Filtrar por nivel de interés si se especificó
@@ -613,9 +645,44 @@ export function LeadsList({
 
   return (
     <div className="space-y-4">
-      {filteredLeads.map((lead) => (
-        <LeadCard key={lead.id} lead={lead} onLeadUpdated={handleLeadUpdated} />
-      ))}
+      {isLoading ? (
+        // Mostrar skeletons mientras carga
+        Array.from({ length: 3 }).map((_, index) => (
+          <LeadCardSkeleton key={index} />
+        ))
+      ) : filteredLeads.length === 0 ? (
+        // Mostrar mensaje cuando no hay leads
+        <div className="text-center py-10">
+          <h3 className="text-lg font-medium">No hay leads disponibles</h3>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">
+            No se encontraron leads con los criterios actuales.
+          </p>
+        </div>
+      ) : (
+        // Mostrar lista de leads
+        <div className="space-y-4">
+          {filteredLeads.map((lead) => (
+            <div key={lead.id} className="flex items-center gap-4">
+              {showSelectionColumn && (
+                <input
+                  type="checkbox"
+                  checked={selectedLeads.includes(lead.id)}
+                  onChange={(e) => onLeadSelect?.(lead.id, e.target.checked)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-5 h-5 rounded border-gray-300 dark:border-gray-600"
+                />
+              )}
+              <div className="flex-1">
+                <LeadCard
+                  lead={lead}
+                  onLeadUpdated={handleLeadUpdated}
+                  currentUser={currentUser}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

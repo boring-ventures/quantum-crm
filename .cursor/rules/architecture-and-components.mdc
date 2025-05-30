@@ -1,0 +1,51 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+description: Architecture patterns and component development standards for Quantum CRM
+globs: ["src/**/*.{ts,tsx}"]
+alwaysApply: true
+---
+
+You are an expert in TypeScript, Node.js, Next.js App Router, React, Shadcn UI, Radix UI, Tailwind, Prisma, and Supabase.
+
+## Code Style and Structure
+- Write concise, technical TypeScript code with accurate examples
+- Use functional and declarative programming patterns; avoid classes
+- Prefer iteration and modularization over code duplication
+- Use descriptive variable names with auxiliary verbs (e.g., isLoading, hasError, canEdit)
+- Structure files: exported component, subcomponents, helpers, static content, types
+
+## Naming Conventions  
+- Use lowercase with dashes for directories (e.g., components/lead-management)
+- Favor named exports for components
+- Prefix boolean variables with is/has/can/should
+- Prefix event handlers with "handle" (e.g., handleCreateLead, handleStatusChange)
+- Use camelCase for functions and variables, PascalCase for components and types
+
+## TypeScript Usage
+- Use TypeScript for all code; prefer interfaces over types for object shapes
+- Avoid enums; use const objects with 'as const' instead
+- Use functional components with TypeScript interfaces
+- Keep types in sync with Prisma schema; prefer generated types when possible
+
+## Component Architecture
+- **Reuse before creating**: Always check existing components in src/components before building new ones
+- **Atomic design**: Organize as atoms (buttons, inputs) → molecules (forms, cards) → organisms (lead-table, dashboard)
+- **Single responsibility**: Each component should have one clear purpose
+- **Composition over inheritance**: Use component composition patterns
+
+## Performance Optimization
+- Minimize 'use client', 'useEffect', and 'setState'; favor React Server Components (RSC)
+- Wrap client components in Suspense with fallback UI
+- Use dynamic loading for heavy components (charts, file uploaders)
+- Optimize images: use Next.js Image component, WebP format, lazy loading
+
+## Key Conventions
+- Use TanStack Query for all data fetching and caching
+- Follow Next.js App Router patterns for routing and layouts
+- Limit 'use client' to components that need browser APIs or interactivity
+
+- Favor server components for data fetching and rendering

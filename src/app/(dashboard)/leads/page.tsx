@@ -15,11 +15,10 @@ import { LeadsList } from "@/components/leads/leads-list";
 import { PendingTasks } from "@/components/leads/pending-tasks";
 import { NewLeadDialog } from "@/components/leads/new-lead-dialog";
 import { ImportLeadsDialog } from "@/components/leads/import-leads-dialog";
-import { Plus, Search, Download, Upload, UserIcon } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Plus, Search, Download, Upload, UserIcon, Info } from "lucide-react";
+import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
-import { useLeadsQuery, useUserRole } from "@/lib/hooks";
-import { ROLES } from "@/lib/hooks/use-user-role";
+import { useLeadsQuery } from "@/lib/hooks";
 import { useQuery } from "@tanstack/react-query";
 import {
   Table,
@@ -29,9 +28,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import type { User } from "@/types/user";
+import { hasPermission, getScope } from "@/lib/utils/permissions";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useUserStore } from "@/store/userStore";
 
 export default function LeadsPage() {
   const [newLeadOpen, setNewLeadOpen] = useState(false);
@@ -42,55 +43,56 @@ export default function LeadsPage() {
   const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null);
 
   const { toast } = useToast();
-  const router = useRouter();
+  const { user: currentUser, isLoading: isLoadingCurrentUser } = useUserStore();
 
-  // Obtener el rol del usuario actual
-  const { isAdmin, isSuperAdmin, isSeller, user } = useUserRole();
+  // Verificar los permisos y scope para leads
+  const canViewLeads = hasPermission(currentUser, "leads", "view");
+  const canCreateLeads = hasPermission(currentUser, "leads", "create");
+  const canEditLeads = hasPermission(currentUser, "leads", "edit");
+  const canDeleteLeads = hasPermission(currentUser, "leads", "delete");
+  const leadsScope = getScope(currentUser, "leads", "view");
 
-  // Si el usuario es vendedor, mostrar sus leads directamente
-  const isManagerRole = isAdmin || isSuperAdmin;
+  // Determinar si debe mostrar acceso denegado
+  const showAccessDenied = !canViewLeads && !isLoadingCurrentUser;
 
-  // Filtro para los leads: si es vendedor, mostrar solo sus leads
-  const assignedToId = !isManagerRole
-    ? user?.id
-    : selectedSellerId || undefined;
+  // Determinamos los filtros de usuario según el scope
+  let assignedToId: string | undefined = undefined;
+  let countryId: string | undefined = undefined;
 
-  // Para debugging - verificar el ID asignado
-  console.log("assignedToId para tareas:", assignedToId);
-  console.log("isManagerRole:", isManagerRole);
-  console.log("user?.id:", user?.id);
-  console.log("selectedSellerId:", selectedSellerId);
+  if (leadsScope === "self") {
+    assignedToId = currentUser?.id;
+  } else if (leadsScope === "team" && currentUser?.countryId) {
+    countryId = currentUser.countryId;
+  }
 
-  // Obtener datos de leads filtrados por vendedor si es necesario
-  const { data: rawLeadsData } = useLeadsQuery({
-    assignedToId,
-    search: searchTerm,
-  });
+  if (selectedSellerId) {
+    assignedToId = selectedSellerId;
+  }
 
-  // Consulta para obtener la lista de vendedores si el usuario es administrador
+  // Consulta para obtener vendedores si tiene permiso adecuado
+  const canManageTeam = ["team", "all"].includes(leadsScope as string);
+
   const { data: sellersData, isLoading: loadingSellers } = useQuery({
     queryKey: ["sellers"],
     queryFn: async () => {
-      if (!isManagerRole) return { users: [] };
-
-      const response = await fetch(`/api/users?role=${ROLES.SELLER}`);
+      if (!canManageTeam) return { users: [] };
+      const response = await fetch(`/api/users?role=Vendedor`);
       if (!response.ok) {
         throw new Error("Error al obtener vendedores");
       }
       return response.json();
     },
-    enabled: isManagerRole,
+    enabled: canManageTeam,
   });
 
-  // Si el usuario es vendedor, redirigir a sus propios leads
-  useEffect(() => {
-    if (user && isSeller) {
-      // Si es vendedor, ya estamos filtrando por su ID
-      console.log("Usuario vendedor mostrando sus propios leads");
-    }
-  }, [user, isSeller]);
+  // Obtener datos de leads con los filtros adecuados
+  const { data: rawLeadsData } = useLeadsQuery({
+    assignedToId,
+    countryId,
+    search: searchTerm,
+  });
 
-  // Contador de leads para cada categoría
+  // Procesar los leads para estadísticas
   let leadsData =
     rawLeadsData?.items?.filter(
       (lead) => lead.qualification !== "BAD_LEAD" && !lead.isArchived
@@ -134,13 +136,16 @@ export default function LeadsPage() {
         });
       }).length || 0,
     favorites: leadsData?.filter((lead) => lead.isFavorite).length || 0,
+    myLeads:
+      leadsScope !== "self" && currentUser?.id
+        ? leadsData?.filter((lead) => lead.assignedToId === currentUser.id)
+            .length || 0
+        : 0,
   };
 
   const handleExportLeads = async () => {
     setIsExporting(true);
-
     try {
-      // La exportación se implementará más adelante
       toast({
         title: "Exportación pendiente",
         description: "Esta funcionalidad será implementada próximamente.",
@@ -183,7 +188,7 @@ export default function LeadsPage() {
     setSelectedSellerId(sellerId);
   };
 
-  // Renderizar la tabla de vendedores si es administrador
+  // Renderizar la tabla de vendedores
   const renderSellersTable = () => {
     const sellers = sellersData?.users || [];
 
@@ -215,6 +220,7 @@ export default function LeadsPage() {
             <TableRow
               key={seller.id}
               className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+              onClick={() => handleSelectSeller(seller.id)}
             >
               <TableCell className="font-medium">{seller.name}</TableCell>
               <TableCell>{seller.email}</TableCell>
@@ -230,9 +236,9 @@ export default function LeadsPage() {
               </TableCell>
               <TableCell className="text-right">
                 <Button
-                  onClick={() => handleSelectSeller(seller.id)}
                   variant="outline"
                   size="sm"
+                  className="hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
                   <UserIcon className="mr-2 h-4 w-4" />
                   Ver Leads
@@ -245,24 +251,52 @@ export default function LeadsPage() {
     );
   };
 
+  // Después de obtener sellersData y antes del return principal
+  const selectedSeller = sellersData?.users?.find(
+    (u: any) => u.id === selectedSellerId
+  );
+
+  if (showAccessDenied) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen">
+        <Alert className="max-w-md">
+          <Info className="h-5 w-5" />
+          <AlertTitle>Acceso Denegado</AlertTitle>
+          <AlertDescription>
+            No tienes permisos para acceder a la gestión de leads.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 p-6 min-h-screen">
       <div className="flex items-center justify-between mb-2">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {isManagerRole && !selectedSellerId
+            {canManageTeam && !selectedSellerId
               ? "Gestión de Vendedores"
               : "Gestión de Leads"}
           </h1>
           <p className="text-gray-500 dark:text-gray-400">
-            {isManagerRole && !selectedSellerId
+            {canManageTeam && !selectedSellerId
               ? "Selecciona un vendedor para ver sus leads"
               : "Administra y da seguimiento a tus leads de ventas"}
           </p>
+          {/* Dentro del return, justo antes de la interfaz de leads (cuando selectedSellerId está definido) */}
+          {canManageTeam && selectedSellerId && selectedSeller && (
+            <div className="my-3">
+              <span className="text-gray-700 dark:text-gray-200 font-medium">
+                Mostrando leads de{" "}
+                <span className="font-bold">{selectedSeller.name}</span>
+              </span>
+            </div>
+          )}
         </div>
         <div className="flex gap-2">
-          {/* Mostrar el botón de crear lead solo si es vendedor o si ya seleccionó un vendedor */}
-          {isSeller && (
+          {/* Mostrar el botón de crear lead solo si tiene permiso */}
+          {canCreateLeads && (
             <Button
               className="bg-blue-600 hover:bg-blue-700 text-white"
               onClick={() => setNewLeadOpen(true)}
@@ -272,7 +306,7 @@ export default function LeadsPage() {
             </Button>
           )}
           {/* Botón para volver a la lista de vendedores */}
-          {isManagerRole && selectedSellerId && (
+          {canManageTeam && selectedSellerId && (
             <Button variant="outline" onClick={() => setSelectedSellerId(null)}>
               Volver a Vendedores
             </Button>
@@ -280,8 +314,8 @@ export default function LeadsPage() {
         </div>
       </div>
 
-      {/* Si es administrador y no ha seleccionado vendedor, mostrar tabla de vendedores */}
-      {isManagerRole && !selectedSellerId ? (
+      {/* Si puede gestionar equipo y no ha seleccionado vendedor, mostrar tabla de vendedores */}
+      {canManageTeam && !selectedSellerId ? (
         <Card className="border-gray-200 dark:border-gray-800">
           <CardContent className="p-4">
             <div className="mb-4">
@@ -296,7 +330,7 @@ export default function LeadsPage() {
           </CardContent>
         </Card>
       ) : (
-        /* Si es vendedor o ya seleccionó un vendedor, mostrar la interfaz de leads */
+        /* Si no puede gestionar equipo o ya seleccionó un vendedor, mostrar la interfaz de leads */
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Left Column - Leads Management */}
           <div className="flex-1 space-y-6">
@@ -314,7 +348,7 @@ export default function LeadsPage() {
                     />
                   </div>
                   <div className="flex gap-2">
-                    {isSeller && (
+                    {canCreateLeads && (
                       <>
                         <Button
                           variant="outline"
@@ -432,6 +466,10 @@ export default function LeadsPage() {
                       filterType="all"
                       interestLevel={getInterestScore(interestFilter)}
                       assignedToId={assignedToId}
+                      countryId={countryId}
+                      canEdit={canEditLeads}
+                      canDelete={canDeleteLeads}
+                      currentUser={currentUser}
                     />
                   </TabsContent>
                   <TabsContent value="no-management">
@@ -441,6 +479,10 @@ export default function LeadsPage() {
                       filterType="no-management"
                       interestLevel={getInterestScore(interestFilter)}
                       assignedToId={assignedToId}
+                      countryId={countryId}
+                      canEdit={canEditLeads}
+                      canDelete={canDeleteLeads}
+                      currentUser={currentUser}
                     />
                   </TabsContent>
                   <TabsContent value="no-tasks">
@@ -450,6 +492,10 @@ export default function LeadsPage() {
                       filterType="no-tasks"
                       interestLevel={getInterestScore(interestFilter)}
                       assignedToId={assignedToId}
+                      countryId={countryId}
+                      canEdit={canEditLeads}
+                      canDelete={canDeleteLeads}
+                      currentUser={currentUser}
                     />
                   </TabsContent>
                   <TabsContent value="overdue-tasks">
@@ -459,6 +505,10 @@ export default function LeadsPage() {
                       filterType="overdue-tasks"
                       interestLevel={getInterestScore(interestFilter)}
                       assignedToId={assignedToId}
+                      countryId={countryId}
+                      canEdit={canEditLeads}
+                      canDelete={canDeleteLeads}
+                      currentUser={currentUser}
                     />
                   </TabsContent>
                   <TabsContent value="today-tasks">
@@ -468,6 +518,10 @@ export default function LeadsPage() {
                       filterType="today-tasks"
                       interestLevel={getInterestScore(interestFilter)}
                       assignedToId={assignedToId}
+                      countryId={countryId}
+                      canEdit={canEditLeads}
+                      canDelete={canDeleteLeads}
+                      currentUser={currentUser}
                     />
                   </TabsContent>
                   <TabsContent value="favorites">
@@ -477,6 +531,10 @@ export default function LeadsPage() {
                       filterType="favorites"
                       interestLevel={getInterestScore(interestFilter)}
                       assignedToId={assignedToId}
+                      countryId={countryId}
+                      canEdit={canEditLeads}
+                      canDelete={canDeleteLeads}
+                      currentUser={currentUser}
                     />
                   </TabsContent>
                 </Tabs>
@@ -491,7 +549,11 @@ export default function LeadsPage() {
                 <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
                   Tareas Pendientes
                 </h2>
-                <PendingTasks assignedToId={assignedToId} />
+                <PendingTasks
+                  assignedToId={assignedToId}
+                  countryId={countryId}
+                  currentUser={currentUser}
+                />
               </CardContent>
             </Card>
           </div>

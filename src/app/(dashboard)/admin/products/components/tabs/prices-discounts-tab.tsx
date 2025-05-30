@@ -88,9 +88,9 @@ export function PricesDiscountsTab({
 
   return (
     <Card className="border-0 shadow-none">
-      <CardContent className="space-y-6 pt-4">
-        <div className="space-y-4">
-          <div className="space-y-2">
+      <CardContent className="space-y-2 pt-2">
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1">
             <Label htmlFor="price">Precio de Lista *</Label>
             <Input
               id="price"
@@ -105,8 +105,7 @@ export function PricesDiscountsTab({
               required
             />
           </div>
-
-          <div className="space-y-2">
+          <div className="space-y-1">
             <Label htmlFor="commercialCondition">Condición Comercial</Label>
             <Input
               id="commercialCondition"
@@ -117,138 +116,130 @@ export function PricesDiscountsTab({
               disabled={isSubmitting}
             />
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="validUntil">Vigencia</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !date && "text-muted-foreground"
-                  )}
-                  disabled={isSubmitting}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {date
-                    ? format(date, "PPP", { locale: es })
-                    : "Seleccionar fecha"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={date}
-                  onSelect={setDate}
-                  initialFocus
-                  disabled={(date) => date < new Date()}
-                />
-              </PopoverContent>
-            </Popover>
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="validUntil">Vigencia</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "w-full justify-start text-left font-normal",
+                  !date && "text-muted-foreground"
+                )}
+                disabled={isSubmitting}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {date
+                  ? format(date, "PPP", { locale: es })
+                  : "Seleccionar fecha"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0">
+              <Calendar
+                mode="single"
+                selected={date}
+                onSelect={(d) => {
+                  setDate(d);
+                  updateFormData({
+                    validUntil: d ? d.toISOString().split("T")[0] : null,
+                  });
+                }}
+                initialFocus
+                disabled={(d) => d < new Date()}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <Label htmlFor="sellerDiscount">Descuento Vendedor (%)</Label>
+            <Input
+              id="sellerDiscount"
+              name="sellerDiscount"
+              type="number"
+              value={formData.sellerDiscount ?? ""}
+              onChange={handleNumberChange}
+              placeholder="0"
+              min="0"
+              max="100"
+              disabled={isSubmitting}
+            />
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="sellerDiscount">Descuento Vendedor (%)</Label>
+          <div className="space-y-1">
+            <Label htmlFor="managerDiscount">Descuento Gerente (%)</Label>
+            <Input
+              id="managerDiscount"
+              name="managerDiscount"
+              type="number"
+              value={formData.managerDiscount ?? ""}
+              onChange={handleNumberChange}
+              placeholder="0"
+              min="0"
+              max="100"
+              disabled={isSubmitting}
+            />
+          </div>
+        </div>
+        <div className="pt-2">
+          <h3 className="text-base font-medium mb-2">Plan de Ahorro</h3>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="space-y-1">
+              <Label htmlFor="savingsPlanType">Tipo de Plan</Label>
+              <Select
+                value={formData.savingsPlan?.type || ""}
+                onValueChange={(value) =>
+                  handleSavingsPlanChange("type", value)
+                }
+                disabled={isSubmitting}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar tipo de plan" />
+                </SelectTrigger>
+                <SelectContent>
+                  {savingsPlanTypes.map((type) => (
+                    <SelectItem key={type.id} value={type.id}>
+                      {type.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="firstQuota">Precio 1ª cuota</Label>
               <Input
-                id="sellerDiscount"
-                name="sellerDiscount"
+                id="firstQuota"
+                name="firstQuota"
                 type="number"
-                value={formData.sellerDiscount ?? ""}
-                onChange={handleNumberChange}
+                value={formData.savingsPlan?.firstQuota ?? ""}
+                onChange={(e) =>
+                  handleSavingsPlanChange(
+                    "firstQuota",
+                    e.target.value ? parseFloat(e.target.value) : null
+                  )
+                }
                 placeholder="0"
                 min="0"
-                max="100"
                 disabled={isSubmitting}
               />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="managerDiscount">Descuento Gerente (%)</Label>
+            <div className="space-y-1">
+              <Label htmlFor="totalQuotas">Cantidad de cuotas</Label>
               <Input
-                id="managerDiscount"
-                name="managerDiscount"
+                id="totalQuotas"
+                name="totalQuotas"
                 type="number"
-                value={formData.managerDiscount ?? ""}
-                onChange={handleNumberChange}
+                value={formData.savingsPlan?.totalQuotas ?? ""}
+                onChange={(e) =>
+                  handleSavingsPlanChange(
+                    "totalQuotas",
+                    e.target.value ? parseInt(e.target.value) : null
+                  )
+                }
                 placeholder="0"
                 min="0"
-                max="100"
                 disabled={isSubmitting}
               />
-            </div>
-          </div>
-
-          <div className="pt-4">
-            <h3 className="text-lg font-medium mb-4">Plan de Ahorro</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="savingsPlanType">Tipo de Plan</Label>
-                <Select
-                  value={formData.savingsPlan?.type || ""}
-                  onValueChange={(value) =>
-                    handleSavingsPlanChange("type", value)
-                  }
-                  disabled={isSubmitting}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar tipo de plan" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {savingsPlanTypes.map((type) => (
-                      <SelectItem key={type.id} value={type.id}>
-                        {type.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="savingsPlanFirstQuota">Precio 1ª Cuota</Label>
-                <Input
-                  id="savingsPlanFirstQuota"
-                  name="savingsPlanFirstQuota"
-                  type="number"
-                  value={formData.savingsPlan?.firstQuota ?? ""}
-                  onChange={(e) =>
-                    handleSavingsPlanChange(
-                      "firstQuota",
-                      e.target.value === ""
-                        ? undefined
-                        : parseFloat(e.target.value)
-                    )
-                  }
-                  placeholder="0.00"
-                  step="0.01"
-                  min="0"
-                  disabled={isSubmitting || !formData.savingsPlan?.type}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="savingsPlanTotalQuotas">
-                  Cantidad de Cuotas
-                </Label>
-                <Input
-                  id="savingsPlanTotalQuotas"
-                  name="savingsPlanTotalQuotas"
-                  type="number"
-                  value={formData.savingsPlan?.totalQuotas ?? ""}
-                  onChange={(e) =>
-                    handleSavingsPlanChange(
-                      "totalQuotas",
-                      e.target.value === ""
-                        ? undefined
-                        : parseInt(e.target.value)
-                    )
-                  }
-                  placeholder="0"
-                  min="1"
-                  disabled={isSubmitting || !formData.savingsPlan?.type}
-                />
-              </div>
             </div>
           </div>
         </div>

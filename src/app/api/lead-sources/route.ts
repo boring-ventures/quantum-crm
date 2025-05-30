@@ -8,7 +8,7 @@ const createSourceSchema = z.object({
   name: z.string().min(1, "El nombre es requerido"),
   description: z.string().optional().nullable(),
   categoryId: z.string().uuid("ID de categoría inválido").optional().nullable(),
-  costPerLead: z.number().optional().nullable(),
+  costPerSource: z.number().optional().nullable(),
   isActive: z.boolean().optional().default(true),
 });
 
