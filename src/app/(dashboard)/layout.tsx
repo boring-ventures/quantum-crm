@@ -46,8 +46,6 @@ export default function DashboardLayout({
     return <div>Cargando...</div>;
   }
 
-  console.log(user);
-
   if (!user?.roleId) {
     return <AuthError />;
   }
