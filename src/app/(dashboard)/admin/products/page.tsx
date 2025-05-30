@@ -110,14 +110,12 @@ export default function ProductsPage() {
       />
 
       <div className="flex items-center gap-4">
-        <div className="flex-1 max-w-sm">
-          <Input
-            placeholder="Buscar productos..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <ProductFilters filters={filters} setFilters={setFilters} />
+        <ProductFilters
+          filters={filters}
+          setFilters={setFilters}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+        />
         {canCreateProducts && (
           <Button onClick={handleCreateProduct}>
             <PlusIcon className="mr-2 h-4 w-4" />
