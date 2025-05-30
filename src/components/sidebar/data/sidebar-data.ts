@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import type { SidebarData } from "../types";
 import { hasPermission } from "@/lib/utils/permissions";
-import { useUserStore } from "@/store/userStore";
 
 // Datos estáticos del sidebar
 export const sidebarDataStatic: SidebarData = {

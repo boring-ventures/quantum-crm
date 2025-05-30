@@ -36,7 +36,7 @@ function isPublicRoute(pathname: string): boolean {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  console.log(`[MIDDLEWARE] Path: ${pathname}`);
+  //console.log(`[MIDDLEWARE] Path: ${pathname}`);
 
   // Ignorar completamente todas las rutas de API excepto las que necesitamos para verificar permisos por país
   if (
@@ -45,19 +45,19 @@ export async function middleware(request: NextRequest) {
     !pathname.includes("/api/sales/") &&
     !pathname.includes("/api/users/")
   ) {
-    console.log(`[MIDDLEWARE] Skipping API route: ${pathname}`);
+    //console.log(`[MIDDLEWARE] Skipping API route: ${pathname}`);
     return NextResponse.next();
   }
 
   // Excluir explícitamente las rutas de API de usuarios que usa el propio middleware
   if (pathname.match(/^\/api\/users\/[a-zA-Z0-9-]+(\?.*)?$/)) {
-    console.log(`[MIDDLEWARE] Allowing user API route: ${pathname}`);
+    //console.log(`[MIDDLEWARE] Allowing user API route: ${pathname}`);
     return NextResponse.next();
   }
 
   // Si es una ruta pública, permitir acceso
   if (isPublicRoute(pathname)) {
-    console.log(`[MIDDLEWARE] Public route: ${pathname}, allowing access`);
+    //console.log(`[MIDDLEWARE] Public route: ${pathname}, allowing access`);
     return NextResponse.next();
   }
 
@@ -73,18 +73,18 @@ export async function middleware(request: NextRequest) {
 
     // Si no hay sesión, redirigir a login
     if (!session?.user) {
-      console.log(`[MIDDLEWARE] No session, redirecting to sign-in`);
+      //console.log(`[MIDDLEWARE] No session, redirecting to sign-in`);
       return NextResponse.redirect(new URL("/sign-in", request.url));
     }
 
-    console.log(`[MIDDLEWARE] Session found for user: ${session.user.id}`);
+    //console.log(`[MIDDLEWARE] Session found for user: ${session.user.id}`);
 
     // Obtener los permisos del usuario utilizando el endpoint API
     const protocol = request.headers.get("x-forwarded-proto") || "http";
     const host = request.headers.get("host") || "localhost:3000";
     const apiUrl = `${protocol}://${host}/api/users/${session.user.id}?requireAuth=false`;
 
-    console.log(`[MIDDLEWARE] Fetching user data from API: ${apiUrl}`);
+    //console.log(`[MIDDLEWARE] Fetching user data from API: ${apiUrl}`);
 
     const apiResponse = await fetch(apiUrl, {
       headers: {
@@ -107,7 +107,7 @@ export async function middleware(request: NextRequest) {
 
     // Verificar si el usuario está eliminado
     if (profile.isDeleted) {
-      console.log(`[MIDDLEWARE] User is deleted, signing out and redirecting`);
+      //console.log(`[MIDDLEWARE] User is deleted, signing out and redirecting`);
 
       // Cerrar sesión del usuario
       await supabase.auth.signOut();
@@ -121,7 +121,7 @@ export async function middleware(request: NextRequest) {
 
     // Verificar si el usuario está activo
     if (!profile.isActive) {
-      console.log(`[MIDDLEWARE] User is inactive, signing out and redirecting`);
+      //console.log(`[MIDDLEWARE] User is inactive, signing out and redirecting`);
 
       // Cerrar sesión del usuario
       await supabase.auth.signOut();
@@ -138,7 +138,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL("/access-denied", request.url));
     }
 
-    console.log(`[MIDDLEWARE] User role: ${profile.role}`);
+    //console.log(`[MIDDLEWARE] User role: ${profile.role}`);
 
     // Parsear los permisos (pueden venir como string JSON o como objeto)
     let permissions: NestedSectionPermissions;
@@ -153,19 +153,19 @@ export async function middleware(request: NextRequest) {
     }
 
     // Log de permisos antes de verificar
-    console.log(
-      `[MIDDLEWARE] Permisos recibidos para el usuario:`,
-      JSON.stringify(permissions, null, 2)
-    );
+    // console.log(
+    //   `[MIDDLEWARE] Permisos recibidos para el usuario:`,
+    //   JSON.stringify(permissions, null, 2)
+    // );
 
     // Extraer la sección de la ruta
     const sectionKey = getSectionKeyFromPath(pathname);
-    console.log(`[MIDDLEWARE] Extracted section key: ${sectionKey}`);
+    //console.log(`[MIDDLEWARE] Extracted section key: ${sectionKey}`);
 
     if (!sectionKey) {
-      console.log(
-        `[MIDDLEWARE] No section key found for ${pathname}, denying access`
-      );
+      //console.log(
+      //  `[MIDDLEWARE] No section key found for ${pathname}, denying access`
+      //);
       return NextResponse.redirect(new URL("/access-denied", request.url));
     }
 
@@ -176,12 +176,12 @@ export async function middleware(request: NextRequest) {
       "view"
     );
 
-    console.log(
-      `[MIDDLEWARE] User has permission for ${sectionKey}: ${userHasPermission}`
-    );
+    //console.log(
+    //  `[MIDDLEWARE] User has permission for ${sectionKey}: ${userHasPermission}`
+    //);
 
     if (!userHasPermission) {
-      console.log(`[MIDDLEWARE] Access denied for ${pathname}, redirecting`);
+      //console.log(`[MIDDLEWARE] Access denied for ${pathname}, redirecting`);
       return NextResponse.redirect(new URL("/access-denied", request.url));
     }
 
@@ -206,9 +206,9 @@ export async function middleware(request: NextRequest) {
 
         // Si hay un ID de recurso específico, verificar permisos según el scope
         if (resourceId && resourceId !== "new" && resourceId !== "batch") {
-          console.log(
-            `[MIDDLEWARE] Checking scope permission for ${module}.${action} on resource ${resourceId}`
-          );
+          //console.log(
+          //  `[MIDDLEWARE] Checking scope permission for ${module}.${action} on resource ${resourceId}`
+          //);
 
           // Obtener información del recurso para verificar propiedad/país
           const resourceApiUrl = `${protocol}://${host}/api/${module}/${resourceId}?scopeCheck=true`;
@@ -247,7 +247,7 @@ export async function middleware(request: NextRequest) {
     }
 
     // Si tiene permisos, permitir acceso
-    console.log(`[MIDDLEWARE] Access granted to ${pathname}`);
+    //console.log(`[MIDDLEWARE] Access granted to ${pathname}`);
     return res;
   } catch (error) {
     console.error(`[MIDDLEWARE] Error:`, error);

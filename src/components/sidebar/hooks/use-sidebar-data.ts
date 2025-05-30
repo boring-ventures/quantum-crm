@@ -12,7 +12,6 @@ import { sidebarDataStatic } from "../data/sidebar-data";
 import { DashboardSection } from "@/types/dashboard";
 import * as LucideIcons from "lucide-react";
 import { useUserStore } from "@/store/userStore";
-import { hasPermission } from "@/lib/utils/permissions";
 
 type UseSidebarDataResult = {
   data: SidebarData | null;
@@ -21,7 +20,6 @@ type UseSidebarDataResult = {
 };
 
 export function useSidebarData(): UseSidebarDataResult {
-  const { user } = useUserStore();
   const [data, setData] = useState<SidebarData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);

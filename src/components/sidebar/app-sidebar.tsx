@@ -20,9 +20,18 @@ import { hasPermission } from "@/lib/utils/permissions";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user } = useUserStore();
+  console.log("[SIDEBAR] User:", user);
+
   // Función para verificar permisos usando hasPermission
-  const canViewSection = (sectionKey: string) =>
-    hasPermission(user, sectionKey, "view");
+  const canViewSection = (sectionKey: string) => {
+    if (hasPermission(user, sectionKey, "view")) return true;
+    // Si es admin.X y no existe, probar con X
+    if (sectionKey.startsWith("admin.")) {
+      const childKey = sectionKey.replace("admin.", "");
+      return hasPermission(user, childKey, "view");
+    }
+    return false;
+  };
   const {
     data: sidebarData,
     loading: sidebarLoading,
