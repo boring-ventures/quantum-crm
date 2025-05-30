@@ -21,7 +21,6 @@ export async function GET(req: Request) {
       "email",
       "phone",
       "cellphone",
-      "company_name",
       "status_name",
       "source_name",
       "product_code",

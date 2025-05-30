@@ -9,7 +9,6 @@ interface ImportRow {
   email?: string;
   phone?: string | number;
   cellphone?: string | number;
-  company_name?: string;
   status_name?: string;
   source_name?: string;
   product_code?: string;
@@ -178,30 +177,6 @@ export async function POST(req: Request) {
           if (product) productId = product.id;
         }
 
-        // Crear/obtener company
-        let companyId: string | null = null;
-        if (cleanData.data.company_name) {
-          let company = await prisma.company.findFirst({
-            where: {
-              name: {
-                equals: cleanData.data.company_name,
-                mode: "insensitive",
-              },
-            },
-          });
-
-          if (!company) {
-            company = await prisma.company.create({
-              data: {
-                name: cleanData.data.company_name,
-                isActive: true,
-              },
-            });
-            createdCompanies.push(company.name);
-          }
-          companyId = company ? company.id : null;
-        }
-
         // Crear lead
         const lead = await prisma.lead.create({
           data: {
@@ -227,7 +202,6 @@ export async function POST(req: Request) {
             statusId,
             sourceId,
             assignedToId: user.id,
-            companyId,
             productId: productId !== "" ? productId : null,
             qualification: "NOT_QUALIFIED",
           },
@@ -347,10 +321,6 @@ async function validateAndCleanRow(rowData: ImportRow, rowIndex: number) {
   }
 
   // Limpiar campos de texto
-  if (rowData.company_name) {
-    cleaned.company_name = rowData.company_name.toString().trim();
-  }
-
   if (rowData.status_name) {
     cleaned.status_name = rowData.status_name
       .toString()
