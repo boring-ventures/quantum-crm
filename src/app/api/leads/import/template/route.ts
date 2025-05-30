@@ -21,8 +21,8 @@ export async function GET(req: Request) {
       "email",
       "phone",
       "cellphone",
-      "status_name",
-      "source_name",
+      "status_name*",
+      "source_name*",
       "product_code",
       "extra_comments",
     ];
@@ -35,15 +35,15 @@ export async function GET(req: Request) {
     const validProductCodes = products.map((p) => p.code).join(", ");
 
     // Agregar comentarios con valores válidos
-    worksheet["G1"] = {
+    worksheet["F1"] = {
       v: "status_name*",
       c: [{ a: "Valores válidos: " + validStatusNames }],
     };
-    worksheet["H1"] = {
+    worksheet["G1"] = {
       v: "source_name*",
       c: [{ a: "Valores válidos: " + validSourceNames }],
     };
-    worksheet["I1"] = {
+    worksheet["H1"] = {
       v: "product_code",
       c: [{ a: "Valores válidos: " + validProductCodes }],
     };

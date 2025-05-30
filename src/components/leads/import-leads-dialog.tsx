@@ -225,7 +225,7 @@ export function ImportLeadsDialog({
                 <li>Formato Excel (.xlsx, .xls)</li>
                 <li>
                   Las columnas deben incluir: first_name, last_name, email,
-                  phone, cellphone, status_name, source_name, product_code,
+                  phone, cellphone, status_name*, source_name*, product_code,
                   extra_comments
                 </li>
                 <li>

@@ -9,8 +9,8 @@ interface ImportRow {
   email?: string;
   phone?: string | number;
   cellphone?: string | number;
-  status_name?: string;
-  source_name?: string;
+  "status_name*"?: string;
+  "source_name*"?: string;
   product_code?: string;
   extra_comments?: string;
 }
@@ -125,14 +125,14 @@ export async function POST(req: Request) {
         });
 
         // Limpiar status_name y source_name de asteriscos y espacios
-        if (rowData.status_name) {
-          rowData.status_name = rowData.status_name
+        if (rowData["status_name*"]) {
+          rowData["status_name*"] = rowData["status_name*"]
             .toString()
             .replace(/\*/g, "")
             .trim();
         }
-        if (rowData.source_name) {
-          rowData.source_name = rowData.source_name
+        if (rowData["source_name*"]) {
+          rowData["source_name*"] = rowData["source_name*"]
             .toString()
             .replace(/\*/g, "")
             .trim();
@@ -148,20 +148,22 @@ export async function POST(req: Request) {
 
         // Mapear status
         let statusId = fallbackStatusId;
-        if (cleanData.data.status_name) {
+        if (cleanData.data["status_name*"]) {
           const status = statuses.find(
             (s) =>
-              s.name.toLowerCase() === cleanData.data.status_name!.toLowerCase()
+              s.name.toLowerCase() ===
+              cleanData.data["status_name*"]!.toLowerCase()
           );
           if (status) statusId = status.id;
         }
 
         // Mapear source
         let sourceId = fallbackSourceId;
-        if (cleanData.data.source_name) {
+        if (cleanData.data["source_name*"]) {
           const source = sources.find(
             (s) =>
-              s.name.toLowerCase() === cleanData.data.source_name!.toLowerCase()
+              s.name.toLowerCase() ===
+              cleanData.data["source_name*"]!.toLowerCase()
           );
           if (source) sourceId = source.id;
         }
@@ -321,15 +323,15 @@ async function validateAndCleanRow(rowData: ImportRow, rowIndex: number) {
   }
 
   // Limpiar campos de texto
-  if (rowData.status_name) {
-    cleaned.status_name = rowData.status_name
+  if (rowData["status_name*"]) {
+    cleaned["status_name*"] = rowData["status_name*"]
       .toString()
       .replace(/\*/g, "")
       .trim();
   }
 
-  if (rowData.source_name) {
-    cleaned.source_name = rowData.source_name
+  if (rowData["source_name*"]) {
+    cleaned["source_name*"] = rowData["source_name*"]
       .toString()
       .replace(/\*/g, "")
       .trim();
