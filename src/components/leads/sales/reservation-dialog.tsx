@@ -99,6 +99,12 @@ export function ReservationDialog({
     setModifiedProducts((prev) => ({ ...prev, [productId]: newPrice }));
   };
 
+  // Handler mejorado para selección de fecha
+  const handleDateSelect = (date: Date | undefined) => {
+    setDeliveryDate(date);
+    setCalendarOpen(false);
+  };
+
   // Manejadores para subir archivos
   const handleFormDocUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -232,10 +238,7 @@ export function ReservationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent
-        className="max-w-2xl"
-        style={{ height: "90vh", overflowY: "auto" }}
-      >
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nueva Reserva - {leadName}</DialogTitle>
         </DialogHeader>
@@ -276,6 +279,8 @@ export function ReservationDialog({
                     value={reservationAmount}
                     onChange={(e) => setReservationAmount(e.target.value)}
                     placeholder="0.00"
+                    step="0.01"
+                    min="0"
                   />
                 </div>
 
@@ -300,7 +305,7 @@ export function ReservationDialog({
                 </div>
               </div>
 
-              {/* Fecha de entrega */}
+              {/* Fecha de entrega - CALENDARIO CORREGIDO */}
               <div className="space-y-2">
                 <Label>
                   Fecha de Entrega <span className="text-red-500">*</span>
@@ -309,29 +314,42 @@ export function ReservationDialog({
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-full justify-start text-left font-normal"
+                      className={`w-full justify-start text-left font-normal ${
+                        !deliveryDate && "text-muted-foreground"
+                      }`}
+                      onClick={() => setCalendarOpen(!calendarOpen)}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {deliveryDate ? (
-                        format(deliveryDate, "PPP", { locale: es })
-                      ) : (
-                        <span>Seleccionar fecha</span>
-                      )}
+                      {deliveryDate
+                        ? format(deliveryDate, "PPP", { locale: es })
+                        : "Seleccionar fecha"}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={deliveryDate}
-                      onSelect={(date) => {
-                        setDeliveryDate(date);
-                        setCalendarOpen(false);
-                      }}
-                      disabled={(date) =>
-                        date < new Date() || date < new Date("1900-01-01")
-                      }
-                      initialFocus
-                    />
+                  <PopoverContent
+                    className="w-auto p-0"
+                    align="start"
+                    side="bottom"
+                    sideOffset={4}
+                    style={{ zIndex: 9999 }}
+                    onOpenAutoFocus={(e) => e.preventDefault()}
+                    onCloseAutoFocus={(e) => e.preventDefault()}
+                  >
+                    <div style={{ pointerEvents: "auto" }}>
+                      <Calendar
+                        mode="single"
+                        selected={deliveryDate}
+                        onSelect={handleDateSelect}
+                        disabled={(date) => {
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          return date < today;
+                        }}
+                        initialFocus
+                        locale={es}
+                        className="rounded-md border-0"
+                        style={{ pointerEvents: "auto" }}
+                      />
+                    </div>
                   </PopoverContent>
                 </Popover>
               </div>
@@ -373,12 +391,12 @@ export function ReservationDialog({
                     />
                     <Label
                       htmlFor="formDoc"
-                      className="cursor-pointer flex items-center gap-2 px-4 py-2 border rounded-md hover:bg-gray-50"
+                      className="cursor-pointer flex items-center gap-2 px-4 py-2 border rounded-md hover:bg-gray-50 transition-colors"
                     >
                       <Upload className="h-4 w-4" />
                       Subir archivo
                     </Label>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-gray-500 truncate max-w-xs">
                       {formDocumentName}
                     </span>
                   </div>
@@ -399,12 +417,12 @@ export function ReservationDialog({
                     />
                     <Label
                       htmlFor="depositDoc"
-                      className="cursor-pointer flex items-center gap-2 px-4 py-2 border rounded-md hover:bg-gray-50"
+                      className="cursor-pointer flex items-center gap-2 px-4 py-2 border rounded-md hover:bg-gray-50 transition-colors"
                     >
                       <Upload className="h-4 w-4" />
                       Subir archivo
                     </Label>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-gray-500 truncate max-w-xs">
                       {depositDocumentName}
                     </span>
                   </div>
@@ -422,12 +440,12 @@ export function ReservationDialog({
                     />
                     <Label
                       htmlFor="contractDoc"
-                      className="cursor-pointer flex items-center gap-2 px-4 py-2 border rounded-md hover:bg-gray-50"
+                      className="cursor-pointer flex items-center gap-2 px-4 py-2 border rounded-md hover:bg-gray-50 transition-colors"
                     >
                       <Upload className="h-4 w-4" />
                       Subir archivo
                     </Label>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-gray-500 truncate max-w-xs">
                       {contractDocumentName}
                     </span>
                   </div>
@@ -442,14 +460,15 @@ export function ReservationDialog({
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Agregar notas o comentarios adicionales"
+                  rows={3}
                 />
               </div>
             </CardContent>
           </Card>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={onClose} disabled={isUploading}>
             Cancelar
           </Button>
           <Button onClick={handleSubmit} disabled={!isFormValid || isUploading}>

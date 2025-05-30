@@ -69,12 +69,7 @@ export function SaleDialog({
 
   // Autocompletar saldo solo si el usuario no lo ha cambiado
   useEffect(() => {
-    console.log("saldo: ", existingQuotation, existingReservation);
     if (open && existingQuotation && existingReservation) {
-      const s =
-        Number(existingQuotation.totalAmount || 0) -
-        Number(existingReservation.amount || 0);
-      setSaldo(s > 0 ? s.toString() : "0");
       setPaymentMethod(existingReservation.paymentMethod || "");
     }
   }, [open, existingQuotation, existingReservation]);
