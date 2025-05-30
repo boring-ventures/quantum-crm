@@ -154,10 +154,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-    setAppUser(null);
-    router.push("/sign-in");
+    try {
+      setIsLoading(true);
+
+      // Primero limpiamos los estados internos
+      setUser(null);
+      setSession(null);
+      setAppUser(null);
+
+      // Luego cerramos sesión en Supabase
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+
+      router.replace("/sign-in");
+    } catch (error) {
+      console.error("Error durante el cierre de sesión:", error);
+      // Forzar redirección en caso de error
+      router.replace("/sign-in");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

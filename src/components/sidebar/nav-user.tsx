@@ -104,34 +104,6 @@ export function NavUser() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <Sparkles />
-                Plan Premium
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem asChild>
-                <Link href="/settings/account">
-                  <BadgeCheck />
-                  Cuenta
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/settings">
-                  <CreditCard />
-                  Facturación
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/settings/notifications">
-                  <Bell />
-                  Notificaciones
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={async () => {
                 try {
@@ -140,7 +112,6 @@ export function NavUser() {
                 } catch (error) {
                   console.error("Error al cerrar sesión:", error);
                   clearUser();
-                  window.location.href = "/sign-in";
                 }
               }}
             >

@@ -116,7 +116,6 @@ export function ProfileDropdown() {
             } catch (error) {
               console.error("Error al cerrar sesión:", error);
               clearUser();
-              window.location.href = "/sign-in";
             }
           }}
         >

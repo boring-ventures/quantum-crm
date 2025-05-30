@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, createJSONStorage } from "zustand/middleware";
 import type { User } from "@/types/user";
 import { getCurrentUser } from "@/lib/utils/auth-utils";
 
@@ -11,6 +11,8 @@ interface UserState {
   setUser: (user: User | null) => void;
   clearUser: () => void;
 }
+
+const STORAGE_KEY = "user-storage";
 
 export const useUserStore = create<UserState>()(
   persist(
@@ -32,10 +34,24 @@ export const useUserStore = create<UserState>()(
         }
       },
       setUser: (user) => set({ user, isLoading: false, error: null }),
-      clearUser: () => set({ user: null, error: null, isLoading: false }),
+      clearUser: () => {
+        // Limpiar el estado
+        set({ user: null, error: null, isLoading: false });
+
+        // Limpiar el storage manualmente
+        try {
+          if (typeof window !== "undefined") {
+            window.localStorage.removeItem(STORAGE_KEY);
+            window.sessionStorage.removeItem(STORAGE_KEY);
+          }
+        } catch (error) {
+          console.error("Error al limpiar storage:", error);
+        }
+      },
     }),
     {
-      name: "user-storage",
+      name: STORAGE_KEY,
+      storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         user: state.user,
         error: state.error,
