@@ -27,13 +27,12 @@ import {
   useLeadSources,
   useCreateLeadMutation,
 } from "@/lib/hooks";
-import { useCompanies } from "@/lib/hooks/use-companies";
 import { useProducts } from "@/lib/hooks/use-products";
 import { useAuth } from "@/providers/auth-provider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import type { CreateLeadPayload, Company, Product } from "@/types/lead";
+import type { CreateLeadPayload, Product } from "@/types/lead";
 import { Search } from "lucide-react";
 
 // Esquema de validación para el formulario
@@ -44,7 +43,6 @@ const newLeadSchema = z.object({
   email: z.string().email("Email inválido").optional().nullable(),
   phone: z.string().optional().nullable(),
   cellphone: z.string().optional().nullable(),
-  companyId: z.string().optional().nullable(),
   productId: z.string().optional().nullable(),
   statusId: z.string().min(1, "El estado es requerido"),
   sourceId: z.string().min(1, "La fuente es requerida"),
@@ -73,7 +71,6 @@ export function NewLeadDialog({
   >("personal");
 
   // Búsqueda para dropdowns
-  const [searchCompany, setSearchCompany] = useState("");
   const [searchProduct, setSearchProduct] = useState("");
   const [searchSource, setSearchSource] = useState("");
   const [searchStatus, setSearchStatus] = useState("");
@@ -81,7 +78,6 @@ export function NewLeadDialog({
   // Obtener datos necesarios para el formulario
   const { data: statuses, isLoading: isLoadingStatuses } = useLeadStatuses();
   const { data: sources, isLoading: isLoadingSources } = useLeadSources();
-  const { data: companies, isLoading: isLoadingCompanies } = useCompanies();
   const { data: products, isLoading: isLoadingProducts } = useProducts();
   const createLeadMutation = useCreateLeadMutation();
 
@@ -97,7 +93,6 @@ export function NewLeadDialog({
     email: "",
     phone: "",
     cellphone: "",
-    companyId: "",
     productId: "",
     interest: "",
     statusId: "",
@@ -121,17 +116,9 @@ export function NewLeadDialog({
   // Valores del formulario
   const watchedStatusId = watch("statusId");
   const watchedSourceId = watch("sourceId");
-  const watchedCompanyId = watch("companyId");
   const watchedProductId = watch("productId");
 
   // Filtrar los dropdowns según la búsqueda
-  const filteredCompanies = companies?.filter(
-    (company: Company) =>
-      company &&
-      company.id &&
-      company.name?.toLowerCase().includes(searchCompany.toLowerCase())
-  );
-
   const filteredProducts = products?.filter(
     (product: Product) =>
       product &&
@@ -148,7 +135,6 @@ export function NewLeadDialog({
   );
 
   // Verificar si un dropdown debe ser buscable (más de 5 opciones)
-  const isSearchableCompanies = (companies?.length || 0) > 5;
   const isSearchableProducts = (products?.length || 0) > 5;
   const isSearchableSources = (sources?.length || 0) > 5;
   const isSearchableStatuses = (statuses?.length || 0) > 5;
@@ -160,7 +146,6 @@ export function NewLeadDialog({
     try {
       const cleanedData = {
         ...data,
-        companyId: data.companyId === "none" ? "" : data.companyId,
         productId: data.productId === "none" ? "" : data.productId,
         assignedToId: preassignedUserId || user?.id || "",
         qualityScore: data.interest ? parseInt(data.interest) : 1,
