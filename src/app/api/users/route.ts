@@ -51,6 +51,10 @@ export async function GET(request: NextRequest) {
     // Obtener parámetros de consulta
     const searchParams = request.nextUrl.searchParams;
     const includeDeleted = searchParams.get("includeDeleted") === "true";
+    const role = searchParams.get("role");
+    const active = searchParams.get("active") === "true";
+    const countryId = searchParams.get("countryId");
+    const scope = searchParams.get("scope");
 
     // Obtener el usuario actual completo para verificar país
     const currentUserInfo = await prisma.user.findUnique({
@@ -66,7 +70,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Determinar el scope para "users.view" basado en los permisos del usuario
-    let scope: string | boolean = "all"; // Por defecto para Super Admin
+    let userScope: string | boolean = "all"; // Por defecto para Super Admin
 
     // Si no es Super Admin, obtener scope de los permisos
     if (
@@ -88,14 +92,14 @@ export async function GET(request: NextRequest) {
           typeof viewPermission === "string" &&
           ["self", "team", "all"].includes(viewPermission)
         ) {
-          scope = viewPermission;
+          userScope = viewPermission;
         }
         // Si es booleano false, no hay acceso
         else if (viewPermission === false) {
-          scope = false;
+          userScope = false;
         }
       } else {
-        scope = false;
+        userScope = false;
       }
     }
 
@@ -107,18 +111,74 @@ export async function GET(request: NextRequest) {
       whereClause.isDeleted = false;
     }
 
+    // Filtrar por rol si se especifica
+    if (role) {
+      whereClause.role = role;
+    }
+
+    // Filtrar por active si se especifica
+    if (active !== null) {
+      whereClause.isActive = active;
+    }
+
+    // Filtrar por countryId si se especifica
+    if (countryId) {
+      whereClause.countryId = countryId;
+    }
+
     // Aplicar filtro por país si el scope es "team"
-    if (scope === "team" && currentUserInfo.countryId) {
+    if (userScope === "team" && currentUserInfo.countryId && !countryId) {
       whereClause.countryId = currentUserInfo.countryId;
     }
 
     // Si el scope es "self", mostrar solo el usuario actual
-    if (scope === "self") {
+    if (userScope === "self") {
       whereClause.id = currentUserInfo.id;
     }
 
+    // Si el scope query parameter es "self", filtrar solo usuarios con scope self
+    // Solo aplica si el usuario tiene permiso para ver otros usuarios
+    if (scope === "self" && userScope !== "self") {
+      // Obtener usuarios
+      const allUsers = await prisma.user.findMany({
+        where: whereClause,
+        include: {
+          userPermission: true,
+          country: true,
+        },
+      });
+
+      // Filtrar usuarios con scope "self" para leads.view
+      const selfUsers = allUsers.filter((user) => {
+        if (!user.userPermission?.permissions) return false;
+
+        try {
+          const permissions =
+            typeof user.userPermission.permissions === "string"
+              ? JSON.parse(user.userPermission.permissions)
+              : user.userPermission.permissions;
+
+          // Verificar si el permiso de leads.view es "self"
+          return permissions.leads?.view === "self";
+        } catch (e) {
+          return false;
+        }
+      });
+
+      return NextResponse.json({
+        users: selfUsers.map((user) => ({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          isActive: user.isActive,
+          country: user.country,
+        })),
+      });
+    }
+
     // Si el scope es false, no hay acceso
-    if (scope === false) {
+    if (userScope === false) {
       return NextResponse.json({ users: [] });
     }
 
@@ -475,7 +535,7 @@ export async function DELETE(request: NextRequest) {
     // Prevenir eliminación de Super Administrador a menos que uno mismo sea Super Administrador
     const isSuperAdmin = targetUser.userRole?.name === "Super Administrador";
     const currentIsSuperAdmin =
-      currentUser?.userRole?.name === "Super Administrador";
+      currentUser?.userPermission?.permissions === "Super Administrador";
 
     if (isSuperAdmin && !currentIsSuperAdmin) {
       return NextResponse.json(

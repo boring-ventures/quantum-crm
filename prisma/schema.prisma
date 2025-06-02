@@ -136,6 +136,9 @@ model Lead {
   nextFollowUpDate DateTime?          @map("next_follow_up_date")
   convertedAt      DateTime?          @map("converted_at")
   isArchived       Boolean            @default(false) @map("is_archived")
+  isClosed         Boolean            @default(false) @map("is_closed")
+  closedAt         DateTime?          @map("closed_at")
+  reasonClosed     String?            @map("reason_closed")
   cellphone        String?
   companyId        String?            @map("company_id")
   productId        String?            @map("product_id")
@@ -166,6 +169,7 @@ model Lead {
   @@index([createdAt])
   @@index([qualityScore])
   @@index([isArchived])
+  @@index([isClosed])
   @@index([isFavorite])
   @@index([favoriteAt])
   @@index([nextFollowUpDate])
@@ -468,6 +472,7 @@ model Quotation {
   quotationProducts QuotationProduct[]
   lead              Lead               @relation(fields: [leadId], references: [id])
   reservations      Reservation[]
+  currency          Currency           @default(BOB)
 
   @@index([leadId])
   @@index([status])
@@ -493,6 +498,7 @@ model Reservation {
   lead                   Lead               @relation(fields: [leadId], references: [id])
   quotation              Quotation?         @relation(fields: [quotationId], references: [id])
   sales                  Sale[]
+  currency               Currency           @default(BOB)
 
   @@index([leadId])
   @@index([quotationId])
@@ -514,6 +520,7 @@ model Sale {
   status          SalesProcessStatus @default(DRAFT)
   lead            Lead               @relation(fields: [leadId], references: [id])
   reservation     Reservation?       @relation(fields: [reservationId], references: [id])
+  currency        Currency           @default(BOB)
 
   @@index([leadId])
   @@index([reservationId])
@@ -616,4 +623,10 @@ enum PaymentMethod {
   TRANSFER
   CHECK
   FINANCING
+}
+
+enum Currency {
+  BOB
+  USD
+  USDT
 }

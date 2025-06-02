@@ -1,125 +1,136 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getScope } from "@/lib/utils/permissions";
+import { getScope_user } from "@/lib/utils/permissions";
 import { getCurrentUser } from "@/lib/utils/auth-utils";
+import type { DashboardMetricsResponse } from "@/types/metric-card";
 
 export async function POST(req: Request) {
   try {
-    const { filters, userId, countryId } = await req.json();
     const currentUser = await getCurrentUser();
 
     if (!currentUser) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "No autorizado" },
+        { status: 401 }
+      );
     }
 
-    // Determinar scope de permisos
-    const leadsScope = getScope(currentUser, "leads", "view");
+    const leadsScope = getScope_user(currentUser, "leads", "view");
+    const tasksScope = getScope_user(currentUser, "tasks", "view");
+    const salesScope = getScope_user(currentUser, "sales", "view");
 
-    // Construir filtros base según permisos
-    const baseFilter: any = {};
+    const leadFilters: any = {};
     if (leadsScope === "self") {
-      baseFilter.assignedToId = currentUser.id;
+      leadFilters.assignedToId = currentUser.id;
     } else if (leadsScope === "team" && currentUser.countryId) {
-      baseFilter.assignedTo = {
+      leadFilters.assignedTo = {
         countryId: currentUser.countryId,
       };
     }
 
-    // Agregar filtros adicionales
-    if (filters.company !== "all-companies") {
-      baseFilter.companyId = filters.company;
+    const taskFilters: any = {};
+    if (tasksScope === "self") {
+      taskFilters.assignedToId = currentUser.id;
+    } else if (tasksScope === "team" && currentUser.countryId) {
+      taskFilters.lead = {
+        ...taskFilters.lead,
+        user: { countryId: currentUser.countryId },
+      };
     }
 
-    // Obtener métricas
+    const salesRelatedFilters: any = {};
+    if (salesScope === "self") {
+      salesRelatedFilters.createdById = currentUser.id;
+    } else if (salesScope === "team" && currentUser.countryId) {
+      salesRelatedFilters.lead = {
+        ...salesRelatedFilters.lead,
+        user: { countryId: currentUser.countryId },
+      };
+    }
+
     const [
       totalLeads,
-      leadsThisMonth,
-      activeQuotations,
-      completedSales,
+      newLeads,
       pendingTasks,
-      overdueTasks,
+      quotations,
+      sales,
+      reservations,
     ] = await Promise.all([
-      // Total de leads activos
       prisma.lead.count({
         where: {
-          ...baseFilter,
+          ...leadFilters,
           isArchived: false,
           qualification: { not: "BAD_LEAD" },
         },
       }),
-
-      // Leads este mes
       prisma.lead.count({
         where: {
-          ...baseFilter,
+          ...leadFilters,
           isArchived: false,
           qualification: { not: "BAD_LEAD" },
           createdAt: {
-            gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+            gte: new Date(new Date().setDate(new Date().getDate() - 7)),
           },
         },
       }),
-
-      // Cotizaciones activas
+      prisma.task.count({
+        where: {
+          ...taskFilters,
+          status: "PENDING",
+          lead: {
+            isArchived: false,
+            qualification: { not: "BAD_LEAD" },
+            ...(tasksScope !== "all" && tasksScope !== false
+              ? leadFilters
+              : {}),
+          },
+        },
+      }),
       prisma.quotation.count({
         where: {
-          ...baseFilter,
-          status: "DRAFT",
+          ...salesRelatedFilters,
           lead: {
             isArchived: false,
+            qualification: { not: "BAD_LEAD" },
+            ...(salesScope !== "all" && salesScope !== false
+              ? leadFilters
+              : {}),
           },
         },
       }),
-
-      // Ventas completadas
       prisma.sale.count({
         where: {
-          ...baseFilter,
+          ...salesRelatedFilters,
           status: "COMPLETED",
-          lead: {
-            isArchived: false,
-          },
-        },
-      }),
-
-      // Tareas pendientes
-      prisma.task.count({
-        where: {
-          ...baseFilter,
-          status: "PENDING",
-          lead: {
-            isArchived: false,
-          },
-        },
-      }),
-
-      // Tareas vencidas
-      prisma.task.count({
-        where: {
-          ...baseFilter,
-          status: "PENDING",
-          scheduledFor: {
-            lt: new Date(),
+          createdAt: {
+            gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
           },
           lead: {
             isArchived: false,
+            qualification: { not: "BAD_LEAD" },
+            ...(salesScope !== "all" && salesScope !== false
+              ? leadFilters
+              : {}),
           },
         },
       }),
+      Promise.resolve(0),
     ]);
 
-    return NextResponse.json({
+    const responseData: DashboardMetricsResponse = {
       totalLeads,
-      leadsThisMonth,
-      activeQuotations,
-      completedSales,
+      newLeads,
       pendingTasks,
-      overdueTasks,
-    });
+      quotations,
+      sales,
+      reservations,
+    };
+
+    return NextResponse.json({ success: true, data: responseData });
   } catch (error) {
-    console.error("[DASHBOARD_METRICS]", error);
+    console.error("[DASHBOARD_METRICS_API]", error);
     return NextResponse.json(
-      { error: "Error al obtener métricas" },
+      { success: false, error: "Error al obtener métricas del dashboard" },
       { status: 500 }
     );
   }

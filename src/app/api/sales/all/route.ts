@@ -109,6 +109,7 @@ export async function GET(request: NextRequest) {
               select: {
                 id: true,
                 name: true,
+                nameProduct: true,
                 code: true,
                 businessType: {
                   select: {
@@ -126,7 +127,32 @@ export async function GET(request: NextRequest) {
             },
           },
         },
-        reservation: true,
+        reservation: {
+          include: {
+            quotation: {
+              include: {
+                quotationProducts: {
+                  include: {
+                    product: {
+                      select: {
+                        id: true,
+                        name: true,
+                        nameProduct: true,
+                        code: true,
+                        businessType: {
+                          select: {
+                            id: true,
+                            name: true,
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
       orderBy: {
         createdAt: "desc",

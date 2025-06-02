@@ -117,18 +117,16 @@ export default function SalesPage() {
     queryFn: async () => {
       if (!isManagerRole) return { users: [] };
 
-      // Construir la URL base
-      let url = `/api/users?`;
+      // Construir los parámetros de consulta según el scope
+      const params = new URLSearchParams();
+      params.append("active", "true");
 
       // Agregar filtros según el scope
       if (salesScope === "team" && currentUser?.countryId) {
-        url += `countryId=${currentUser.countryId}&`;
+        params.append("countryId", currentUser.countryId);
       }
 
-      // Agregar filtro de permisos
-      url += `hasPermission=sales.view`;
-
-      const response = await fetch(url);
+      const response = await fetch(`/api/users/all?${params.toString()}`);
       if (!response.ok) {
         throw new Error("Error al obtener usuarios");
       }
@@ -147,7 +145,8 @@ export default function SalesPage() {
         ? [dateRange.from, dateRange.to]
         : undefined,
     assignedToId,
-    countryId: salesScope === "team" ? currentUser?.countryId : undefined,
+    countryId:
+      salesScope === "team" ? (currentUser?.countryId ?? undefined) : undefined,
   });
 
   // Obtener datos de reservas con los filtros apropiados
@@ -161,7 +160,10 @@ export default function SalesPage() {
           ? [dateRange.from, dateRange.to]
           : undefined,
       assignedToId,
-      countryId: salesScope === "team" ? currentUser?.countryId : undefined,
+      countryId:
+        salesScope === "team"
+          ? (currentUser?.countryId ?? undefined)
+          : undefined,
     });
 
   // Usar useEffect para manejar el cambio de roles
@@ -227,6 +229,13 @@ export default function SalesPage() {
     if (typeLC.includes("bici")) return "🚲";
     if (typeLC.includes("auto")) return "🚗";
     return "🚗";
+  };
+
+  // Formatear moneda
+  const formatCurrency = (currency?: string | null) => {
+    if (currency === "USD") return "USD";
+    if (currency === "USDT") return "USDT";
+    return "BOB"; // Default a BOB para cualquier otro caso (incluyendo null, undefined o BOB)
   };
 
   // Calcular días restantes
@@ -323,21 +332,50 @@ export default function SalesPage() {
 
   // Renderizar tarjeta de venta
   const renderSaleCard = (sale: any) => {
-    const productType = sale.lead?.product?.businessType?.name || "AUTOS";
-    const clientName =
-      `${sale.lead?.firstName || ""} ${sale.lead?.lastName || ""}`.trim();
+    // Acceder a los productos a través de la reserva y cotización
+    const quotationProducts =
+      sale.reservation?.quotation?.quotationProducts || [];
+    let productDisplay = "Producto no especificado";
+    let firstProductNameForIcon = "Tipo no especificado";
+
+    if (quotationProducts && quotationProducts.length > 0) {
+      if (quotationProducts.length === 1) {
+        productDisplay =
+          quotationProducts[0].product?.nameProduct ||
+          "Producto no especificado";
+      } else {
+        productDisplay =
+          quotationProducts
+            .slice(0, 2)
+            .map((qp: any) => qp.product?.nameProduct || "N/A")
+            .join(" - ") + (quotationProducts.length > 2 ? "..." : "");
+      }
+      firstProductNameForIcon =
+        quotationProducts[0].product?.businessType?.name ||
+        "Tipo no especificado";
+    }
+
+    const productIcon = getProductIcon(firstProductNameForIcon);
+    const paymentMethod = formatPaymentMethod(sale.paymentMethod);
+    const saleAmount = sale.amount ? parseFloat(sale.amount) : 0;
+    const currencyDisplay = formatCurrency(sale.currency);
 
     return (
       <Card key={sale.id} className="mb-4">
         <div className="flex items-start justify-between p-5">
           <div className="flex items-center">
-            <span className="text-2xl mr-3">{getProductIcon(productType)}</span>
+            <span className="text-2xl mr-3">{productIcon}</span>
             <div>
               <div className="flex items-center">
                 <span className="text-muted-foreground text-sm uppercase font-medium mr-2">
-                  {productType} -
+                  {firstProductNameForIcon} -
                 </span>
-                <span className="font-semibold uppercase">{clientName}</span>
+                <span
+                  className="font-semibold uppercase truncate max-w-xs"
+                  title={productDisplay}
+                >
+                  {productDisplay}
+                </span>
                 <Badge
                   className="ml-3"
                   variant={
@@ -355,9 +393,7 @@ export default function SalesPage() {
                       : "ACTIVA"}
                 </Badge>
               </div>
-              <h3 className="text-lg font-semibold mt-1">
-                {sale.lead?.product?.name || "Producto no especificado"}
-              </h3>
+              <h3 className="text-lg font-semibold mt-1">{productDisplay}</h3>
               <div className="text-sm text-muted-foreground mt-1 flex items-center flex-wrap gap-1">
                 <span>
                   #{sale.id.substring(0, 3)} | Cod. Int.{" "}
@@ -379,7 +415,11 @@ export default function SalesPage() {
                 {format(parseISO(sale.createdAt), "dd/MM/yyyy", { locale: es })}
               </div>
               <div className="text-xl font-bold">
-                ${Number(sale.amount).toLocaleString()}
+                {currencyDisplay}{" "}
+                {saleAmount.toLocaleString("es-BO", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
               </div>
             </div>
 
@@ -413,25 +453,59 @@ export default function SalesPage() {
 
   // Renderizar tarjeta de reserva
   const renderReservationCard = (reservation: any) => {
-    const productType =
-      reservation.lead?.product?.businessType?.name || "AUTOS";
-    const clientName =
-      `${reservation.lead?.firstName || ""} ${reservation.lead?.lastName || ""}`.trim();
-    const daysRemaining = getRemainingDays(reservation.deliveryDate);
+    // Acceder a los productos directamente desde la cotización de la reserva
+    const quotationProducts = reservation.quotation?.quotationProducts || [];
+    let productDisplay = "Producto no especificado";
+    let firstProductNameForIcon = "Tipo no especificado";
+
+    if (quotationProducts && quotationProducts.length > 0) {
+      if (quotationProducts.length === 1) {
+        productDisplay =
+          quotationProducts[0].product?.nameProduct ||
+          "Producto no especificado";
+      } else {
+        productDisplay =
+          quotationProducts
+            .slice(0, 2)
+            .map((qp: any) => qp.product?.nameProduct || "N/A")
+            .join(" - ") + (quotationProducts.length > 2 ? "..." : "");
+      }
+      firstProductNameForIcon =
+        quotationProducts[0].product?.businessType?.name ||
+        "Tipo no especificado";
+    }
+
+    const productIcon = getProductIcon(firstProductNameForIcon);
+    const paymentMethod = formatPaymentMethod(reservation.paymentMethod);
+    const reservationAmount = reservation.amount
+      ? parseFloat(reservation.amount)
+      : 0;
+    const deliveryDate = reservation.deliveryDate
+      ? format(parseISO(reservation.deliveryDate), "PPP", { locale: es })
+      : "Fecha no especificada";
+    const remainingDays = reservation.deliveryDate
+      ? getRemainingDays(reservation.deliveryDate)
+      : null;
+    const currencyDisplay = formatCurrency(reservation.currency);
 
     return (
       <Card key={reservation.id} className="mb-4">
         <div className="flex items-start justify-between p-5">
           <div className="flex items-center">
-            <span className="text-2xl mr-3">{getProductIcon(productType)}</span>
+            <span className="text-2xl mr-3">{productIcon}</span>
             <div>
               <div className="flex items-center">
                 <span className="text-muted-foreground text-sm uppercase font-medium mr-2">
-                  {productType} -
+                  {firstProductNameForIcon} -
                 </span>
-                <span className="font-semibold uppercase">{clientName}</span>
+                <span
+                  className="font-semibold uppercase truncate max-w-xs"
+                  title={productDisplay}
+                >
+                  {productDisplay}
+                </span>
                 <Badge
-                  className="ml-3"
+                  className="ml-3 text-xs"
                   variant={
                     reservation.status === "COMPLETED"
                       ? "default"
@@ -440,16 +514,10 @@ export default function SalesPage() {
                         : "secondary"
                   }
                 >
-                  {reservation.status === "COMPLETED"
-                    ? "ACTIVA"
-                    : reservation.status === "CANCELLED"
-                      ? "CANCELADA"
-                      : "BORRADOR"}
+                  {reservation.status}
                 </Badge>
               </div>
-              <h3 className="text-lg font-semibold mt-1">
-                {reservation.lead?.product?.name || "PRODUCTO NO ESPECIFICADO"}
-              </h3>
+              <h3 className="text-lg font-semibold mt-1">{productDisplay}</h3>
               <div className="text-sm text-muted-foreground mt-1 flex items-center flex-wrap gap-1">
                 <span>
                   #{reservation.id.substring(0, 3)} | Cod. Int.{" "}
@@ -474,28 +542,31 @@ export default function SalesPage() {
                     locale: es,
                   })}
                 </span>
-                <span>
-                  Entrega:{" "}
-                  {format(parseISO(reservation.deliveryDate), "dd/MM/yyyy", {
-                    locale: es,
-                  })}
-                </span>
-                <Badge
-                  variant={daysRemaining >= 0 ? "default" : "destructive"}
-                  className="mt-1 self-end"
-                >
-                  {daysRemaining >= 0
-                    ? `${daysRemaining} días restantes`
-                    : `${Math.abs(daysRemaining)} días vencidos`}
-                </Badge>
+                <span>Entrega: {deliveryDate}</span>
+                {remainingDays !== null && (
+                  <Badge
+                    variant={remainingDays >= 0 ? "default" : "destructive"}
+                    className="mt-1 self-end"
+                  >
+                    {remainingDays >= 0
+                      ? `${remainingDays} días restantes`
+                      : `${Math.abs(remainingDays)} días vencidos`}
+                  </Badge>
+                )}
               </div>
               <div className="mt-1">
-                <div className="text-xl font-bold">
-                  ${Number(reservation.amount).toLocaleString()}
+                <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                  {currencyDisplay}{" "}
+                  {reservationAmount.toLocaleString("es-BO", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
                 </div>
-                <div className="text-sm text-green-500">
-                  Monto de reserva: $
-                  {Number(reservation.amount).toLocaleString()}
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  Método de pago: {paymentMethod}
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  Fecha de entrega: {deliveryDate}
                 </div>
               </div>
             </div>
@@ -534,7 +605,40 @@ export default function SalesPage() {
 
     const isSale = "saleContractUrl" in selectedItem;
     const item = selectedItem;
-    const productType = item.lead?.product?.businessType?.name || "PRODUCTO";
+    console.log("renderDetailSheet: ", item);
+
+    // Acceder a los productos según si es venta o reserva
+    const quotationProducts = isSale
+      ? item.reservation?.quotation?.quotationProducts || []
+      : item.quotation?.quotationProducts || [];
+
+    let productDisplay = "Producto no especificado";
+    let productDetailsList: React.ReactNode = null;
+    let firstProductForSheet: any = null; // Para obtener businessType y código si solo hay un producto
+
+    if (quotationProducts && quotationProducts.length > 0) {
+      firstProductForSheet = quotationProducts[0].product;
+      if (quotationProducts.length === 1) {
+        productDisplay =
+          firstProductForSheet?.nameProduct || "Producto no especificado";
+      } else {
+        productDisplay = quotationProducts
+          .map((qp: any) => qp.product?.nameProduct || "N/A")
+          .join(", ");
+        productDetailsList = (
+          <ul className="list-disc list-inside space-y-1 mt-1">
+            {quotationProducts.map((qp: any, index: number) => (
+              <li key={index} className="text-sm text-gray-300">
+                {qp.product?.nameProduct || "N/A"} (Código:{" "}
+                {qp.product?.code || "N/A"})
+              </li>
+            ))}
+          </ul>
+        );
+      }
+    }
+    const businessType = firstProductForSheet?.businessType?.name || "PRODUCTO";
+
     const clientName =
       `${item.lead?.firstName || ""} ${item.lead?.lastName || ""}`.trim();
 
@@ -549,13 +653,14 @@ export default function SalesPage() {
 
           <div className="mt-6 space-y-6">
             <div>
-              <h3 className="text-lg font-semibold">{productType}</h3>
-              <h2 className="text-2xl font-bold mt-1">
-                {item.lead?.product?.name || "Producto no especificado"}
-              </h2>
+              <h3 className="text-lg font-semibold">{businessType}</h3>
+              <h2 className="text-2xl font-bold mt-1">{productDisplay}</h2>
+              {productDetailsList}
               <div className="mt-2 text-sm text-gray-400">
-                Código: {item.lead?.product?.code || "N/A"} | ID: #
-                {item.id.substring(0, 8)}
+                {quotationProducts.length === 1
+                  ? `Código: ${firstProductForSheet?.code || "N/A"}`
+                  : "Múltiples productos"}{" "}
+                | ID: #{item.id.substring(0, 8)}
               </div>
             </div>
 

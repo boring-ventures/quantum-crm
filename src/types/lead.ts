@@ -16,6 +16,9 @@ export interface Lead {
   qualityScore?: number;
   qualification?: "NOT_QUALIFIED" | "GOOD_LEAD" | "BAD_LEAD";
   isArchived?: boolean;
+  isClosed?: boolean;
+  closedAt?: Date | null;
+  reasonClosed?: string | null;
   isFavorite?: boolean;
   favoriteAt?: Date;
   createdAt: Date;

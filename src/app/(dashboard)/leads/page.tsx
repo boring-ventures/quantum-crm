@@ -15,6 +15,7 @@ import { LeadsList } from "@/components/leads/leads-list";
 import { PendingTasks } from "@/components/leads/pending-tasks";
 import { NewLeadDialog } from "@/components/leads/new-lead-dialog";
 import { ImportLeadsDialog } from "@/components/leads/import-leads-dialog";
+import { BatchReassignDialog } from "@/components/leads/batch-reassign-dialog";
 import {
   Plus,
   Search,
@@ -28,6 +29,9 @@ import {
   CheckCircle2,
   XCircle,
   Star,
+  Archive,
+  Lock,
+  UserCheck,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
@@ -50,11 +54,15 @@ import { useUserStore } from "@/store/userStore";
 export default function LeadsPage() {
   const [newLeadOpen, setNewLeadOpen] = useState(false);
   const [importLeadsOpen, setImportLeadsOpen] = useState(false);
+  const [batchReassignOpen, setBatchReassignOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [interestFilter, setInterestFilter] = useState("all-interests");
   const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null);
   const [showAllLeads, setShowAllLeads] = useState(false);
+  const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState("active");
+  const [canSelectLeads, setCanSelectLeads] = useState(false);
 
   const { toast } = useToast();
   const { user: currentUser, isLoading: isLoadingCurrentUser } = useUserStore();
@@ -68,6 +76,9 @@ export default function LeadsPage() {
 
   // Determinar si debe mostrar acceso denegado
   const showAccessDenied = !canViewLeads && !isLoadingCurrentUser;
+
+  // Verificar si tiene permiso para ver leads archivados
+  const canViewArchivedLeads = ["team", "all"].includes(leadsScope as string);
 
   // Determinamos los filtros de usuario según el scope
   let assignedToId: string | undefined = undefined;
@@ -91,20 +102,38 @@ export default function LeadsPage() {
     }
   }, [selectedSellerId]);
 
+  // Resetear selección de leads al cambiar filtros o tabs
+  useEffect(() => {
+    setSelectedLeads([]);
+  }, [searchTerm, interestFilter, activeTab, selectedSellerId, showAllLeads]);
+
   // Consulta para obtener vendedores si tiene permiso adecuado
   const canManageTeam = ["team", "all"].includes(leadsScope as string);
 
   const { data: sellersData, isLoading: loadingSellers } = useQuery({
-    queryKey: ["sellers"],
+    queryKey: [
+      "sellers",
+      { countryId: currentUser?.countryId, scope: leadsScope },
+    ],
     queryFn: async () => {
       if (!canManageTeam) return { users: [] };
-      const response = await fetch(`/api/users?role=Vendedor`);
+
+      // Construir los parámetros de consulta según el scope
+      const params = new URLSearchParams();
+      params.append("active", "true");
+
+      // Agregar filtros según el scope
+      if (leadsScope === "team" && currentUser?.countryId) {
+        params.append("countryId", currentUser.countryId);
+      }
+
+      const response = await fetch(`/api/users/all?${params.toString()}`);
       if (!response.ok) {
         throw new Error("Error al obtener vendedores");
       }
       return response.json();
     },
-    enabled: canManageTeam,
+    enabled: canManageTeam && !isLoadingCurrentUser,
   });
 
   // Obtener datos de leads con los filtros adecuados
@@ -114,13 +143,24 @@ export default function LeadsPage() {
     search: searchTerm,
   });
 
-  // Procesar los leads para estadísticas
-  let leadsData =
-    rawLeadsData?.items?.filter(
-      (lead) => lead.qualification !== "BAD_LEAD" && !lead.isArchived
-    ) || [];
+  // Procesar los leads para estadísticas (filtrando por estado según el tab activo)
+  let leadsData = rawLeadsData?.items || [];
 
+  // Función para obtener leads filtrados por estado
+  const getFilteredLeads = (status: "active" | "closed" | "archived") => {
+    return rawLeadsData?.items?.filter((lead) => {
+      if (status === "active") return !lead.isArchived && !lead.isClosed;
+      if (status === "closed") return !lead.isArchived && lead.isClosed;
+      if (status === "archived") return lead.isArchived;
+      return false;
+    });
+  };
+
+  // Calcular conteos para cada categoría
   const leadCounts = {
+    active: getFilteredLeads("active")?.length || 0,
+    closed: getFilteredLeads("closed")?.length || 0,
+    archived: getFilteredLeads("archived")?.length || 0,
     all: leadsData?.length || 0,
     noManagement:
       leadsData?.filter(
@@ -208,6 +248,24 @@ export default function LeadsPage() {
   // Manejar la selección de un vendedor
   const handleSelectSeller = (sellerId: string) => {
     setSelectedSellerId(sellerId);
+  };
+
+  // Manejar la selección de leads para reasignación masiva
+  const handleLeadSelect = (leadId: string, isSelected: boolean) => {
+    if (isSelected) {
+      setSelectedLeads([...selectedLeads, leadId]);
+    } else {
+      setSelectedLeads(selectedLeads.filter((id) => id !== leadId));
+    }
+  };
+
+  // Manejar éxito en la reasignación masiva
+  const handleReassignSuccess = () => {
+    setSelectedLeads([]);
+    toast({
+      title: "Reasignación completada",
+      description: "Los leads han sido reasignados exitosamente.",
+    });
   };
 
   // Renderizar la tabla de vendedores
@@ -408,8 +466,71 @@ export default function LeadsPage() {
                           <SelectItem value="low">Bajo interés</SelectItem>
                         </SelectContent>
                       </Select>
+                      {/* Botón para seleccionar para reasignación masiva */}
+                      {(canEditLeads || canCreateLeads) && (
+                        <Button
+                          variant="outline"
+                          onClick={() => setCanSelectLeads(!canSelectLeads)}
+                        >
+                          {canSelectLeads
+                            ? "Deseleccionar para ver todos"
+                            : "Seleccionar para reasignación masiva"}
+                        </Button>
+                      )}
                     </div>
 
+                    {/* Estado de selección y botón para reasignación masiva */}
+                    {selectedLeads.length > 0 && (
+                      <div className="mb-4 flex items-center justify-between p-2 bg-blue-50 dark:bg-blue-900/20 rounded-md">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">
+                            {selectedLeads.length} lead(s) seleccionado(s)
+                          </span>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => setBatchReassignOpen(true)}
+                        >
+                          <UserCheck className="mr-2 h-4 w-4" />
+                          Reasignar seleccionados
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Tabs principales para estado de leads */}
+                    <Tabs
+                      value={activeTab}
+                      onValueChange={setActiveTab}
+                      className="w-full mb-4"
+                    >
+                      <TabsList>
+                        <TabsTrigger
+                          value="active"
+                          className="flex items-center"
+                        >
+                          <UserIcon className="mr-2 h-4 w-4" />
+                          Activos ({leadCounts.active})
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="closed"
+                          className="flex items-center"
+                        >
+                          <Lock className="mr-2 h-4 w-4" />
+                          Cerrados ({leadCounts.closed})
+                        </TabsTrigger>
+                        {canViewArchivedLeads && (
+                          <TabsTrigger
+                            value="archived"
+                            className="flex items-center"
+                          >
+                            <Archive className="mr-2 h-4 w-4" />
+                            Archivados ({leadCounts.archived})
+                          </TabsTrigger>
+                        )}
+                      </TabsList>
+                    </Tabs>
+
+                    {/* Subtabs para categorías de leads */}
                     <Tabs defaultValue="all" className="w-full">
                       <TabsList>
                         <TabsTrigger value="all" className="flex items-center">
@@ -459,12 +580,18 @@ export default function LeadsPage() {
                         <LeadsList
                           searchTerm={searchTerm}
                           filterType="all"
+                          leadStatus={
+                            activeTab as "active" | "closed" | "archived"
+                          }
                           interestLevel={getInterestScore(interestFilter)}
                           assignedToId={assignedToId}
                           countryId={countryId}
                           canEdit={canEditLeads}
                           canDelete={canDeleteLeads}
                           currentUser={currentUser}
+                          showSelectionColumn={canSelectLeads}
+                          selectedLeads={selectedLeads}
+                          onLeadSelect={handleLeadSelect}
                         />
                       </TabsContent>
                       <TabsContent value="no-management">
@@ -472,12 +599,18 @@ export default function LeadsPage() {
                           filterBadLeads={true}
                           searchTerm={searchTerm}
                           filterType="no-management"
+                          leadStatus={
+                            activeTab as "active" | "closed" | "archived"
+                          }
                           interestLevel={getInterestScore(interestFilter)}
                           assignedToId={assignedToId}
                           countryId={countryId}
                           canEdit={canEditLeads}
                           canDelete={canDeleteLeads}
                           currentUser={currentUser}
+                          showSelectionColumn={canSelectLeads}
+                          selectedLeads={selectedLeads}
+                          onLeadSelect={handleLeadSelect}
                         />
                       </TabsContent>
                       <TabsContent value="tasks">
@@ -485,12 +618,18 @@ export default function LeadsPage() {
                           filterBadLeads={true}
                           searchTerm={searchTerm}
                           filterType="today-tasks"
+                          leadStatus={
+                            activeTab as "active" | "closed" | "archived"
+                          }
                           interestLevel={getInterestScore(interestFilter)}
                           assignedToId={assignedToId}
                           countryId={countryId}
                           canEdit={canEditLeads}
                           canDelete={canDeleteLeads}
                           currentUser={currentUser}
+                          showSelectionColumn={canSelectLeads}
+                          selectedLeads={selectedLeads}
+                          onLeadSelect={handleLeadSelect}
                         />
                       </TabsContent>
                       <TabsContent value="overdue">
@@ -498,12 +637,18 @@ export default function LeadsPage() {
                           filterBadLeads={true}
                           searchTerm={searchTerm}
                           filterType="overdue-tasks"
+                          leadStatus={
+                            activeTab as "active" | "closed" | "archived"
+                          }
                           interestLevel={getInterestScore(interestFilter)}
                           assignedToId={assignedToId}
                           countryId={countryId}
                           canEdit={canEditLeads}
                           canDelete={canDeleteLeads}
                           currentUser={currentUser}
+                          showSelectionColumn={canSelectLeads}
+                          selectedLeads={selectedLeads}
+                          onLeadSelect={handleLeadSelect}
                         />
                       </TabsContent>
                       <TabsContent value="favorites">
@@ -511,12 +656,18 @@ export default function LeadsPage() {
                           filterBadLeads={true}
                           searchTerm={searchTerm}
                           filterType="favorites"
+                          leadStatus={
+                            activeTab as "active" | "closed" | "archived"
+                          }
                           interestLevel={getInterestScore(interestFilter)}
                           assignedToId={assignedToId}
                           countryId={countryId}
                           canEdit={canEditLeads}
                           canDelete={canDeleteLeads}
                           currentUser={currentUser}
+                          showSelectionColumn={canSelectLeads}
+                          selectedLeads={selectedLeads}
+                          onLeadSelect={handleLeadSelect}
                         />
                       </TabsContent>
                       {leadsScope !== "self" && (
@@ -525,12 +676,18 @@ export default function LeadsPage() {
                             filterBadLeads={true}
                             searchTerm={searchTerm}
                             filterType="my-leads"
+                            leadStatus={
+                              activeTab as "active" | "closed" | "archived"
+                            }
                             interestLevel={getInterestScore(interestFilter)}
-                            assignedToId={assignedToId}
+                            assignedToId={currentUser?.id}
                             countryId={countryId}
                             canEdit={canEditLeads}
                             canDelete={canDeleteLeads}
                             currentUser={currentUser}
+                            showSelectionColumn={canSelectLeads}
+                            selectedLeads={selectedLeads}
+                            onLeadSelect={handleLeadSelect}
                           />
                         </TabsContent>
                       )}
@@ -560,6 +717,12 @@ export default function LeadsPage() {
           <ImportLeadsDialog
             open={importLeadsOpen}
             onOpenChange={setImportLeadsOpen}
+          />
+          <BatchReassignDialog
+            open={batchReassignOpen}
+            onOpenChange={setBatchReassignOpen}
+            selectedLeads={selectedLeads}
+            onSuccess={handleReassignSuccess}
           />
         </>
       )}
