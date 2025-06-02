@@ -31,6 +31,12 @@ interface PricesDiscountsTabProps {
   isSubmitting: boolean;
 }
 
+const currencies = [
+  { value: "BOB", label: "Bs. - Bolivianos" },
+  { value: "USD", label: "USD - Dólares Americanos" },
+  { value: "USDT", label: "USDT - Tether" },
+];
+
 const savingsPlanTypes = [
   { id: "plan70-30", name: "Plan 70/30" },
   { id: "plan60-40", name: "Plan 60/40" },
@@ -53,14 +59,12 @@ export function PricesDiscountsTab({
     formData.validUntil ? new Date(formData.validUntil) : undefined
   );
 
-  // Actualizar fecha de validez en el formData cuando cambia
   useEffect(() => {
-    if (date) {
-      updateFormData({
-        validUntil: date.toISOString().split("T")[0],
-      });
+    // Asegurar que currency tenga un valor por defecto
+    if (!formData.currency) {
+      updateFormData({ currency: "BOB" });
     }
-  }, [date, updateFormData]);
+  }, [formData.currency, updateFormData]);
 
   // Manejar cambios en los campos numéricos
   const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,10 +90,20 @@ export function PricesDiscountsTab({
     });
   };
 
+  // Manejar la selección de fecha
+  const handleDateSelect = (selectedDate: Date | undefined) => {
+    setDate(selectedDate);
+    updateFormData({
+      validUntil: selectedDate
+        ? selectedDate.toISOString().split("T")[0]
+        : null,
+    });
+  };
+
   return (
     <Card className="border-0 shadow-none">
       <CardContent className="space-y-2 pt-2">
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <div className="space-y-1">
             <Label htmlFor="price">Precio de Lista *</Label>
             <Input
@@ -104,6 +118,25 @@ export function PricesDiscountsTab({
               disabled={isSubmitting}
               required
             />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="currency">Moneda</Label>
+            <Select
+              value={formData.currency || "BOB"}
+              onValueChange={(value) => updateFormData({ currency: value })}
+              disabled={isSubmitting}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar moneda" />
+              </SelectTrigger>
+              <SelectContent>
+                {currencies.map((currency) => (
+                  <SelectItem key={currency.value} value={currency.value}>
+                    {currency.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1">
             <Label htmlFor="commercialCondition">Condición Comercial</Label>
@@ -144,12 +177,7 @@ export function PricesDiscountsTab({
                 <Calendar
                   mode="single"
                   selected={date}
-                  onSelect={(d) => {
-                    setDate(d);
-                    updateFormData({
-                      validUntil: d ? d.toISOString().split("T")[0] : null,
-                    });
-                  }}
+                  onSelect={handleDateSelect}
                   initialFocus
                   disabled={(d) => d < new Date()}
                   style={{ pointerEvents: "auto" }}

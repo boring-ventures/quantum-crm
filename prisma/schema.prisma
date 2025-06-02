@@ -199,12 +199,13 @@ model LeadSource {
 }
 
 model Country {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  code      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String    @id @default(uuid())
+  name      String    @unique
+  code      String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   users     User[]
+  Product   Product[]
 
   @@map("countries")
 }
@@ -307,11 +308,14 @@ model Product {
   descriptionProduct String?
   modelId            String?            @map("model_id")
   nameProduct        String
+  countryId          String?            @map("country_id")
+  currency           Currency           @default(BOB)
   leads              Lead[]
   images             ProductImage[]
   brand              Brand?             @relation(fields: [brandId], references: [id])
   businessType       BusinessType?      @relation(fields: [businessTypeId], references: [id])
   model              Model?             @relation(fields: [modelId], references: [id])
+  country            Country?           @relation(fields: [countryId], references: [id])
   QuotationProduct   QuotationProduct[]
 
   @@index([code])
@@ -319,6 +323,7 @@ model Product {
   @@index([businessTypeId])
   @@index([brandId])
   @@index([modelId])
+  @@index([countryId])
   @@index([isActive])
   @@map("products")
 }

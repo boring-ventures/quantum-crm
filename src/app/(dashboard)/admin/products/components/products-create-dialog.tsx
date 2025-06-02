@@ -31,6 +31,8 @@ type ProductFormData = {
   validUntil?: string;
   sellerDiscount?: number;
   managerDiscount?: number;
+  countryId?: string;
+  currency: string;
   savingsPlan?: {
     type?: string;
     firstQuota?: number;
@@ -62,6 +64,8 @@ export function ProductsCreateDialog({
     specifications: [],
     sellerDiscount: 0,
     managerDiscount: 0,
+    currency: "BOB",
+    countryId: "",
   });
 
   const updateFormData = (newData: Partial<ProductFormData>) => {
@@ -116,7 +120,7 @@ export function ProductsCreateDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[900px] max-h-[90vh] p-0">
+      <DialogContent className="sm:max-w-[900px] max-h-[90vh] p-4">
         <DialogHeader>
           <DialogTitle>Crear Nuevo Producto</DialogTitle>
           <DialogDescription>

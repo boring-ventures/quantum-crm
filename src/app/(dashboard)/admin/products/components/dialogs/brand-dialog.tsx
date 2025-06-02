@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,13 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2 } from "lucide-react";
 
@@ -36,37 +29,9 @@ export function BrandDialog({
   const { toast } = useToast();
   const [formData, setFormData] = useState({
     name: "",
-    companyId: "",
     isActive: true,
   });
-  const [companies, setCompanies] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    async function fetchCompanies() {
-      setIsLoading(true);
-      try {
-        const response = await fetch("/api/companies?active=true");
-        if (!response.ok) {
-          throw new Error("Error al cargar empresas");
-        }
-        const data = await response.json();
-        setCompanies(data);
-      } catch (error) {
-        console.error("Error fetching companies:", error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "No se pudieron cargar las empresas",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    fetchCompanies();
-  }, [toast]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -86,16 +51,6 @@ export function BrandDialog({
           variant: "destructive",
           title: "Error",
           description: "El nombre es requerido",
-        });
-        setIsSubmitting(false);
-        return;
-      }
-
-      if (!formData.companyId) {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Debe seleccionar una empresa",
         });
         setIsSubmitting(false);
         return;
@@ -157,30 +112,9 @@ export function BrandDialog({
                 value={formData.name}
                 onChange={handleInputChange}
                 placeholder="Nombre de la marca"
-                disabled={isSubmitting || isLoading}
+                disabled={isSubmitting}
                 required
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="companyId">Empresa *</Label>
-              <Select
-                value={formData.companyId}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, companyId: value })
-                }
-                disabled={isSubmitting || isLoading}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar empresa" />
-                </SelectTrigger>
-                <SelectContent>
-                  {companies.map((company) => (
-                    <SelectItem key={company.id} value={company.id}>
-                      {company.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
             <div className="flex items-center space-x-2">
               <Switch
@@ -203,7 +137,7 @@ export function BrandDialog({
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={isSubmitting || isLoading}>
+            <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

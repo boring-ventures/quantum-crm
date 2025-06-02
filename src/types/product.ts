@@ -23,4 +23,10 @@ export interface Product {
   } | null;
   validUntil?: string | null;
   images?: { url: string; isMain: boolean }[];
+  currency?: "BOB" | "USD" | "USDT";
+  country?: {
+    id: string;
+    name: string;
+    code: string;
+  } | null;
 }

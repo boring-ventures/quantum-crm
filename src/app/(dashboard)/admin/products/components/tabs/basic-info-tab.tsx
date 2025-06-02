@@ -36,6 +36,7 @@ export function BasicInfoTab({
   const [businessTypes, setBusinessTypes] = useState<any[]>([]);
   const [brands, setBrands] = useState<any[]>([]);
   const [models, setModels] = useState<any[]>([]);
+  const [countries, setCountries] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showBusinessTypeDialog, setShowBusinessTypeDialog] = useState(false);
   const [showBrandDialog, setShowBrandDialog] = useState(false);
@@ -54,6 +55,11 @@ export function BasicInfoTab({
         const brandsResponse = await fetch("/api/brands");
         const brandsData = await brandsResponse.json();
         setBrands(brandsData);
+
+        // Obtener países
+        const countriesResponse = await fetch("/api/admin/countries");
+        const countriesData = await countriesResponse.json();
+        setCountries(countriesData);
 
         // Obtener modelos solo si hay una marca seleccionada
         if (formData.brandId) {
@@ -254,6 +260,28 @@ export function BasicInfoTab({
             </div>
           </div>
 
+          <div className="space-y-1">
+            <Label htmlFor="countryId">País</Label>
+            <Select
+              value={formData.countryId}
+              onValueChange={(value) => updateFormData({ countryId: value })}
+              disabled={isLoading}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar país" />
+              </SelectTrigger>
+              <SelectContent>
+                {countries.map((country) => (
+                  <SelectItem key={country.id} value={country.id}>
+                    {country.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4">
           <div className="space-y-1">
             <Label htmlFor="isActive">Estado</Label>
             <div className="flex items-center space-x-2 pt-2">
