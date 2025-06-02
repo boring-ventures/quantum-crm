@@ -34,6 +34,7 @@ export function useProducts(
   if (brandId) queryParams.append("brandId", brandId);
   if (modelId) queryParams.append("modelId", modelId);
   if (active !== undefined) queryParams.append("active", active.toString());
+  // No agregar parámetro limit para obtener todos los productos
 
   return useQuery<Product[]>({
     queryKey: ["products", filters],

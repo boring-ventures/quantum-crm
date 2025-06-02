@@ -385,7 +385,7 @@ export function NewLeadDialog({
                   />
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
                   {sourceDropdownOpen && (
-                    <div className="absolute z-20 w-full bg-white dark:bg-gray-800 border rounded shadow max-h-48 overflow-auto">
+                    <div className="absolute z-20 w-full bg-white dark:bg-gray-800 border rounded shadow max-h-96 overflow-auto">
                       {(filteredSources || []).length === 0 && (
                         <div className="px-3 py-2 text-muted-foreground text-sm">
                           No hay coincidencias
@@ -455,7 +455,7 @@ export function NewLeadDialog({
                   />
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
                   {statusDropdownOpen && (
-                    <div className="absolute z-20 w-full bg-white dark:bg-gray-800 border rounded shadow max-h-48 overflow-auto">
+                    <div className="absolute z-20 w-full bg-white dark:bg-gray-800 border rounded shadow max-h-96 overflow-auto">
                       {(filteredStatuses || []).length === 0 && (
                         <div className="px-3 py-2 text-muted-foreground text-sm">
                           No hay coincidencias
@@ -532,7 +532,7 @@ export function NewLeadDialog({
                   />
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
                   {productDropdownOpen && (
-                    <div className="absolute z-20 w-full bg-white dark:bg-gray-800 border rounded shadow max-h-48 overflow-auto">
+                    <div className="absolute z-20 w-full bg-white dark:bg-gray-800 border rounded shadow max-h-96 overflow-auto">
                       {(filteredProducts || []).length === 0 && (
                         <div className="px-3 py-2 text-muted-foreground text-sm">
                           No hay coincidencias
