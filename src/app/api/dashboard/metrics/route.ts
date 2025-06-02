@@ -19,6 +19,7 @@ export async function POST(req: Request) {
     const tasksScope = getScope_user(currentUser, "tasks", "view");
     const salesScope = getScope_user(currentUser, "sales", "view");
 
+    // Filtros para leads
     const leadFilters: any = {};
     if (leadsScope === "self") {
       leadFilters.assignedToId = currentUser.id;
@@ -28,24 +29,29 @@ export async function POST(req: Request) {
       };
     }
 
+    // Filtros para tareas
     const taskFilters: any = {};
     if (tasksScope === "self") {
       taskFilters.assignedToId = currentUser.id;
     } else if (tasksScope === "team" && currentUser.countryId) {
       taskFilters.lead = {
-        ...taskFilters.lead,
-        user: { countryId: currentUser.countryId },
+        assignedTo: { countryId: currentUser.countryId },
       };
     }
 
-    const salesRelatedFilters: any = {};
+    // Filtros para ventas y relacionados
+    const quotationFilters: any = {};
+    const saleFilters: any = {};
+
     if (salesScope === "self") {
-      salesRelatedFilters.createdById = currentUser.id;
+      // Filtramos por leads asignados al usuario actual
+      quotationFilters.lead = { assignedToId: currentUser.id };
+      saleFilters.lead = { assignedToId: currentUser.id };
     } else if (salesScope === "team" && currentUser.countryId) {
-      salesRelatedFilters.lead = {
-        ...salesRelatedFilters.lead,
-        user: { countryId: currentUser.countryId },
+      quotationFilters.lead = {
+        assignedTo: { countryId: currentUser.countryId },
       };
+      saleFilters.lead = { assignedTo: { countryId: currentUser.countryId } };
     }
 
     const [
@@ -88,19 +94,16 @@ export async function POST(req: Request) {
       }),
       prisma.quotation.count({
         where: {
-          ...salesRelatedFilters,
+          ...quotationFilters,
           lead: {
             isArchived: false,
             qualification: { not: "BAD_LEAD" },
-            ...(salesScope !== "all" && salesScope !== false
-              ? leadFilters
-              : {}),
           },
         },
       }),
       prisma.sale.count({
         where: {
-          ...salesRelatedFilters,
+          ...saleFilters,
           status: "COMPLETED",
           createdAt: {
             gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
@@ -108,13 +111,18 @@ export async function POST(req: Request) {
           lead: {
             isArchived: false,
             qualification: { not: "BAD_LEAD" },
-            ...(salesScope !== "all" && salesScope !== false
-              ? leadFilters
-              : {}),
           },
         },
       }),
-      Promise.resolve(0),
+      prisma.reservation.count({
+        where: {
+          ...saleFilters,
+          lead: {
+            isArchived: false,
+            qualification: { not: "BAD_LEAD" },
+          },
+        },
+      }),
     ]);
 
     const responseData: DashboardMetricsResponse = {

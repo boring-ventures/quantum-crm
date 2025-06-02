@@ -153,7 +153,13 @@ export interface PaginatedResponse<T> {
   totalPages: number;
 }
 
-export interface LeadsResponse extends PaginatedResponse<LeadWithRelations> {}
+export interface LeadsResponse {
+  items: LeadWithRelations[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
 
 export interface Quotation {
   id: string;

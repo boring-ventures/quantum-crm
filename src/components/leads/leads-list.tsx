@@ -457,47 +457,47 @@ function LeadCardSkeleton() {
   );
 }
 
-export interface LeadsListProps {
-  filterBadLeads?: boolean;
-  searchTerm?: string;
-  filterType?:
-    | "all"
-    | "no-management"
-    | "no-tasks"
-    | "overdue-tasks"
-    | "today-tasks"
-    | "favorites"
-    | "my-leads";
+interface LeadsListProps {
+  filterType?: string;
   leadStatus?: "active" | "closed" | "archived";
   interestLevel?: number;
+  searchTerm?: string;
   assignedToId?: string;
   countryId?: string;
+  filterBadLeads?: boolean;
   canEdit?: boolean;
   canDelete?: boolean;
   currentUser?: any;
   showSelectionColumn?: boolean;
   selectedLeads?: string[];
-  onLeadSelect?: (leadId: string, isSelected: boolean) => void;
+  onLeadSelect?: (leadId: string, selected: boolean) => void;
+  page?: number;
+  pageSize?: number;
 }
 
 export function LeadsList({
-  filterBadLeads = false,
-  searchTerm = "",
   filterType = "all",
   leadStatus = "active",
   interestLevel = 0,
+  searchTerm = "",
   assignedToId,
   countryId,
+  filterBadLeads = false,
   canEdit = false,
   canDelete = false,
   currentUser,
   showSelectionColumn = false,
   selectedLeads = [],
   onLeadSelect,
+  page = 1,
+  pageSize = 50,
 }: LeadsListProps) {
-  const { data, isLoading, isError } = useLeadsQuery({
+  const { data, isLoading, error } = useLeadsQuery({
+    search: searchTerm,
     assignedToId,
     countryId,
+    page,
+    pageSize,
   });
   const queryClient = useQueryClient();
 
@@ -518,7 +518,7 @@ export function LeadsList({
     );
   }
 
-  if (isError) {
+  if (error) {
     return (
       <div className="text-center py-10">
         <p className="text-red-400">Error al cargar los leads.</p>
