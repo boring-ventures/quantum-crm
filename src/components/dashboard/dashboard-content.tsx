@@ -1,22 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { DashboardMetrics } from "@/components/dashboard/dashboard-metrics";
-import { DashboardFilters } from "@/components/dashboard/dashboard-filters";
+import { DashboardMetrics } from "./metric-cards";
 import { useUserStore } from "@/store/userStore";
 import { useQuery } from "@tanstack/react-query";
 
 export function DashboardContent() {
   const { user } = useUserStore();
-  const [activeFilters, setActiveFilters] = useState({
-    company: "all-companies",
-    brand: "all-brands",
-    business: "all-businesses",
-  });
 
   // Consulta para métricas del dashboard
   const { data: metrics } = useQuery({
-    queryKey: ["dashboard-metrics", user?.id, activeFilters],
+    queryKey: ["dashboard-metrics", user?.id],
     queryFn: async () => {
       const response = await fetch("/api/dashboard/metrics", {
         method: "POST",
@@ -24,7 +17,6 @@ export function DashboardContent() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          filters: activeFilters,
           userId: user?.id,
           countryId: user?.countryId,
         }),
@@ -37,13 +29,6 @@ export function DashboardContent() {
     enabled: !!user,
   });
 
-  const handleFilterChange = (filterType: string, value: string) => {
-    setActiveFilters((prev) => ({
-      ...prev,
-      [filterType]: value,
-    }));
-  };
-
   return (
     <div className="flex flex-col space-y-6">
       <div>
@@ -55,13 +40,8 @@ export function DashboardContent() {
         </p>
       </div>
 
-      <DashboardFilters
-        activeFilters={activeFilters}
-        onFilterChange={handleFilterChange}
-      />
-
       <div>
-        <DashboardMetrics metrics={metrics} />
+        <DashboardMetrics metrics={metrics?.data} />
       </div>
     </div>
   );
