@@ -70,6 +70,7 @@ export function ReservationDialog({
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [vehicleDetails, setVehicleDetails] = useState("");
   const [notes, setNotes] = useState("");
+  const [currency, setCurrency] = useState("BOB");
 
   // Estado para productos modificados
   const [modifiedProducts, setModifiedProducts] = useState<{
@@ -209,6 +210,7 @@ export function ReservationDialog({
           quantity: product.quantity,
           price: modifiedProducts[product.id] || product.price,
         })),
+        currency,
       });
 
       // 3. Mostrar mensaje de éxito
@@ -273,15 +275,28 @@ export function ReservationDialog({
                   <Label htmlFor="reservationAmount">
                     Monto de Reserva <span className="text-red-500">*</span>
                   </Label>
-                  <Input
-                    id="reservationAmount"
-                    type="number"
-                    value={reservationAmount}
-                    onChange={(e) => setReservationAmount(e.target.value)}
-                    placeholder="0.00"
-                    step="0.01"
-                    min="0"
-                  />
+                  <div className="flex space-x-1">
+                    <Input
+                      id="reservationAmount"
+                      type="number"
+                      value={reservationAmount}
+                      onChange={(e) => setReservationAmount(e.target.value)}
+                      placeholder="0.00"
+                      step="0.01"
+                      min="0"
+                      className="flex-1"
+                    />
+                    <Select value={currency} onValueChange={setCurrency}>
+                      <SelectTrigger className="w-20">
+                        <SelectValue placeholder="BOB" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="BOB">BOB</SelectItem>
+                        <SelectItem value="USD">USD</SelectItem>
+                        <SelectItem value="USDT">USDT</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 {/* Método de pago */}

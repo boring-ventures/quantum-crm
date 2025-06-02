@@ -18,6 +18,7 @@ const createQuotationSchema = z.object({
       })
     )
     .optional(),
+  currency: z.enum(["BOB", "USD", "USDT"]).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -44,6 +45,7 @@ export async function POST(request: NextRequest) {
             proformaUrl: validatedData.proformaUrl,
             additionalNotes: validatedData.additionalNotes,
             status: "COMPLETED",
+            currency: validatedData.currency || "BOB",
           },
         });
 

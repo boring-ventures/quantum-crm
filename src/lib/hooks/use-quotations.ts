@@ -22,6 +22,7 @@ interface CreateQuotationPayload {
     quantity: number;
     price: number;
   }>;
+  currency?: string;
 }
 
 // Obtener cotización por id de lead

@@ -19,6 +19,7 @@ const createReservationSchema = z.object({
     .optional(),
   vehicleDetails: z.string().optional(),
   additionalNotes: z.string().optional(),
+  currency: z.enum(["BOB", "USD", "USDT"]).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -81,6 +82,7 @@ export async function POST(request: NextRequest) {
           vehicleDetails: validatedData.vehicleDetails,
           additionalNotes: validatedData.additionalNotes,
           status: "COMPLETED",
+          currency: validatedData.currency || "BOB",
         },
       });
 

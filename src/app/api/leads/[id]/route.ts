@@ -47,6 +47,7 @@ export async function GET(
         status: true,
         source: true,
         assignedTo: true,
+        product: true,
         tasks: true,
         quotations: true,
         reservations: true,

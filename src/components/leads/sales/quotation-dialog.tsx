@@ -71,6 +71,7 @@ export function QuotationDialog({
   const [proformaDocName, setProformaDocName] = useState(
     "Documento sin título.pdf"
   );
+  const [currency, setCurrency] = useState("BOB");
 
   // Estados para carga
   const [isUploading, setIsUploading] = useState(false);
@@ -184,6 +185,7 @@ export function QuotationDialog({
           quantity: product.quantity,
           price: product.price,
         })),
+        currency,
       });
 
       // 4. Mostrar mensaje de éxito
@@ -258,7 +260,7 @@ export function QuotationDialog({
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="col-span-3">
+                <div className="col-span-2">
                   <Label>Cantidad</Label>
                   <Input
                     type="number"
@@ -267,15 +269,32 @@ export function QuotationDialog({
                     onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
                   />
                 </div>
-                <div className="col-span-3">
+                <div className="col-span-2">
                   <Label>Precio</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    placeholder="0"
-                  />
+                  <div className="flex space-x-1">
+                    <Input
+                      type="number"
+                      min={0}
+                      value={price}
+                      onChange={(e) => setPrice(e.target.value)}
+                      placeholder="0"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+                <div className="col-span-2">
+                  <Label>Moneda</Label>
+
+                  <Select value={currency} onValueChange={setCurrency}>
+                    <SelectTrigger className="w-20">
+                      <SelectValue placeholder="BOB" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="BOB">BOB</SelectItem>
+                      <SelectItem value="USD">USD</SelectItem>
+                      <SelectItem value="USDT">USDT</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="col-span-1 flex items-end">
                   <Button
@@ -318,12 +337,14 @@ export function QuotationDialog({
                       <div>
                         <p className="font-medium">{product.name}</p>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                          {product.quantity} x ${product.price.toFixed(2)}
+                          {product.quantity} x {currency}{" "}
+                          {product.price.toFixed(2)}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="font-medium">
-                          ${(product.quantity * product.price).toFixed(2)}
+                          {currency}{" "}
+                          {(product.quantity * product.price).toFixed(2)}
                         </span>
                         <button
                           onClick={() => handleRemoveProduct(product.id)}
@@ -384,7 +405,9 @@ export function QuotationDialog({
             {/* Total */}
             <div className="flex justify-between items-center border-t pt-4 mt-6">
               <span className="font-bold text-lg">Total</span>
-              <span className="font-bold text-lg">${total.toFixed(2)}</span>
+              <span className="font-bold text-lg">
+                {currency} {total.toFixed(2)}
+              </span>
             </div>
           </div>
         )}

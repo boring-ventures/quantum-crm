@@ -55,6 +55,7 @@ export function SaleDialog({
   // Estado para datos de venta
   const [saldo, setSaldo] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
+  const [currency, setCurrency] = useState("BOB");
 
   // Estado para documentos
   const [saleContract, setSaleContract] = useState<File | null>(null);
@@ -135,6 +136,7 @@ export function SaleDialog({
         paymentMethod,
         saleContractUrl,
         additionalNotes: notes,
+        currency,
       });
 
       // 4. Mostrar mensaje de éxito
@@ -191,13 +193,26 @@ export function SaleDialog({
               <Label>
                 Saldo <span className="text-red-500">*</span>
               </Label>
-              <Input
-                type="number"
-                min={0}
-                value={saldo}
-                onChange={(e) => setSaldo(e.target.value)}
-                placeholder="$ 0.00"
-              />
+              <div className="flex space-x-1">
+                <Input
+                  type="number"
+                  min={0}
+                  value={saldo}
+                  onChange={(e) => setSaldo(e.target.value)}
+                  placeholder="$ 0.00"
+                  className="flex-1"
+                />
+                <Select value={currency} onValueChange={setCurrency}>
+                  <SelectTrigger className="w-20">
+                    <SelectValue placeholder="BOB" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="BOB">BOB</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="USDT">USDT</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {/* Método de pago */}
