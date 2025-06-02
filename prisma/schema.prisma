@@ -136,6 +136,9 @@ model Lead {
   nextFollowUpDate DateTime?          @map("next_follow_up_date")
   convertedAt      DateTime?          @map("converted_at")
   isArchived       Boolean            @default(false) @map("is_archived")
+  isClosed         Boolean            @default(false) @map("is_closed")
+  closedAt         DateTime?          @map("closed_at")
+  reasonClosed     String?            @map("reason_closed")
   cellphone        String?
   companyId        String?            @map("company_id")
   productId        String?            @map("product_id")
@@ -166,6 +169,7 @@ model Lead {
   @@index([createdAt])
   @@index([qualityScore])
   @@index([isArchived])
+  @@index([isClosed])
   @@index([isFavorite])
   @@index([favoriteAt])
   @@index([nextFollowUpDate])

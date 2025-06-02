@@ -59,7 +59,9 @@ export function PendingTasks({
           throw new Error("Error al cargar tareas pendientes");
         }
         const data = await response.json();
-        const filteredTasks = data.filter((task: any) => !task.lead.isArchived);
+        const filteredTasks = data.filter(
+          (task: any) => !task.lead.isArchived && !task.lead.isClosed
+        );
         setTasks(filteredTasks);
       } catch (error) {
         console.error("Error cargando tareas:", error);

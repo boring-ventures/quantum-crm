@@ -469,6 +469,7 @@ export interface LeadsListProps {
     | "today-tasks"
     | "favorites"
     | "my-leads";
+  leadStatus?: "active" | "closed" | "archived";
   interestLevel?: number;
   assignedToId?: string;
   countryId?: string;
@@ -484,6 +485,7 @@ export function LeadsList({
   filterBadLeads = false,
   searchTerm = "",
   filterType = "all",
+  leadStatus = "active",
   interestLevel = 0,
   assignedToId,
   countryId,
@@ -539,14 +541,33 @@ export function LeadsList({
     );
   }
 
-  // Paso 1: Filtrar los bad leads y leads archivados si es necesario
-  let filteredLeads = filterBadLeads
-    ? data.items.filter(
-        (lead) => lead.qualification !== "BAD_LEAD" && !lead.isArchived
-      )
-    : data.items;
+  // Paso 1: Filtrar por estado (activo, cerrado, archivado)
+  let filteredLeads = data.items;
 
-  // Paso 2: Aplicar filtro según el tipo seleccionado
+  switch (leadStatus) {
+    case "active":
+      filteredLeads = filteredLeads.filter(
+        (lead) => !lead.isArchived && !lead.isClosed
+      );
+      break;
+    case "closed":
+      filteredLeads = filteredLeads.filter(
+        (lead) => !lead.isArchived && lead.isClosed
+      );
+      break;
+    case "archived":
+      filteredLeads = filteredLeads.filter((lead) => lead.isArchived);
+      break;
+  }
+
+  // Paso 2: Filtrar los bad leads si es necesario
+  if (filterBadLeads) {
+    filteredLeads = filteredLeads.filter(
+      (lead) => lead.qualification !== "BAD_LEAD"
+    );
+  }
+
+  // Paso 3: Aplicar filtro según el tipo seleccionado
   switch (filterType) {
     case "no-management":
       // Leads sin cotizaciones, ventas o reservas
@@ -605,19 +626,19 @@ export function LeadsList({
     case "my-leads":
       // Leads asignados al usuario actual
       filteredLeads = filteredLeads.filter(
-        (lead) => lead.assignedToId === assignedToId
+        (lead) => lead.assignedToId === currentUser?.id
       );
       break;
   }
 
-  // Paso 3: Filtrar por nivel de interés si se especificó
+  // Paso 4: Filtrar por nivel de interés si se especificó
   if (interestLevel > 0) {
     filteredLeads = filteredLeads.filter(
       (lead) => lead.qualityScore === interestLevel
     );
   }
 
-  // Paso 4: Aplicar filtro de búsqueda por texto
+  // Paso 5: Aplicar filtro de búsqueda por texto
   if (searchTerm) {
     const search = searchTerm.toLowerCase();
     filteredLeads = filteredLeads.filter(
