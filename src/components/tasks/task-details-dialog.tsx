@@ -23,17 +23,20 @@ import { Badge } from "@/components/ui/badge";
 import { Task } from "@/types/lead";
 import { useToast } from "@/components/ui/use-toast";
 import { useUpdateTaskStatusMutation } from "@/lib/hooks";
+import { hasPermission, getScope } from "@/lib/utils/permissions";
 
 interface TaskDetailsDialogProps {
   taskId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  currentUser?: any;
 }
 
 export function TaskDetailsDialog({
   taskId,
   open,
   onOpenChange,
+  currentUser,
 }: TaskDetailsDialogProps) {
   const [task, setTask] = useState<Task | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -43,6 +46,38 @@ export function TaskDetailsDialog({
   const { toast } = useToast();
   const updateTaskStatusMutation = useUpdateTaskStatusMutation();
   const [isUpdating, setIsUpdating] = useState(false);
+
+  // Verificar permisos
+  const canEditTasks = hasPermission(currentUser, "tasks", "edit");
+
+  // Obtener el scope de permisos
+  const taskScope = getScope(currentUser, "tasks", "edit");
+
+  // Verificar si el usuario puede modificar esta tarea específica según su scope
+  const canModifyThisTask = () => {
+    if (!canEditTasks || !task) return false;
+
+    // Si no hay usuario actual o tarea, no se puede modificar
+    if (!currentUser) return false;
+
+    // Si scope es 'all', puede modificar cualquier tarea
+    if (taskScope === "all") return true;
+
+    // Si scope es 'self', solo puede modificar tareas asignadas a él
+    if (taskScope === "self") {
+      return task.assignedToId === currentUser.id;
+    }
+
+    // Si scope es 'team', puede modificar tareas de usuarios de su mismo país
+    if (taskScope === "team" && currentUser.countryId) {
+      // Aquí necesitaríamos el país del usuario asignado a la tarea
+      // Como no tenemos el país en el objeto assignee, asumimos que solo
+      // se puede modificar si está asignada al usuario actual
+      return task.assignedToId === currentUser.id;
+    }
+
+    return false;
+  };
 
   useEffect(() => {
     const fetchTaskDetails = async () => {
@@ -85,6 +120,15 @@ export function TaskDetailsDialog({
 
   const handleCompleteTask = async () => {
     if (!task) return;
+
+    if (!canModifyThisTask()) {
+      toast({
+        title: "Acción no permitida",
+        description: "No tienes permiso para modificar esta tarea",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsUpdating(true);
     try {
@@ -144,6 +188,11 @@ export function TaskDetailsDialog({
           </Badge>
         );
     }
+  };
+
+  // Verificar si la tarea se puede completar
+  const canCompleteTask = () => {
+    return task?.status === "PENDING" && canModifyThisTask() && !isUpdating;
   };
 
   return (
@@ -255,12 +304,12 @@ export function TaskDetailsDialog({
           </div>
         )}
 
-        <DialogFooter className="flex justify-between">
+        <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cerrar
           </Button>
 
-          {task && task.status === "PENDING" && (
+          {canCompleteTask() && (
             <Button
               className="bg-green-600 hover:bg-green-700 text-white"
               onClick={handleCompleteTask}

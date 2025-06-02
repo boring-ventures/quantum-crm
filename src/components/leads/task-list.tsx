@@ -229,7 +229,7 @@ export function TaskList({ leadId, currentUser, onTaskClick }: TaskListProps) {
   const { toast } = useToast();
 
   const canCreateTasks = hasPermission(currentUser, "tasks", "create");
-  const canUpdateTasks = hasPermission(currentUser, "tasks", "update");
+  const canUpdateTasks = hasPermission(currentUser, "tasks", "edit");
 
   // Agrupar tareas por estatus
   const groupedTasks =

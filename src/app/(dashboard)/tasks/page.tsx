@@ -334,13 +334,9 @@ export default function TasksPage() {
           open={isQuickViewModalOpen}
           onOpenChange={setIsQuickViewModalOpen}
           task={selectedTask}
-          onEdit={() => {
-            setIsQuickViewModalOpen(false);
-            setIsCreateModalOpen(true);
-          }}
           onDelete={handleTaskDeleted}
           onUpdate={handleTaskUpdated}
-          isManagerRole={isManagerRole}
+          currentUser={currentUser}
         />
       )}
     </div>

@@ -1039,6 +1039,7 @@ export function LeadDetailPage({
             setShowTaskDetailsDialog(false);
             setSelectedTask(null);
           }}
+          currentUser={currentUser}
         />
       )}
     </div>
