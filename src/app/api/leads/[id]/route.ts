@@ -47,17 +47,6 @@ export async function GET(
         status: true,
         source: true,
         assignedTo: true,
-        tags: {
-          include: {
-            tag: true,
-          },
-        },
-        notes: {
-          orderBy: {
-            createdAt: "desc",
-          },
-          take: 5,
-        },
         tasks: true,
         quotations: true,
         reservations: true,
@@ -80,13 +69,7 @@ export async function GET(
       );
     }
 
-    // Transformar los datos para que coincidan con la interfaz LeadWithRelations
-    const formattedLead = {
-      ...lead,
-      tags: lead.tags.map((lt: any) => lt.tag),
-    };
-
-    return NextResponse.json(formattedLead);
+    return NextResponse.json(lead);
   } catch (error) {
     console.error("Error fetching lead:", error);
     return NextResponse.json(
