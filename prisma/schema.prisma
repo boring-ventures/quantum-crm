@@ -468,6 +468,7 @@ model Quotation {
   quotationProducts QuotationProduct[]
   lead              Lead               @relation(fields: [leadId], references: [id])
   reservations      Reservation[]
+  currency          Currency           @default(BOB)
 
   @@index([leadId])
   @@index([status])
@@ -493,6 +494,7 @@ model Reservation {
   lead                   Lead               @relation(fields: [leadId], references: [id])
   quotation              Quotation?         @relation(fields: [quotationId], references: [id])
   sales                  Sale[]
+  currency               Currency           @default(BOB)
 
   @@index([leadId])
   @@index([quotationId])
@@ -514,6 +516,7 @@ model Sale {
   status          SalesProcessStatus @default(DRAFT)
   lead            Lead               @relation(fields: [leadId], references: [id])
   reservation     Reservation?       @relation(fields: [reservationId], references: [id])
+  currency        Currency           @default(BOB)
 
   @@index([leadId])
   @@index([reservationId])
@@ -616,4 +619,10 @@ enum PaymentMethod {
   TRANSFER
   CHECK
   FINANCING
+}
+
+enum Currency {
+  BOB
+  USD
+  USDT
 }

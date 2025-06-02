@@ -2,6 +2,33 @@ import { useQuery } from "@tanstack/react-query";
 import { Sale } from "@/types/lead";
 import { Reservation } from "@/types/lead";
 
+// Definición detallada del producto que esperamos
+interface ProductDetail {
+  id: string;
+  name: string; // Nombre general del producto
+  nameProduct: string; // Nombre específico del producto (ej. 'Corolla Cross HV SE')
+  code: string;
+  businessType?: {
+    id: string;
+    name: string;
+  };
+}
+
+// Producto dentro de una cotización
+interface QuotationProductItem {
+  id: string; // ID de la entrada QuotationProduct
+  quantity: number;
+  price: number | string; // Puede ser string si viene de un input
+  product: ProductDetail;
+}
+
+// Cotización que incluye productos detallados
+interface QuotationWithProducts {
+  id: string;
+  quotationProducts: QuotationProductItem[];
+  // otros campos de Quotation si son necesarios aquí
+}
+
 interface SaleWithLead extends Sale {
   lead: {
     firstName: string;
@@ -11,15 +38,17 @@ interface SaleWithLead extends Sale {
       id: string;
       name: string;
     };
+    // El producto individual del lead puede o no estar presente o ser relevante
+    product?: ProductDetail;
   };
-  product?: {
+  // La venta ahora puede tener una reserva, que tiene una cotización con productos
+  reservation?: {
     id: string;
-    name: string;
-    code: string;
-    businessType?: {
-      name: string;
-    };
+    quotation?: QuotationWithProducts;
+    // otros campos de Reservation si son necesarios
   };
+  // O la venta podría tener una referencia directa a la cotización (ajustar si es necesario)
+  quotation?: QuotationWithProducts;
 }
 
 interface ReservationWithLead extends Reservation {
@@ -31,15 +60,10 @@ interface ReservationWithLead extends Reservation {
       id: string;
       name: string;
     };
+    product?: ProductDetail;
   };
-  product?: {
-    id: string;
-    name: string;
-    code: string;
-    businessType?: {
-      name: string;
-    };
-  };
+  // La reserva tiene una cotización con productos
+  quotation?: QuotationWithProducts;
 }
 
 // Obtener todas las ventas

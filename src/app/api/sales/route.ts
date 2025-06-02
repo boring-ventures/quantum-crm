@@ -12,6 +12,7 @@ const createSaleSchema = z.object({
   }),
   saleContractUrl: z.string().url("URL del contrato de venta inválida"),
   additionalNotes: z.string().optional(),
+  currency: z.enum(["BOB", "USD", "USDT"]).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -63,6 +64,7 @@ export async function POST(request: NextRequest) {
           paymentMethod: validatedData.paymentMethod,
           saleContractUrl: validatedData.saleContractUrl,
           additionalNotes: validatedData.additionalNotes,
+          currency: validatedData.currency || "BOB",
           status: "COMPLETED",
         },
       });
