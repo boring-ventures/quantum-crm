@@ -66,7 +66,8 @@ export default function TasksPage() {
   // Cargar tareas con el filtro de vendedor apropiado
   const { data: tasksData, isLoading: loadingTasks } = useTasks({
     assignedToId,
-    countryId: tasksScope === "team" ? currentUser?.countryId : undefined,
+    countryId:
+      tasksScope === "team" ? currentUser?.countryId || undefined : undefined,
   });
 
   // Si es administrador, cargar la lista de vendedores según el scope
@@ -78,18 +79,16 @@ export default function TasksPage() {
     queryFn: async () => {
       if (!isManagerRole) return { users: [] };
 
-      // Construir la URL base
-      let url = `/api/users?`;
+      // Construir los parámetros de consulta según el scope
+      const params = new URLSearchParams();
+      params.append("active", "true");
 
       // Agregar filtros según el scope
       if (tasksScope === "team" && currentUser?.countryId) {
-        url += `countryId=${currentUser.countryId}&`;
+        params.append("countryId", currentUser.countryId);
       }
 
-      // Agregar filtro de permisos
-      url += `hasPermission=tasks.view`;
-
-      const response = await fetch(url);
+      const response = await fetch(`/api/users/all?${params.toString()}`);
       if (!response.ok) {
         throw new Error("Error al obtener usuarios");
       }

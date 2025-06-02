@@ -55,6 +55,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Excluir explícitamente las rutas de batch-reassign
+  if (pathname === "/api/leads/batch-reassign") {
+    return NextResponse.next();
+  }
+
   // Si es una ruta pública, permitir acceso
   if (isPublicRoute(pathname)) {
     //console.log(`[MIDDLEWARE] Public route: ${pathname}, allowing access`);

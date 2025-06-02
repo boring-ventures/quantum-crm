@@ -111,16 +111,29 @@ export default function LeadsPage() {
   const canManageTeam = ["team", "all"].includes(leadsScope as string);
 
   const { data: sellersData, isLoading: loadingSellers } = useQuery({
-    queryKey: ["sellers"],
+    queryKey: [
+      "sellers",
+      { countryId: currentUser?.countryId, scope: leadsScope },
+    ],
     queryFn: async () => {
       if (!canManageTeam) return { users: [] };
-      const response = await fetch(`/api/users?role=Vendedor`);
+
+      // Construir los parámetros de consulta según el scope
+      const params = new URLSearchParams();
+      params.append("active", "true");
+
+      // Agregar filtros según el scope
+      if (leadsScope === "team" && currentUser?.countryId) {
+        params.append("countryId", currentUser.countryId);
+      }
+
+      const response = await fetch(`/api/users/all?${params.toString()}`);
       if (!response.ok) {
         throw new Error("Error al obtener vendedores");
       }
       return response.json();
     },
-    enabled: canManageTeam,
+    enabled: canManageTeam && !isLoadingCurrentUser,
   });
 
   // Obtener datos de leads con los filtros adecuados

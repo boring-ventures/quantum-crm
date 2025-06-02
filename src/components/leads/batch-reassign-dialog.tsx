@@ -23,6 +23,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Progress } from "@/components/ui/progress";
 import { Loader2, AlertCircle, CheckCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useUserStore } from "@/store/userStore";
+import { getScope } from "@/lib/utils/permissions";
 
 interface BatchReassignDialogProps {
   open: boolean;
@@ -48,12 +50,33 @@ export function BatchReassignDialog({
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const { user: currentUser } = useUserStore();
+
+  // Obtener el scope de permisos para leads
+  const leadsScope = getScope(currentUser, "leads", "edit");
+
+  // Construir el parámetro de consulta según el scope
+  const getUsersQueryParams = () => {
+    const params = new URLSearchParams();
+    params.append("active", "true");
+
+    if (leadsScope === "team" && currentUser?.countryId) {
+      // Para scope "team", filtrar por país
+      params.append("countryId", currentUser.countryId);
+    } else if (leadsScope === "self" && currentUser?.countryId) {
+      // Para scope "self", filtrar por país y usuarios self
+      params.append("countryId", currentUser.countryId);
+      params.append("scope", "self");
+    }
+
+    return params.toString() ? `?${params.toString()}` : "";
+  };
 
   // Consulta para obtener los usuarios
   const { data: usersData, isLoading: loadingUsers } = useQuery({
-    queryKey: ["users"],
+    queryKey: ["users", leadsScope, currentUser?.countryId],
     queryFn: async () => {
-      const response = await fetch("/api/users?active=true");
+      const response = await fetch(`/api/users/all${getUsersQueryParams()}`);
       if (!response.ok) throw new Error("Error al cargar usuarios");
       return response.json();
     },
@@ -64,6 +87,15 @@ export function BatchReassignDialog({
       toast({
         title: "Error",
         description: "Debes seleccionar un usuario para la reasignación",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!currentUser?.id) {
+      toast({
+        title: "Error",
+        description: "No se puede identificar al usuario actual",
         variant: "destructive",
       });
       return;
@@ -84,6 +116,7 @@ export function BatchReassignDialog({
           leadIds: selectedLeads,
           toUserId: assignToUserId,
           reason: reason || "Reasignación masiva",
+          currentUserId: currentUser.id,
         }),
       });
 
@@ -199,12 +232,18 @@ export function BatchReassignDialog({
                     <div className="flex items-center justify-center py-2">
                       <Loader2 className="h-4 w-4 animate-spin" />
                     </div>
+                  ) : usersData?.users?.length === 0 ? (
+                    <div className="p-2 text-sm text-gray-500">
+                      No hay usuarios disponibles
+                    </div>
                   ) : (
-                    usersData?.users?.map((user: any) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.name}
-                      </SelectItem>
-                    ))
+                    usersData?.users
+                      ?.filter((user) => user.id !== currentUser?.id)
+                      .map((user: any) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.name}
+                        </SelectItem>
+                      ))
                   )}
                 </SelectContent>
               </Select>

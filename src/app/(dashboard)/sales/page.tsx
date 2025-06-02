@@ -117,18 +117,16 @@ export default function SalesPage() {
     queryFn: async () => {
       if (!isManagerRole) return { users: [] };
 
-      // Construir la URL base
-      let url = `/api/users?`;
+      // Construir los parámetros de consulta según el scope
+      const params = new URLSearchParams();
+      params.append("active", "true");
 
       // Agregar filtros según el scope
       if (salesScope === "team" && currentUser?.countryId) {
-        url += `countryId=${currentUser.countryId}&`;
+        params.append("countryId", currentUser.countryId);
       }
 
-      // Agregar filtro de permisos
-      url += `hasPermission=sales.view`;
-
-      const response = await fetch(url);
+      const response = await fetch(`/api/users/all?${params.toString()}`);
       if (!response.ok) {
         throw new Error("Error al obtener usuarios");
       }
