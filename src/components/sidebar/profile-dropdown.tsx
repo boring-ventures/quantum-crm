@@ -111,11 +111,11 @@ export function ProfileDropdown() {
         <DropdownMenuItem
           onClick={async () => {
             try {
+              clearUser();
               await signOut();
-              clearUser();
             } catch (error) {
-              console.error("Error al cerrar sesión:", error);
               clearUser();
+              console.error("Error al cerrar sesión:", error);
             }
           }}
         >
