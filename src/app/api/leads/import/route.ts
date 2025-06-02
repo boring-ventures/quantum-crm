@@ -13,6 +13,7 @@ interface ImportRow {
   "source_name*"?: string;
   product_code?: string;
   extra_comments?: string;
+  quality_score?: string | number;
 }
 
 interface ValidationError {
@@ -63,7 +64,7 @@ export async function POST(req: Request) {
     const dataRows = rawData.slice(1) as any[][];
 
     // Validar headers requeridos
-    const requiredHeaders = ["first_name", "last_name"];
+    const requiredHeaders = ["phone"];
     const missingHeaders = requiredHeaders.filter((h) => !headers.includes(h));
 
     if (missingHeaders.length > 0) {
@@ -182,8 +183,8 @@ export async function POST(req: Request) {
         // Crear lead
         const lead = await prisma.lead.create({
           data: {
-            firstName: cleanData.data.first_name!,
-            lastName: cleanData.data.last_name!,
+            firstName: cleanData.data.first_name || "",
+            lastName: cleanData.data.last_name || "",
             email:
               cleanData.data.email && cleanData.data.email !== ""
                 ? cleanData.data.email
@@ -206,6 +207,9 @@ export async function POST(req: Request) {
             assignedToId: user.id,
             productId: productId !== "" ? productId : null,
             qualification: "NOT_QUALIFIED",
+            qualityScore: cleanData.data.quality_score
+              ? parseInt(cleanData.data.quality_score.toString())
+              : 1,
           },
         });
 
@@ -254,30 +258,31 @@ async function validateAndCleanRow(rowData: ImportRow, rowIndex: number) {
   const errors: ValidationError[] = [];
   const cleaned: any = {};
 
-  // Validar first_name (requerido)
-  if (!rowData.first_name || rowData.first_name.toString().trim() === "") {
+  // Validar phone (requerido)
+  if (!rowData.phone || rowData.phone.toString().trim() === "") {
     errors.push({
       row: rowIndex,
-      field: "first_name",
-      message: "Nombre es requerido",
-      received: rowData.first_name,
+      field: "phone",
+      message: "Teléfono es requerido",
+      received: rowData.phone,
       expected: "string",
     });
   } else {
-    cleaned.first_name = rowData.first_name.toString().trim();
+    cleaned.phone = rowData.phone.toString().trim();
   }
 
-  // Validar last_name (requerido)
-  if (!rowData.last_name || rowData.last_name.toString().trim() === "") {
-    errors.push({
-      row: rowIndex,
-      field: "last_name",
-      message: "Apellido es requerido",
-      received: rowData.last_name,
-      expected: "string",
-    });
+  // Validar first_name (opcional)
+  if (rowData.first_name) {
+    cleaned.first_name = rowData.first_name.toString().trim();
   } else {
+    cleaned.first_name = "";
+  }
+
+  // Validar last_name (opcional)
+  if (rowData.last_name) {
     cleaned.last_name = rowData.last_name.toString().trim();
+  } else {
+    cleaned.last_name = "";
   }
 
   // Validar email (opcional pero debe ser válido si se proporciona)
@@ -313,11 +318,23 @@ async function validateAndCleanRow(rowData: ImportRow, rowIndex: number) {
     }
   }
 
-  // Limpiar teléfonos (convertir números a string)
-  if (rowData.phone) {
-    cleaned.phone = rowData.phone.toString().trim();
+  // Validar quality_score
+  if (rowData.quality_score) {
+    const score = parseInt(rowData.quality_score.toString());
+    if (isNaN(score) || ![1, 2, 3].includes(score)) {
+      errors.push({
+        row: rowIndex,
+        field: "quality_score",
+        message: "Grado de interés debe ser 1, 2 o 3",
+        received: rowData.quality_score,
+        expected: "1, 2 o 3",
+      });
+    } else {
+      cleaned.quality_score = score;
+    }
   }
 
+  // Limpiar teléfonos (convertir números a string)
   if (rowData.cellphone) {
     cleaned.cellphone = rowData.cellphone.toString().trim();
   }

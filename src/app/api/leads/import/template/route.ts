@@ -19,12 +19,13 @@ export async function GET(req: Request) {
       "first_name",
       "last_name",
       "email",
-      "phone",
+      "phone*",
       "cellphone",
       "status_name*",
       "source_name*",
       "product_code",
       "extra_comments",
+      "quality_score",
     ];
 
     const worksheet = XLSX.utils.aoa_to_sheet([headers]);
@@ -35,6 +36,10 @@ export async function GET(req: Request) {
     const validProductCodes = products.map((p) => p.code).join(", ");
 
     // Agregar comentarios con valores válidos
+    worksheet["D1"] = {
+      v: "phone*",
+      c: [{ a: "Campo obligatorio" }],
+    };
     worksheet["F1"] = {
       v: "status_name*",
       c: [{ a: "Valores válidos: " + validStatusNames }],
@@ -47,19 +52,32 @@ export async function GET(req: Request) {
       v: "product_code",
       c: [{ a: "Valores válidos: " + validProductCodes }],
     };
+    worksheet["J1"] = {
+      v: "quality_score",
+      c: [{ a: "Valores válidos: 1 (Bajo), 2 (Medio), 3 (Alto)" }],
+    };
 
     // Agregar la hoja al workbook
     XLSX.utils.book_append_sheet(workbook, worksheet, "Importar Leads");
 
     // Crear hoja de referencia
     const refData = [
-      ["Estados Válidos", "Fuentes Válidas", "Códigos de Producto"],
+      [
+        "Estados Válidos",
+        "Fuentes Válidas",
+        "Códigos de Producto",
+        "Calidad Lead",
+      ],
+      ["", "", "", "1 - Bajo"],
+      ["", "", "", "2 - Medio"],
+      ["", "", "", "3 - Alto"],
       ...Array.from(
         { length: Math.max(statuses.length, sources.length, products.length) },
         (_, i) => [
           statuses[i]?.name || "",
           sources[i]?.name || "",
           products[i]?.code || "",
+          "",
         ]
       ),
     ];

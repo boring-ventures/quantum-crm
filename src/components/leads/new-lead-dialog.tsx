@@ -37,11 +37,11 @@ import { Search } from "lucide-react";
 
 // Esquema de validación para el formulario
 const newLeadSchema = z.object({
-  firstName: z.string().min(1, "El nombre es requerido"),
-  lastName: z.string().min(1, "El apellido es requerido"),
+  firstName: z.string().optional().nullable(),
+  lastName: z.string().optional().nullable(),
   maternalLastName: z.string().optional().nullable(),
   email: z.string().email("Email inválido").optional().nullable(),
-  phone: z.string().optional().nullable(),
+  phone: z.string().min(1, "El teléfono es requerido"),
   cellphone: z.string().optional().nullable(),
   productId: z.string().optional().nullable(),
   statusId: z.string().min(1, "El estado es requerido"),
@@ -80,10 +80,6 @@ export function NewLeadDialog({
   const { data: sources, isLoading: isLoadingSources } = useLeadSources();
   const { data: products, isLoading: isLoadingProducts } = useProducts();
   const createLeadMutation = useCreateLeadMutation();
-
-  // Estado local para los radios de UI (no se envían al backend)
-  const [contactType, setContactType] = useState<string>("ELECTRONIC");
-  const [businessType, setBusinessType] = useState<string>("CARS");
 
   // Valores por defecto del formulario
   const formDefaultValues = {
@@ -187,26 +183,6 @@ export function NewLeadDialog({
     if (currentStep === "business") setCurrentStep("contact");
     else if (currentStep === "contact") setCurrentStep("personal");
   };
-
-  // Mapeo de tipos de contacto para UI
-  const contactTypeOptions = [
-    { value: "ELECTRONIC", label: "Electrónico" },
-    { value: "INCOMING_CALL", label: "Llamado Entrante" },
-    { value: "OUTGOING_CALL", label: "Llamado Saliente" },
-    { value: "STREET_INTERVIEW", label: "Entrevista en calle" },
-    { value: "SHOWROOM", label: "Showroom" },
-    { value: "DATABASE", label: "Base de datos" },
-  ];
-
-  // Mapeo de tipos de negocio para UI
-  const businessTypeOptions = [
-    { value: "CARS", label: "Autos" },
-    { value: "MOTORCYCLES_YADEA", label: "Motos - Yadea" },
-    { value: "TRIMOTORS", label: "Trimotos" },
-    { value: "BICYCLES", label: "Bicicletas" },
-    { value: "MOTORCYCLES_SUPERSOCO", label: "Motos - Supersoco" },
-    { value: "SCOOTERS", label: "Patinetas" },
-  ];
 
   const [sourceDropdownOpen, setSourceDropdownOpen] = useState(false);
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
@@ -362,38 +338,6 @@ export function NewLeadDialog({
           {/* Paso 2: Contacto */}
           {currentStep === "contact" && (
             <div className="space-y-6">
-              <div className="space-y-3">
-                <Label>Tipo de contacto</Label>
-                <div className="grid grid-cols-2 gap-4">
-                  {contactTypeOptions.map((option) => (
-                    <div
-                      key={option.value}
-                      className="flex items-center space-x-2"
-                    >
-                      <RadioGroup
-                        value={contactType}
-                        onValueChange={(value) => setContactType(value)}
-                        className="flex items-center space-x-2"
-                      >
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem
-                            value={option.value}
-                            id={`contact-type-${option.value}`}
-                            className="border-gray-600 dark:border-gray-600"
-                          />
-                          <Label
-                            htmlFor={`contact-type-${option.value}`}
-                            className="cursor-pointer text-sm font-normal"
-                          >
-                            {option.label}
-                          </Label>
-                        </div>
-                      </RadioGroup>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
               <div className="space-y-2">
                 <Label htmlFor="sourceId">
                   Fuente <span className="text-red-500">*</span>
@@ -427,7 +371,7 @@ export function NewLeadDialog({
                   />
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
                   {sourceDropdownOpen && (
-                    <div className="absolute z-20 w-full bg-white border rounded shadow max-h-48 overflow-auto">
+                    <div className="absolute z-20 w-full bg-white dark:bg-gray-800 border rounded shadow max-h-48 overflow-auto">
                       {(filteredSources || []).length === 0 && (
                         <div className="px-3 py-2 text-muted-foreground text-sm">
                           No hay coincidencias
@@ -436,7 +380,7 @@ export function NewLeadDialog({
                       {(filteredSources || []).map((source) => (
                         <div
                           key={source.id}
-                          className="cursor-pointer px-3 py-2 hover:bg-muted"
+                          className="cursor-pointer px-3 py-2 hover:bg-muted dark:hover:bg-gray-700"
                           onClick={() => {
                             setValue("sourceId", source.id);
                             setSearchSource("");
@@ -497,7 +441,7 @@ export function NewLeadDialog({
                   />
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
                   {statusDropdownOpen && (
-                    <div className="absolute z-20 w-full bg-white border rounded shadow max-h-48 overflow-auto">
+                    <div className="absolute z-20 w-full bg-white dark:bg-gray-800 border rounded shadow max-h-48 overflow-auto">
                       {(filteredStatuses || []).length === 0 && (
                         <div className="px-3 py-2 text-muted-foreground text-sm">
                           No hay coincidencias
@@ -506,7 +450,7 @@ export function NewLeadDialog({
                       {(filteredStatuses || []).map((status) => (
                         <div
                           key={status.id}
-                          className="cursor-pointer px-3 py-2 hover:bg-muted flex items-center"
+                          className="cursor-pointer px-3 py-2 hover:bg-muted dark:hover:bg-gray-700 flex items-center"
                           onClick={() => {
                             setValue("statusId", status.id);
                             setSearchStatus("");
@@ -543,38 +487,6 @@ export function NewLeadDialog({
           {/* Paso 3: Negocio */}
           {currentStep === "business" && (
             <div className="space-y-6">
-              <div className="space-y-3">
-                <Label>Tipo de negocio</Label>
-                <div className="grid grid-cols-2 gap-4">
-                  {businessTypeOptions.map((option) => (
-                    <div
-                      key={option.value}
-                      className="flex items-center space-x-2"
-                    >
-                      <RadioGroup
-                        value={businessType}
-                        onValueChange={(value) => setBusinessType(value)}
-                        className="flex items-center space-x-2"
-                      >
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem
-                            value={option.value}
-                            id={`business-type-${option.value}`}
-                            className="border-gray-600 dark:border-gray-600"
-                          />
-                          <Label
-                            htmlFor={`business-type-${option.value}`}
-                            className="cursor-pointer text-sm font-normal"
-                          >
-                            {option.label}
-                          </Label>
-                        </div>
-                      </RadioGroup>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
               <div className="space-y-2">
                 <Label htmlFor="productId">Producto de interés</Label>
                 <div className="relative">
@@ -606,7 +518,7 @@ export function NewLeadDialog({
                   />
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
                   {productDropdownOpen && (
-                    <div className="absolute z-20 w-full bg-white border rounded shadow max-h-48 overflow-auto">
+                    <div className="absolute z-20 w-full bg-white dark:bg-gray-800 border rounded shadow max-h-48 overflow-auto">
                       {(filteredProducts || []).length === 0 && (
                         <div className="px-3 py-2 text-muted-foreground text-sm">
                           No hay coincidencias
@@ -615,7 +527,7 @@ export function NewLeadDialog({
                       {(filteredProducts || []).map((product) => (
                         <div
                           key={product.id}
-                          className="cursor-pointer px-3 py-2 hover:bg-muted"
+                          className="cursor-pointer px-3 py-2 hover:bg-muted dark:hover:bg-gray-700"
                           onClick={() => {
                             setValue("productId", product.id);
                             setSearchProduct("");
@@ -677,7 +589,7 @@ export function NewLeadDialog({
               Cancelar
             </Button>
 
-            {currentStep !== "business" ? (
+            {currentStep === "personal" && (
               <Button
                 type="button"
                 onClick={handleNextStep}
@@ -685,7 +597,19 @@ export function NewLeadDialog({
               >
                 Siguiente
               </Button>
-            ) : (
+            )}
+
+            {currentStep === "contact" && (
+              <Button
+                type="button"
+                onClick={handleNextStep}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                Siguiente
+              </Button>
+            )}
+
+            {currentStep === "business" && (
               <Button
                 type="submit"
                 className="bg-blue-600 hover:bg-blue-700"
