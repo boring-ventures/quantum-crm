@@ -20,19 +20,18 @@ export async function GET(request: NextRequest) {
     // Obtener filtros
     const { searchParams } = new URL(request.url);
     const brandId = searchParams.get("brandId");
+    const isActive = searchParams.get("isActive");
 
     // Construir condiciones de búsqueda
     const where: any = {};
     if (brandId) where.brandId = brandId;
+    if (isActive === "true") where.isActive = true;
+    if (isActive === "false") where.isActive = false;
 
     const models = await prisma.model.findMany({
       where,
       include: {
-        brand: {
-          include: {
-            company: true,
-          },
-        },
+        brand: true,
       },
       orderBy: {
         name: "asc",
@@ -94,11 +93,7 @@ export async function POST(request: NextRequest) {
       const model = await prisma.model.create({
         data: validatedData,
         include: {
-          brand: {
-            include: {
-              company: true,
-            },
-          },
+          brand: true,
         },
       });
 

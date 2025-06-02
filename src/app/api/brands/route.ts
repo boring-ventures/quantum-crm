@@ -5,7 +5,6 @@ import { z } from "zod";
 
 const brandSchema = z.object({
   name: z.string().min(1, "El nombre es requerido"),
-  companyId: z.string().uuid("ID de empresa inválido"),
   isActive: z.boolean().default(true),
 });
 
@@ -19,17 +18,15 @@ export async function GET(request: NextRequest) {
 
     // Obtener filtros
     const { searchParams } = new URL(request.url);
-    const companyId = searchParams.get("companyId");
+    const isActive = searchParams.get("isActive");
 
     // Construir condiciones de búsqueda
     const where: any = {};
-    if (companyId) where.companyId = companyId;
+    if (isActive === "true") where.isActive = true;
+    if (isActive === "false") where.isActive = false;
 
     const brands = await prisma.brand.findMany({
       where,
-      include: {
-        company: true,
-      },
       orderBy: {
         name: "asc",
       },
@@ -59,29 +56,16 @@ export async function POST(request: NextRequest) {
     try {
       const validatedData = brandSchema.parse(body);
 
-      // Verificar si existe la empresa
-      const company = await prisma.company.findUnique({
-        where: { id: validatedData.companyId },
-      });
-
-      if (!company) {
-        return NextResponse.json(
-          { error: "La empresa especificada no existe" },
-          { status: 400 }
-        );
-      }
-
-      // Verificar si ya existe una marca con el mismo nombre para esta empresa
+      // Verificar si ya existe una marca con el mismo nombre
       const existingBrand = await prisma.brand.findFirst({
         where: {
           name: validatedData.name,
-          companyId: validatedData.companyId,
         },
       });
 
       if (existingBrand) {
         return NextResponse.json(
-          { error: "Ya existe una marca con este nombre para esta empresa" },
+          { error: "Ya existe una marca con este nombre" },
           { status: 400 }
         );
       }
@@ -89,9 +73,6 @@ export async function POST(request: NextRequest) {
       // Crear la marca
       const brand = await prisma.brand.create({
         data: validatedData,
-        include: {
-          company: true,
-        },
       });
 
       return NextResponse.json(brand, { status: 201 });

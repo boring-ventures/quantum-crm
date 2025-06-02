@@ -16,6 +16,8 @@ const productSchema = z.object({
     .nullable(),
   brandId: z.string().uuid("ID de marca inválido").optional().nullable(),
   modelId: z.string().uuid("ID de modelo inválido").optional().nullable(),
+  countryId: z.string().uuid("ID de país inválido").optional().nullable(),
+  currency: z.enum(["BOB", "USD", "USDT"]).default("BOB"),
   isActive: z.boolean().default(true),
   images: z
     .array(
@@ -40,6 +42,8 @@ export async function GET(request: NextRequest) {
     const businessTypeId = searchParams.get("businessTypeId") || undefined;
     const brandId = searchParams.get("brandId") || undefined;
     const modelId = searchParams.get("modelId") || undefined;
+    const countryId = searchParams.get("countryId") || undefined;
+    const currency = searchParams.get("currency") || undefined;
     const active = searchParams.get("active");
     const search = searchParams.get("search") || undefined;
     const page = parseInt(searchParams.get("page") || "1", 10);
@@ -50,6 +54,8 @@ export async function GET(request: NextRequest) {
     if (businessTypeId) where.businessTypeId = businessTypeId;
     if (brandId) where.brandId = brandId;
     if (modelId) where.modelId = modelId;
+    if (countryId) where.countryId = countryId;
+    if (currency) where.currency = currency;
     if (active === "true") where.isActive = true;
     if (active === "false") where.isActive = false;
     if (search) {
@@ -64,12 +70,9 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         businessType: true,
-        brand: {
-          include: {
-            company: true,
-          },
-        },
+        brand: true,
         model: true,
+        country: true,
         images: true,
       },
       orderBy: {
@@ -157,12 +160,9 @@ export async function POST(request: NextRequest) {
           where: { id: newProduct.id },
           include: {
             businessType: true,
-            brand: {
-              include: {
-                company: true,
-              },
-            },
+            brand: true,
             model: true,
+            country: true,
             images: true,
           },
         });
