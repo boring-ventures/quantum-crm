@@ -56,22 +56,6 @@ model Role {
   @@map("roles")
 }
 
-model Company {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  name      String   @unique
-  website   String?
-  isActive  Boolean  @default(true) @map("is_active")
-  logo      String?
-  brands    Brand[]
-  leads     Lead[]
-
-  @@index([name])
-  @@index([isActive])
-  @@map("companies")
-}
-
 model BusinessType {
   id        String    @id @default(uuid())
   createdAt DateTime  @default(now()) @map("created_at")
@@ -89,16 +73,12 @@ model Brand {
   id        String    @id @default(uuid())
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
-  name      String
+  name      String    @unique
   isActive  Boolean   @default(true) @map("is_active")
-  companyId String    @map("company_id")
-  company   Company   @relation(fields: [companyId], references: [id])
   models    Model[]
   products  Product[]
 
-  @@unique([name, companyId])
   @@index([name])
-  @@index([companyId])
   @@index([isActive])
   @@map("brands")
 }
@@ -140,21 +120,16 @@ model Lead {
   closedAt         DateTime?          @map("closed_at")
   reasonClosed     String?            @map("reason_closed")
   cellphone        String?
-  companyId        String?            @map("company_id")
   productId        String?            @map("product_id")
   extraComments    String?            @map("extra_comments")
   qualification    LeadQualification  @default(NOT_QUALIFIED) @map("qualification")
   isFavorite       Boolean            @default(false) @map("is_favorite")
   favoriteAt       DateTime?          @map("favorite_at")
-  communications   Communication[]
   documents        Document[]
-  tags             LeadTag[]
   assignedTo       User               @relation(fields: [assignedToId], references: [id])
-  company          Company?           @relation(fields: [companyId], references: [id])
   product          Product?           @relation(fields: [productId], references: [id])
   source           LeadSource         @relation(fields: [sourceId], references: [id])
   status           LeadStatus         @relation(fields: [statusId], references: [id])
-  notes            Note[]
   quotations       Quotation[]
   reservations     Reservation[]
   sales            Sale[]
@@ -164,7 +139,6 @@ model Lead {
   @@index([statusId])
   @@index([sourceId])
   @@index([assignedToId])
-  @@index([companyId])
   @@index([productId])
   @@index([createdAt])
   @@index([qualityScore])
@@ -250,9 +224,7 @@ model User {
   responseTime   Int?               @map("response_time")
   roleId         String?            @map("role_id")
   countryId      String?            @map("country_id")
-  communications Communication[]
   assignedLeads  Lead[]
-  notes          Note[]
   tasks          Task[]
   userRole       Role?              @relation(fields: [roleId], references: [id])
   country        Country?           @relation(fields: [countryId], references: [id])
@@ -268,74 +240,6 @@ model User {
   @@index([roleId])
   @@index([countryId])
   @@map("users")
-}
-
-model Tag {
-  id          String    @id @default(uuid())
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  name        String    @unique
-  description String?
-  color       String
-  leadTags    LeadTag[]
-
-  @@map("tags")
-}
-
-model LeadTag {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
-  leadId    String   @map("lead_id")
-  tagId     String   @map("tag_id")
-  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
-
-  @@unique([leadId, tagId])
-  @@index([leadId])
-  @@index([tagId])
-  @@map("lead_tags")
-}
-
-model Communication {
-  id             String                 @id @default(uuid())
-  createdAt      DateTime               @default(now()) @map("created_at")
-  updatedAt      DateTime               @updatedAt @map("updated_at")
-  type           CommunicationType
-  direction      CommunicationDirection
-  subject        String?
-  content        String
-  sentAt         DateTime               @map("sent_at")
-  deliveryStatus String?                @map("delivery_status")
-  openedAt       DateTime?              @map("opened_at")
-  clickedAt      DateTime?              @map("clicked_at")
-  leadId         String                 @map("lead_id")
-  userId         String                 @map("user_id")
-  templateId     String?                @map("template_id")
-  lead           Lead                   @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  user           User                   @relation(fields: [userId], references: [id])
-
-  @@index([leadId])
-  @@index([userId])
-  @@index([type])
-  @@index([sentAt])
-  @@map("communications")
-}
-
-model Note {
-  id          String   @id @default(uuid())
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  content     String
-  isPinned    Boolean  @default(false) @map("is_pinned")
-  leadId      String   @map("lead_id")
-  createdById String   @map("created_by_id")
-  createdBy   User     @relation(fields: [createdById], references: [id])
-  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
-
-  @@index([leadId])
-  @@index([createdById])
-  @@index([isPinned])
-  @@map("notes")
 }
 
 model Task {
@@ -374,21 +278,6 @@ model Document {
   @@map("documents")
 }
 
-model EmailTemplate {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  name      String
-  subject   String
-  content   String
-  category  String?
-  isActive  Boolean  @default(true) @map("is_active")
-
-  @@index([category])
-  @@index([isActive])
-  @@map("email_templates")
-}
-
 model ActivityLog {
   id            String   @id @default(uuid())
   createdAt     DateTime @default(now()) @map("created_at")
@@ -403,18 +292,6 @@ model ActivityLog {
   @@index([performedById])
   @@index([createdAt])
   @@map("activity_logs")
-}
-
-model DashboardSettings {
-  id               String   @id @default(uuid())
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
-  userId           String   @unique @map("user_id")
-  leadTableColumns Json     @map("lead_table_columns")
-  defaultFilters   Json?    @map("default_filters")
-  defaultSort      Json?    @map("default_sort")
-
-  @@map("dashboard_settings")
 }
 
 model Product {
@@ -582,20 +459,6 @@ model LeadReassignment {
 enum UserRole {
   USER
   SUPERADMIN
-}
-
-enum CommunicationType {
-  EMAIL
-  PHONE
-  MEETING
-  SMS
-  SOCIAL
-  OTHER
-}
-
-enum CommunicationDirection {
-  INBOUND
-  OUTBOUND
 }
 
 enum TaskStatus {
