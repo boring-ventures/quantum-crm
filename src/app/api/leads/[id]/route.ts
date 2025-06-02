@@ -37,8 +37,8 @@ export async function GET(
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    // Obtener el ID del lead desde los parámetros de ruta (await)
-    const { id } = params;
+    // Obtener el ID del lead desde los parámetros de ruta
+    const { id } = await params;
 
     // Obtener el lead con sus relaciones
     const lead = await prisma.lead.findUnique({
