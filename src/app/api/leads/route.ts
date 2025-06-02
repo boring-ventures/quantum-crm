@@ -99,11 +99,6 @@ export async function GET(request: NextRequest) {
               country: true,
             },
           },
-          tags: {
-            include: {
-              tag: true,
-            },
-          },
           tasks: true,
           quotations: true,
           reservations: true,
@@ -113,21 +108,13 @@ export async function GET(request: NextRequest) {
       prisma.lead.count({ where }),
     ]);
 
-    // Transformar los datos para que coincidan con la interfaz LeadWithRelations
-    const formattedLeads = leads.map((lead: any) => ({
-      ...lead,
-      tags: lead.tags.map((lt: any) => lt.tag),
-    }));
-
-    // Calcular total de páginas
-    const totalPages = Math.ceil(total / pageSize);
-
+    // Devolver los leads sin transformaciones adicionales
     return NextResponse.json({
-      items: formattedLeads,
+      items: leads,
       total,
       page,
       pageSize,
-      totalPages,
+      totalPages: Math.ceil(total / pageSize),
     });
   } catch (error) {
     console.error("Error fetching leads:", error);
@@ -255,7 +242,6 @@ export async function POST(request: NextRequest) {
             email: validatedData.email,
             phone: validatedData.phone,
             cellphone: validatedData.cellphone,
-            companyId: validatedData.companyId,
             statusId: validatedData.statusId,
             sourceId: validatedData.sourceId,
             qualityScore: validatedData.qualityScore,

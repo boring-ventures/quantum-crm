@@ -28,12 +28,10 @@ import {
   useLeadSources,
   useUpdateLeadMutation,
 } from "@/lib/hooks";
-import { useCompanies } from "@/lib/hooks/use-companies";
 import { useProducts } from "@/lib/hooks/use-products";
 import type {
   LeadWithRelations,
   UpdateLeadPayload,
-  Company,
   Product,
 } from "@/types/lead";
 
@@ -44,7 +42,6 @@ const editLeadSchema = z.object({
   email: z.string().email("Email inválido").optional().nullable(),
   phone: z.string().optional().nullable(),
   cellphone: z.string().optional().nullable(),
-  companyId: z.string().optional().nullable(),
   productId: z.string().optional().nullable(),
   statusId: z.string().min(1, "El estado es requerido"),
   sourceId: z.string().min(1, "La fuente es requerida"),
@@ -71,7 +68,6 @@ export function EditLeadDialog({
   // Obtener datos necesarios para el formulario
   const { data: statuses, isLoading: isLoadingStatuses } = useLeadStatuses();
   const { data: sources, isLoading: isLoadingSources } = useLeadSources();
-  const { data: companies, isLoading: isLoadingCompanies } = useCompanies();
   const { data: products, isLoading: isLoadingProducts } = useProducts();
   const updateLeadMutation = useUpdateLeadMutation();
 
@@ -90,7 +86,6 @@ export function EditLeadDialog({
       email: "",
       phone: "",
       cellphone: "",
-      companyId: "",
       productId: "",
       interest: "",
       statusId: "",
@@ -107,7 +102,6 @@ export function EditLeadDialog({
       setValue("email", lead.email || "");
       setValue("phone", lead.phone || "");
       setValue("cellphone", lead.cellphone || "");
-      setValue("companyId", lead.company || "");
       setValue("productId", lead.product || "");
       setValue("interest", lead.qualityScore?.toString() || "");
       setValue("statusId", lead.statusId);
@@ -119,17 +113,7 @@ export function EditLeadDialog({
   // Valores del formulario
   const watchedStatusId = watch("statusId");
   const watchedSourceId = watch("sourceId");
-  const watchedCompanyId = watch("companyId");
   const watchedProductId = watch("productId");
-
-  // Validación adicional para garantizar datos válidos
-  const validCompanies = companies?.filter(
-    (company: Company) =>
-      company &&
-      company.id &&
-      typeof company.id === "string" &&
-      company.id.trim() !== ""
-  );
 
   const validProducts = products?.filter(
     (product: Product) =>
@@ -149,7 +133,6 @@ export function EditLeadDialog({
       // Limpiar valores "none" por vacíos antes de enviar
       const cleanedData = {
         ...data,
-        companyId: data.companyId === "none" ? null : data.companyId || null,
         productId: data.productId === "none" ? null : data.productId || null,
       };
 
@@ -268,119 +251,83 @@ export function EditLeadDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="companyId">Empresa</Label>
+            <Label htmlFor="status">
+              Estado <span className="text-red-500">*</span>
+            </Label>
             <Select
-              value={watchedCompanyId || "none"}
-              onValueChange={(value) =>
-                setValue("companyId", value === "none" ? "" : value)
-              }
+              value={watchedStatusId}
+              onValueChange={(value) => setValue("statusId", value)}
             >
               <SelectTrigger className="bg-gray-800 border-gray-700">
-                <SelectValue placeholder="Seleccionar empresa" />
+                <SelectValue placeholder="Seleccionar estado">
+                  {watchedStatusId && statuses && (
+                    <div className="flex items-center">
+                      <div
+                        className="w-2 h-2 rounded-full mr-2"
+                        style={{
+                          backgroundColor: statuses.find(
+                            (s) => s.id === watchedStatusId
+                          )?.color,
+                        }}
+                      />
+                      {statuses.find((s) => s.id === watchedStatusId)?.name}
+                    </div>
+                  )}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent className="bg-gray-800 border-gray-700">
-                {isLoadingCompanies ? (
+                {isLoadingStatuses ? (
                   <SelectItem value="loading" disabled>
                     Cargando...
                   </SelectItem>
                 ) : (
-                  <>
-                    <SelectItem value="none">Sin empresa</SelectItem>
-                    {validCompanies?.map((company: Company) => (
-                      <SelectItem key={company.id} value={company.id}>
-                        {company.name}
-                      </SelectItem>
-                    ))}
-                  </>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="status">
-                Estado <span className="text-red-500">*</span>
-              </Label>
-              <Select
-                value={watchedStatusId}
-                onValueChange={(value) => setValue("statusId", value)}
-              >
-                <SelectTrigger className="bg-gray-800 border-gray-700">
-                  <SelectValue placeholder="Seleccionar estado">
-                    {watchedStatusId && statuses && (
+                  statuses?.map((status) => (
+                    <SelectItem key={status.id} value={status.id}>
                       <div className="flex items-center">
                         <div
                           className="w-2 h-2 rounded-full mr-2"
-                          style={{
-                            backgroundColor: statuses.find(
-                              (s) => s.id === watchedStatusId
-                            )?.color,
-                          }}
+                          style={{ backgroundColor: status.color }}
                         />
-                        {statuses.find((s) => s.id === watchedStatusId)?.name}
+                        {status.name}
                       </div>
-                    )}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent className="bg-gray-800 border-gray-700">
-                  {isLoadingStatuses ? (
-                    <SelectItem value="loading" disabled>
-                      Cargando...
                     </SelectItem>
-                  ) : (
-                    statuses?.map((status) => (
-                      <SelectItem key={status.id} value={status.id}>
-                        <div className="flex items-center">
-                          <div
-                            className="w-2 h-2 rounded-full mr-2"
-                            style={{ backgroundColor: status.color }}
-                          />
-                          {status.name}
-                        </div>
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-              {errors.statusId && (
-                <p className="text-red-500 text-xs">
-                  {errors.statusId.message}
-                </p>
-              )}
-            </div>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+            {errors.statusId && (
+              <p className="text-red-500 text-xs">{errors.statusId.message}</p>
+            )}
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="source">
-                Fuente <span className="text-red-500">*</span>
-              </Label>
-              <Select
-                value={watchedSourceId}
-                onValueChange={(value) => setValue("sourceId", value)}
-              >
-                <SelectTrigger className="bg-gray-800 border-gray-700">
-                  <SelectValue placeholder="Seleccionar fuente" />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-800 border-gray-700">
-                  {isLoadingSources ? (
-                    <SelectItem value="loading" disabled>
-                      Cargando...
+          <div className="space-y-2">
+            <Label htmlFor="source">
+              Fuente <span className="text-red-500">*</span>
+            </Label>
+            <Select
+              value={watchedSourceId}
+              onValueChange={(value) => setValue("sourceId", value)}
+            >
+              <SelectTrigger className="bg-gray-800 border-gray-700">
+                <SelectValue placeholder="Seleccionar fuente" />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-800 border-gray-700">
+                {isLoadingSources ? (
+                  <SelectItem value="loading" disabled>
+                    Cargando...
+                  </SelectItem>
+                ) : (
+                  sources?.map((source) => (
+                    <SelectItem key={source.id} value={source.id}>
+                      {source.name}
                     </SelectItem>
-                  ) : (
-                    sources?.map((source) => (
-                      <SelectItem key={source.id} value={source.id}>
-                        {source.name}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-              {errors.sourceId && (
-                <p className="text-red-500 text-xs">
-                  {errors.sourceId.message}
-                </p>
-              )}
-            </div>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+            {errors.sourceId && (
+              <p className="text-red-500 text-xs">{errors.sourceId.message}</p>
+            )}
           </div>
 
           <div className="space-y-2">

@@ -8,6 +8,7 @@ interface ImportRow {
   last_name?: string;
   email?: string;
   phone?: string | number;
+  "phone*"?: string | number;
   cellphone?: string | number;
   "status_name*"?: string;
   "source_name*"?: string;
@@ -43,6 +44,18 @@ export async function POST(req: Request) {
 
     const user = JSON.parse(userStr);
 
+    // Validar que el usuario exista en la base de datos
+    const validUser = await prisma.user.findUnique({
+      where: { id: user.id },
+    });
+
+    if (!validUser) {
+      return NextResponse.json(
+        { error: "Usuario no válido o no encontrado" },
+        { status: 400 }
+      );
+    }
+
     // Leer archivo Excel
     const arrayBuffer = await file.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer, { type: "array" });
@@ -65,7 +78,12 @@ export async function POST(req: Request) {
 
     // Validar headers requeridos
     const requiredHeaders = ["phone"];
-    const missingHeaders = requiredHeaders.filter((h) => !headers.includes(h));
+    const missingHeaders = requiredHeaders.filter((h) => {
+      // Buscar el header ignorando mayúsculas y asteriscos
+      return !headers.some(
+        (header) => header.toLowerCase().replace(/\*/g, "") === h.toLowerCase()
+      );
+    });
 
     if (missingHeaders.length > 0) {
       return NextResponse.json(
@@ -110,11 +128,14 @@ export async function POST(req: Request) {
       const row = dataRows[i];
 
       // Saltar filas completamente vacías o con solo espacios
-      const isRowEmpty = row.every((cell) => {
-        if (cell === undefined || cell === null) return true;
-        if (typeof cell === "string" && cell.trim() === "") return true;
-        return false;
-      });
+      const isRowEmpty =
+        !row ||
+        row.length === 0 ||
+        row.every((cell) => {
+          if (cell === undefined || cell === null) return true;
+          if (typeof cell === "string" && cell.trim() === "") return true;
+          return false;
+        });
       if (isRowEmpty) continue;
       realRowsCount++;
 
@@ -122,7 +143,9 @@ export async function POST(req: Request) {
         // Convertir fila a objeto
         const rowData: ImportRow = {};
         headers.forEach((header, index) => {
-          rowData[header as keyof ImportRow] = row[index];
+          // Normalizar el nombre del encabezado (eliminar espacios en blanco al principio y final)
+          const normalizedHeader = header.trim();
+          rowData[normalizedHeader as keyof ImportRow] = row[index];
         });
 
         // Limpiar status_name y source_name de asteriscos y espacios
@@ -180,37 +203,38 @@ export async function POST(req: Request) {
           if (product) productId = product.id;
         }
 
+        // Crear lead con manejo más robusto de campos
+        const leadData = {
+          firstName: cleanData.data.first_name || "",
+          lastName: cleanData.data.last_name || "",
+          email:
+            cleanData.data.email && cleanData.data.email !== ""
+              ? cleanData.data.email
+              : null,
+          phone:
+            cleanData.data.phone && cleanData.data.phone !== ""
+              ? cleanData.data.phone
+              : null,
+          cellphone:
+            cleanData.data.cellphone && cleanData.data.cellphone !== ""
+              ? cleanData.data.cellphone
+              : null,
+          extraComments:
+            cleanData.data.extra_comments &&
+            cleanData.data.extra_comments !== ""
+              ? cleanData.data.extra_comments
+              : null,
+          statusId,
+          sourceId,
+          assignedToId: validUser.id,
+          productId: productId || null,
+          qualification: "NOT_QUALIFIED" as const,
+          qualityScore: cleanData.data.quality_score || 1,
+        };
+
         // Crear lead
         const lead = await prisma.lead.create({
-          data: {
-            firstName: cleanData.data.first_name || "",
-            lastName: cleanData.data.last_name || "",
-            email:
-              cleanData.data.email && cleanData.data.email !== ""
-                ? cleanData.data.email
-                : null,
-            phone:
-              cleanData.data.phone && cleanData.data.phone !== ""
-                ? cleanData.data.phone
-                : null,
-            cellphone:
-              cleanData.data.cellphone && cleanData.data.cellphone !== ""
-                ? cleanData.data.cellphone
-                : null,
-            extraComments:
-              cleanData.data.extra_comments &&
-              cleanData.data.extra_comments !== ""
-                ? cleanData.data.extra_comments
-                : null,
-            statusId,
-            sourceId,
-            assignedToId: user.id,
-            productId: productId !== "" ? productId : null,
-            qualification: "NOT_QUALIFIED",
-            qualityScore: cleanData.data.quality_score
-              ? parseInt(cleanData.data.quality_score.toString())
-              : 1,
-          },
+          data: leadData,
         });
 
         successful.push({
@@ -258,17 +282,20 @@ async function validateAndCleanRow(rowData: ImportRow, rowIndex: number) {
   const errors: ValidationError[] = [];
   const cleaned: any = {};
 
+  // Buscar el valor de phone considerando diferentes formatos (phone, phone*, etc)
+  const phoneValue = rowData.phone || rowData["phone*"];
+
   // Validar phone (requerido)
-  if (!rowData.phone || rowData.phone.toString().trim() === "") {
+  if (!phoneValue || phoneValue.toString().trim() === "") {
     errors.push({
       row: rowIndex,
       field: "phone",
       message: "Teléfono es requerido",
-      received: rowData.phone,
+      received: phoneValue,
       expected: "string",
     });
   } else {
-    cleaned.phone = rowData.phone.toString().trim();
+    cleaned.phone = phoneValue.toString().trim();
   }
 
   // Validar first_name (opcional)
@@ -319,19 +346,37 @@ async function validateAndCleanRow(rowData: ImportRow, rowIndex: number) {
   }
 
   // Validar quality_score
-  if (rowData.quality_score) {
-    const score = parseInt(rowData.quality_score.toString());
-    if (isNaN(score) || ![1, 2, 3].includes(score)) {
+  if (
+    rowData.quality_score !== undefined &&
+    rowData.quality_score !== null &&
+    rowData.quality_score !== ""
+  ) {
+    let score;
+    try {
+      score = parseInt(rowData.quality_score.toString());
+      if (isNaN(score) || ![1, 2, 3].includes(score)) {
+        errors.push({
+          row: rowIndex,
+          field: "quality_score",
+          message: "Grado de interés debe ser 1, 2 o 3",
+          received: rowData.quality_score,
+          expected: "1, 2 o 3",
+        });
+      } else {
+        cleaned.quality_score = score;
+      }
+    } catch (e) {
       errors.push({
         row: rowIndex,
         field: "quality_score",
-        message: "Grado de interés debe ser 1, 2 o 3",
+        message: "No se pudo convertir a número",
         received: rowData.quality_score,
         expected: "1, 2 o 3",
       });
-    } else {
-      cleaned.quality_score = score;
     }
+  } else {
+    // Valor predeterminado si no se proporciona
+    cleaned.quality_score = 1;
   }
 
   // Limpiar teléfonos (convertir números a string)
