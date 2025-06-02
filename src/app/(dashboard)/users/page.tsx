@@ -66,7 +66,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import type { User } from "@/types/user";
-import { hasPermission } from "@/lib/utils/permissions";
+import { hasPermission, getScope } from "@/lib/utils/permissions";
 import { useUserStore } from "@/store/userStore";
 
 // Componente de diálogo para restablecer contraseña
@@ -172,7 +172,7 @@ function ResetPasswordDialog({ open, onClose, user, onSuccess }) {
 
   const copyCredentialsToClipboard = () => {
     if (!user) return;
-    let text = `Nombre: ${user.name}\nEmail: ${user.email}\nContraseña: ${password}\nRol: ${user.userRole?.name || user.role}`;
+    let text = `Nombre: ${user.name}\nEmail: ${user.email}\nContraseña: ${password}\nRol: ${user.role}`;
     if (user.country) text += `\nPaís: ${user.country}`;
     navigator.clipboard.writeText(text);
     toast({
@@ -223,7 +223,7 @@ function ResetPasswordDialog({ open, onClose, user, onSuccess }) {
                   </span>
 
                   <span className="font-semibold">Rol:</span>
-                  <span>{user.userRole?.name || user.role}</span>
+                  <span>{user.role}</span>
                 </div>
               </CardContent>
             </Card>
@@ -305,21 +305,54 @@ function ResetPasswordDialog({ open, onClose, user, onSuccess }) {
 }
 
 // Hook para obtener los usuarios, incluyendo los eliminados
-const useUsers = (includeDeleted: boolean = false) => {
+const useUsers = (
+  includeDeleted: boolean = false,
+  currentUser: any,
+  enabled: boolean = true
+) => {
   return useQuery({
-    queryKey: ["users", { includeDeleted }],
+    queryKey: ["users", { includeDeleted, userId: currentUser?.id }],
     queryFn: async () => {
-      const url = includeDeleted
-        ? "/api/users?includeDeleted=true"
-        : "/api/users";
+      try {
+        console.log("[useUsers] Iniciando petición para obtener usuarios");
+        console.log("[useUsers] Parámetros:", {
+          includeDeleted,
+          userId: currentUser?.id,
+        });
 
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error("Error al obtener usuarios");
+        // Construir los parámetros de consulta
+        const params = new URLSearchParams();
+
+        params.append("active", "true");
+
+        if (includeDeleted) {
+          params.append("includeDeleted", "true");
+        }
+
+        // Usar la ruta principal de usuarios
+        const url = `/api/users?${params.toString()}`;
+        console.log("[useUsers] URL de la petición:", url);
+
+        const response = await fetch(url);
+        console.log("[useUsers] Status de la respuesta:", response.status);
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error("[useUsers] Error en la respuesta:", errorData);
+          throw new Error(errorData.error || "Error al obtener usuarios");
+        }
+
+        const data = await response.json();
+        console.log("[useUsers] Datos recibidos:", data);
+        console.log("[useUsers] Total usuarios:", data.users?.length || 0);
+
+        return data.users || [];
+      } catch (error) {
+        console.error("[useUsers] Error al obtener usuarios:", error);
+        throw error;
       }
-      const data = await response.json();
-      return data.users || [];
     },
+    enabled: enabled && !!currentUser?.id, // Solo ejecutar cuando el usuario esté cargado
   });
 };
 
@@ -358,18 +391,54 @@ export default function UsersPage() {
   const [showDeleted, setShowDeleted] = useState(false);
 
   const { user: currentUser, isLoading: isLoadingCurrentUser } = useUserStore();
-  const { data: users = [], isLoading } = useUsers(showDeleted);
   const queryClient = useQueryClient();
 
-  // Verificar si el usuario actual es Super Administrador
-  const isSuperAdmin = useMemo(() => {
-    return currentUser?.userRole?.name === "Super Administrador";
-  }, [currentUser]);
+  console.log(
+    "[UsersPage] Usuario actual:",
+    currentUser?.id,
+    currentUser?.email
+  );
+  console.log("[UsersPage] Cargando usuario:", isLoadingCurrentUser);
+
+  // Consulta de usuarios que depende del estado del usuario actual
+  const {
+    data: users = [],
+    isLoading,
+    refetch,
+  } = useUsers(showDeleted, currentUser, !isLoadingCurrentUser);
+
+  console.log("[UsersPage] Total usuarios cargados:", users.length);
+
+  // Efecto para recargar los datos cuando el usuario cambie
+  useEffect(() => {
+    if (currentUser?.id) {
+      console.log("[UsersPage] Usuario cargado, refrescando datos");
+      refetch();
+    }
+  }, [currentUser?.id, refetch]);
+
+  // Verificar permisos para usuarios
+  const canViewUsers = hasPermission(currentUser, "users", "view");
+  const canCreateUsers = hasPermission(currentUser, "users", "create");
+  const canEditUsers = hasPermission(currentUser, "users", "edit");
+  const canDeleteUsers = hasPermission(currentUser, "users", "delete");
+  const usersScope = getScope(currentUser, "users", "view");
+
+  console.log("[UsersPage] Permisos:", {
+    canViewUsers,
+    canCreateUsers,
+    canEditUsers,
+    canDeleteUsers,
+    usersScope,
+  });
+
+  // Verificar si el usuario tiene permisos de administrador completo
+  const hasFullAdminAccess = usersScope === "all";
 
   // Mutación para eliminar usuario
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const response = await fetch(`/api/users?id=${userId}`, {
+      const response = await fetch(`/api/users/${userId}`, {
         method: "DELETE",
       });
 
@@ -456,8 +525,7 @@ export default function UsersPage() {
       }),
       columnHelper.accessor("role", {
         header: "Rol",
-        cell: (info) =>
-          info.row.original.userRole?.name || info.row.original.role,
+        cell: (info) => info.row.original.role,
       }),
       columnHelper.accessor("isActive", {
         header: "Estado",
@@ -489,18 +557,21 @@ export default function UsersPage() {
         cell: (info) => {
           const user = info.row.original;
           const isSelfUser = user.id === currentUser?.id;
-          const isUserSuperAdmin =
-            user.userRole?.name === "Super Administrador";
+
+          // Verificar si es un usuario con rol de administrador
+          const isAdminUser =
+            user.role === "Super Administrador" ||
+            user.role === "Administrador";
 
           // Deshabilitar acciones para usuarios eliminados o para usuarios inapropiados
-          const canEdit =
-            !user.isDeleted && hasPermission(currentUser, "users", "edit");
-          const canResetPassword =
-            !user.isDeleted && hasPermission(currentUser, "users", "edit");
+          const canEdit = !user.isDeleted && canEditUsers;
+          const canResetPassword = !user.isDeleted && canEditUsers;
+          // No permitir eliminar a sí mismo o a un administrador si no tiene permisos completos
           const canDelete =
             !user.isDeleted &&
             !isSelfUser &&
-            !(isUserSuperAdmin && !isSuperAdmin);
+            canDeleteUsers &&
+            !(isAdminUser && !hasFullAdminAccess);
 
           return (
             <div className="text-right">
@@ -554,7 +625,7 @@ export default function UsersPage() {
         },
       }),
     ],
-    [currentUser, isSuperAdmin]
+    [currentUser, canEditUsers, canDeleteUsers, hasFullAdminAccess]
   );
 
   // Filtrar usuarios por búsqueda
@@ -563,9 +634,7 @@ export default function UsersPage() {
       (user) =>
         user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (user.userRole?.name || user.role)
-          ?.toLowerCase()
-          .includes(searchTerm.toLowerCase())
+        user.role.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [users, searchTerm]);
 
@@ -603,7 +672,7 @@ export default function UsersPage() {
           />
         </div>
         <div className="flex flex-row gap-2 items-center">
-          {isSuperAdmin && (
+          {hasFullAdminAccess && (
             <div className="flex items-center space-x-2">
               <Switch
                 id="show-deleted"
@@ -618,10 +687,12 @@ export default function UsersPage() {
               </label>
             </div>
           )}
-          <Button size="sm" onClick={() => setIsCreateModalOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo Usuario
-          </Button>
+          {canCreateUsers && (
+            <Button size="sm" onClick={() => setIsCreateModalOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo Usuario
+            </Button>
+          )}
         </div>
       </div>
 

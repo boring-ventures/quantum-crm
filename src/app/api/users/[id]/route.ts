@@ -10,7 +10,7 @@ export async function GET(
 ) {
   try {
     // Verificar que el ID solicitado es válido
-    const { id: userId } = await context.params;
+    const { id: userId } = context.params; // sin await
 
     if (!userId) {
       return NextResponse.json(

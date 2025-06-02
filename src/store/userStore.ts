@@ -18,7 +18,7 @@ export const useUserStore = create<UserState>()(
   persist(
     (set, get) => ({
       user: null,
-      isLoading: false,
+      isLoading: true,
       error: null,
       fetchUser: async () => {
         if (get().user || get().isLoading) return;

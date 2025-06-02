@@ -126,7 +126,7 @@ export default function SalesPage() {
         params.append("countryId", currentUser.countryId);
       }
 
-      const response = await fetch(`/api/users/all?${params.toString()}`);
+      const response = await fetch(`/api/users?${params.toString()}`);
       if (!response.ok) {
         throw new Error("Error al obtener usuarios");
       }
