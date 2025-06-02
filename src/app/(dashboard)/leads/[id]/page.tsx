@@ -9,9 +9,7 @@ import { hasPermission } from "@/lib/utils/permissions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Info } from "lucide-react";
 import { useUserStore } from "@/store/userStore";
-import { QualifyLeadDialog } from "@/components/leads/qualify-lead-dialog";
-import { useState } from "react";
-import React from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface LeadPageProps {
   params: Promise<{ id: string }>;
@@ -20,7 +18,7 @@ interface LeadPageProps {
 export default function LeadPage({ params }: LeadPageProps) {
   const router = useRouter();
   const { id } = use(params);
-  const [showQualifyDialog, setShowQualifyDialog] = useState(false);
+  const queryClient = useQueryClient();
 
   // Obtener el usuario actual desde el store
   const { user: currentUser, isLoading: isLoadingCurrentUser } = useUserStore();
@@ -55,26 +53,6 @@ export default function LeadPage({ params }: LeadPageProps) {
   }
 
   const { data: lead, isLoading, isError } = useLeadQuery(id);
-
-  console.log(" useLeadQuery: lead: ", id);
-
-  // Mostrar el diálogo si el lead no está calificado
-  React.useEffect(() => {
-    if (
-      lead &&
-      lead.qualification !== "GOOD_LEAD" &&
-      lead.qualification !== "BAD_LEAD"
-    ) {
-      setShowQualifyDialog(true);
-    }
-  }, [lead]);
-
-  const handleQualify = (isGoodLead: boolean) => {
-    setShowQualifyDialog(false);
-    if (!isGoodLead) {
-      router.back();
-    }
-  };
 
   const handleBack = () => {
     router.push("/leads");
@@ -124,14 +102,6 @@ export default function LeadPage({ params }: LeadPageProps) {
 
   return (
     <div className="p-6">
-      {lead && showQualifyDialog && (
-        <QualifyLeadDialog
-          open={showQualifyDialog}
-          onOpenChange={setShowQualifyDialog}
-          lead={lead}
-          onQualify={handleQualify}
-        />
-      )}
       <LeadDetailPage
         lead={lead}
         onBack={handleBack}

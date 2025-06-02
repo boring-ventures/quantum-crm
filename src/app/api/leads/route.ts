@@ -10,9 +10,13 @@ import {
 
 // Esquema de validación para la creación de leads
 const createLeadSchema = z.object({
-  firstName: z.string().min(1, "El nombre es requerido"),
-  lastName: z.string().min(1, "El apellido es requerido"),
-  email: z.string().email("Email inválido").optional().nullable(),
+  firstName: z.string(),
+  lastName: z.string(),
+  email: z
+    .string()
+    .optional()
+    .nullable()
+    .or(z.string().email("Email inválido")),
   phone: z.string().optional().nullable(),
   cellphone: z.string().optional().nullable(),
   companyId: z.string().uuid("ID de empresa inválido").optional().nullable(),
@@ -22,6 +26,7 @@ const createLeadSchema = z.object({
   productId: z.string().uuid("ID de producto inválido").optional().nullable(),
   assignedToId: z.string().uuid("ID de usuario inválido"),
   isArchived: z.boolean().optional().default(false),
+  extraComments: z.string().optional().nullable(),
 });
 
 export async function GET(request: NextRequest) {
@@ -99,6 +104,7 @@ export async function GET(request: NextRequest) {
               country: true,
             },
           },
+          product: true,
           tasks: true,
           quotations: true,
           reservations: true,

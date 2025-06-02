@@ -20,6 +20,7 @@ interface CreateSalePayload {
   paymentMethod: string;
   saleContractUrl?: string;
   additionalNotes?: string;
+  currency?: string;
 }
 
 // Obtener venta por id de lead

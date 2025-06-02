@@ -33,6 +33,7 @@ interface CreateReservationPayload {
     quantity: number;
     price: number;
   }[];
+  currency?: string;
 }
 
 // Obtener reserva por id de lead

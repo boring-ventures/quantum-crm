@@ -327,11 +327,9 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
               <span className="text-gray-700 dark:text-gray-200">
                 {typeof lead.product === "string"
                   ? lead.product
-                  : typeof lead.product === "object" &&
-                      lead.product !== null &&
-                      "name" in lead.product
+                  : "name" in lead.product
                     ? (lead.product as any).name
-                    : ""}
+                    : JSON.stringify(lead.product)}
               </span>
             </div>
           )}

@@ -36,15 +36,22 @@ import { hasPermission } from "@/lib/utils/permissions";
 interface TaskListProps {
   leadId: string;
   currentUser?: any;
+  onTaskClick?: (taskId: string) => void;
 }
 
 interface TaskListItemProps {
   task: Task;
   onUpdate: () => void;
   isSeller?: boolean;
+  onTaskClick?: (taskId: string) => void;
 }
 
-function TaskListItem({ task, onUpdate, isSeller = false }: TaskListItemProps) {
+function TaskListItem({
+  task,
+  onUpdate,
+  isSeller = false,
+  onTaskClick,
+}: TaskListItemProps) {
   const { toast } = useToast();
   const updateTaskStatusMutation = useUpdateTaskStatusMutation();
   const deleteTaskMutation = useDeleteTaskMutation();
@@ -107,7 +114,11 @@ function TaskListItem({ task, onUpdate, isSeller = false }: TaskListItemProps) {
   };
 
   return (
-    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-200 dark:border-gray-700 py-4 gap-3">
+    <div
+      className="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-200 dark:border-gray-700 py-4 gap-3"
+      onClick={() => onTaskClick && onTaskClick(task.id)}
+      style={{ cursor: onTaskClick ? "pointer" : "default" }}
+    >
       <div className="flex-1">
         <h5
           className={`text-lg font-medium ${
@@ -212,7 +223,7 @@ function TaskListItem({ task, onUpdate, isSeller = false }: TaskListItemProps) {
   );
 }
 
-export function TaskList({ leadId, currentUser }: TaskListProps) {
+export function TaskList({ leadId, currentUser, onTaskClick }: TaskListProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { data: tasks, isLoading, refetch } = useLeadTasks(leadId);
   const { toast } = useToast();
@@ -328,6 +339,7 @@ export function TaskList({ leadId, currentUser }: TaskListProps) {
                       task={task}
                       onUpdate={refetch}
                       isSeller={canUpdateTasks}
+                      onTaskClick={onTaskClick}
                     />
                   ))}
                 </div>

@@ -40,9 +40,13 @@ const newLeadSchema = z.object({
   firstName: z.string().optional().nullable(),
   lastName: z.string().optional().nullable(),
   maternalLastName: z.string().optional().nullable(),
-  email: z.string().email("Email inválido").optional().nullable(),
-  phone: z.string().min(1, "El teléfono es requerido"),
-  cellphone: z.string().optional().nullable(),
+  email: z
+    .string()
+    .optional()
+    .nullable()
+    .or(z.string().email("Email inválido")),
+  phone: z.string().optional().nullable(),
+  cellphone: z.string().min(1, "El celular es requerido"),
   productId: z.string().optional().nullable(),
   statusId: z.string().min(1, "El estado es requerido"),
   sourceId: z.string().min(1, "La fuente es requerida"),
@@ -130,22 +134,29 @@ export function NewLeadDialog({
     status.name?.toLowerCase().includes(searchStatus.toLowerCase())
   );
 
-  // Verificar si un dropdown debe ser buscable (más de 5 opciones)
-  const isSearchableProducts = (products?.length || 0) > 5;
-  const isSearchableSources = (sources?.length || 0) > 5;
-  const isSearchableStatuses = (statuses?.length || 0) > 5;
-
   // Manejar el envío del formulario
   const onSubmit = async (data: FormData) => {
     setIsPending(true);
 
     try {
+      // Asegurar que firstName y lastName estén definidos
+      const firstName = data.firstName || "";
+      const lastName = data.lastName || "";
+
       const cleanedData = {
-        ...data,
-        productId: data.productId === "none" ? "" : data.productId,
+        firstName,
+        lastName,
+        email: data.email || null,
+        phone: data.phone || null,
+        cellphone: data.cellphone,
+        maternalLastName: data.maternalLastName || null,
+        productId: data.productId === "none" ? null : data.productId || null,
+        statusId: data.statusId,
+        sourceId: data.sourceId,
         assignedToId: preassignedUserId || user?.id || "",
         qualityScore: data.interest ? parseInt(data.interest) : 1,
         isArchived: false,
+        extraComments: data.extraComments || null,
       };
 
       await createLeadMutation.mutateAsync(cleanedData as CreateLeadPayload);
@@ -253,9 +264,7 @@ export function NewLeadDialog({
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="firstName">
-                    Nombre <span className="text-red-500">*</span>
-                  </Label>
+                  <Label htmlFor="firstName">Nombre</Label>
                   <Input
                     id="firstName"
                     placeholder="Nombre"
@@ -270,9 +279,7 @@ export function NewLeadDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="lastName">
-                    Apellido <span className="text-red-500">*</span>
-                  </Label>
+                  <Label htmlFor="lastName">Apellido</Label>
                   <Input
                     id="lastName"
                     placeholder="Apellido paterno"
@@ -309,13 +316,20 @@ export function NewLeadDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="cellphone">Celular</Label>
+                  <Label htmlFor="cellphone">
+                    Celular <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     id="cellphone"
                     placeholder="Celular"
                     className="bg-input dark:bg-gray-800 dark:border-gray-700"
                     {...register("cellphone")}
                   />
+                  {errors.cellphone && (
+                    <p className="text-red-500 text-xs">
+                      {errors.cellphone.message}
+                    </p>
+                  )}
                 </div>
               </div>
 

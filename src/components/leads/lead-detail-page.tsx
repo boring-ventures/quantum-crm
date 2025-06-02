@@ -54,6 +54,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { hasPermission } from "@/lib/utils/permissions";
 import { ReassignLeadDialog } from "@/components/leads/reassign-lead-dialog";
 import { QualifyLeadDialog } from "@/components/leads/qualify-lead-dialog";
+import { QualityScoreSelector } from "@/components/leads/quality-score-selector";
+import { LeadStatusSelector } from "@/components/leads/lead-status-selector";
+import { CloseLeadAction } from "@/components/leads/close-lead-action";
+import { TaskDetailsDialog } from "@/components/tasks/task-details-dialog";
+import { QualifyLeadComponent } from "@/components/leads/qualify-lead-component";
 
 interface LeadDetailPageProps {
   lead: LeadWithRelations;
@@ -89,6 +94,9 @@ export function LeadDetailPage({
   const [isDeleting, setIsDeleting] = useState(false);
   const [showReassignDialog, setShowReassignDialog] = useState(false);
   const [showQualifyDialog, setShowQualifyDialog] = useState(false);
+  const [showCloseLeadDialog, setShowCloseLeadDialog] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<string | null>(null);
+  const [showTaskDetailsDialog, setShowTaskDetailsDialog] = useState(false);
   const [pendingAction, setPendingAction] = useState<null | (() => void)>(null);
   const updateLeadMutation = useUpdateLeadMutation();
   const deleteLeadMutation = useDeleteLeadMutation();
@@ -387,30 +395,27 @@ export function LeadDetailPage({
 
   // Wrapper para acciones protegidas
   const handleAction = (action: () => void) => {
-    if (
-      lead.qualification === "GOOD_LEAD" ||
-      lead.qualification === "BAD_LEAD"
-    ) {
-      action();
-    } else {
-      setPendingAction(() => action);
-      setShowQualifyDialog(true);
-    }
+    // Ejecutar la acción directamente sin verificar calificación
+    action();
   };
 
   // Cuando se califica el lead
   const handleQualify = (isGoodLead: boolean) => {
     setShowQualifyDialog(false);
-    if (isGoodLead && pendingAction) {
-      // Esperar a que el backend actualice el estado antes de ejecutar la acción
-      setTimeout(() => {
-        pendingAction();
-        setPendingAction(null);
-      }, 300);
-    } else if (!isGoodLead) {
-      setPendingAction(null);
+    if (isGoodLead) {
+      // Invalidar el lead para que se actualice con la nueva calificación
+      queryClient.invalidateQueries({
+        queryKey: ["leads", lead.id],
+      });
+    } else {
       onBack();
     }
+  };
+
+  // Manejar click en tarea
+  const handleTaskClick = (taskId: string) => {
+    setSelectedTask(taskId);
+    setShowTaskDetailsDialog(true);
   };
 
   return (
@@ -466,12 +471,19 @@ export function LeadDetailPage({
 
             <div className="text-sm text-gray-600 dark:text-gray-400">
               Interés:
-              <Badge
-                variant="outline"
-                className={`ml-2 font-normal ${getInterestBadgeStyle(lead.qualityScore)}`}
-              >
-                {getInterestText(lead.qualityScore)}
-              </Badge>
+              {canEditLeads ? (
+                <QualityScoreSelector
+                  leadId={lead.id}
+                  initialScore={lead.qualityScore}
+                />
+              ) : (
+                <Badge
+                  variant="outline"
+                  className={`ml-2 font-normal ${getInterestBadgeStyle(lead.qualityScore)}`}
+                >
+                  {getInterestText(lead.qualityScore)}
+                </Badge>
+              )}
             </div>
           </div>
 
@@ -528,6 +540,30 @@ export function LeadDetailPage({
                       </p>
                       <p className="text-base text-gray-800 dark:text-gray-200">
                         {lead.email || "Sin registro"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">
+                        Celular
+                      </p>
+                      <p className="text-base text-gray-800 dark:text-gray-200">
+                        {lead.cellphone || "Sin registro"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">
+                        Producto de interés
+                      </p>
+                      <p className="text-base text-gray-800 dark:text-gray-200">
+                        {lead.product
+                          ? typeof lead.product === "string"
+                            ? lead.product
+                            : "name" in lead.product
+                              ? (lead.product as any).name
+                              : JSON.stringify(lead.product)
+                          : "Sin registro"}
                       </p>
                     </div>
                   </div>
@@ -616,7 +652,11 @@ export function LeadDetailPage({
 
               {canViewTasks && (
                 <TabsContent value="tareas" className="p-6">
-                  <TaskList leadId={lead.id} currentUser={currentUser} />
+                  <TaskList
+                    leadId={lead.id}
+                    currentUser={currentUser}
+                    onTaskClick={handleTaskClick}
+                  />
                 </TabsContent>
               )}
 
@@ -633,118 +673,137 @@ export function LeadDetailPage({
 
         {/* Sidebar derecho */}
         <div className="lg:w-[350px] space-y-4">
-          {/* Proceso de venta - Solo visible para usuarios con permiso de ventas */}
-          {canCreateSales && (
-            <Card className="border-gray-200 dark:border-gray-700">
-              <CardContent className="p-6">
-                <h3 className="text-lg font-medium mb-6">Proceso de venta</h3>
-
-                {isLoadingLeadQuotation ||
-                isLoadingLeadReservation ||
-                isLoadingLeadSale ? (
-                  <div className="flex items-center justify-center h-24">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    <button
-                      onClick={() =>
-                        handleAction(() => setOpenModal("quotation"))
-                      }
-                      className="w-full flex items-center gap-3 mb-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md p-2 transition-colors"
-                    >
-                      {salesProcess.quotation ? (
-                        <div className="rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 w-7 h-7 flex items-center justify-center">
-                          <CheckCircle className="h-4 w-4" />
-                        </div>
-                      ) : (
-                        <div className="rounded-full bg-blue-600 text-white w-7 h-7 flex items-center justify-center text-sm">
-                          1
-                        </div>
-                      )}
-                      <span
-                        className={`${salesProcess.quotation ? "text-green-600 dark:text-green-400" : "font-medium text-gray-800 dark:text-gray-200"}`}
-                      >
-                        Crear cotización
-                      </span>
-                    </button>
-
-                    <div className="border-l-2 border-gray-200 dark:border-gray-700 h-5 ml-3.5"></div>
-
-                    <button
-                      onClick={() =>
-                        salesProcess.quotation &&
-                        handleAction(() => setOpenModal("reservation"))
-                      }
-                      disabled={!salesProcess.quotation}
-                      className={`w-full flex items-center gap-3 mb-2 ${salesProcess.quotation ? "hover:bg-gray-50 dark:hover:bg-gray-800" : "cursor-not-allowed"} rounded-md p-2 transition-colors`}
-                    >
-                      {salesProcess.reservation ? (
-                        <div className="rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 w-7 h-7 flex items-center justify-center">
-                          <CheckCircle className="h-4 w-4" />
-                        </div>
-                      ) : salesProcess.quotation ? (
-                        <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 w-7 h-7 flex items-center justify-center text-sm">
-                          2
-                        </div>
-                      ) : (
-                        <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 w-7 h-7 flex items-center justify-center text-sm">
-                          <LockIcon className="h-3 w-3" />
-                        </div>
-                      )}
-                      <span
-                        className={`${
-                          salesProcess.reservation
-                            ? "text-green-600 dark:text-green-400"
-                            : salesProcess.quotation
-                              ? "text-gray-600 dark:text-gray-300"
-                              : "text-gray-400 dark:text-gray-500"
-                        }`}
-                      >
-                        Registrar reserva
-                      </span>
-                    </button>
-
-                    <div className="border-l-2 border-gray-200 dark:border-gray-700 h-5 ml-3.5"></div>
-
-                    <button
-                      onClick={() =>
-                        salesProcess.reservation &&
-                        handleAction(() => setOpenModal("sale"))
-                      }
-                      disabled={!salesProcess.reservation}
-                      className={`w-full flex items-center gap-3 ${salesProcess.reservation ? "hover:bg-gray-50 dark:hover:bg-gray-800" : "cursor-not-allowed"} rounded-md p-2 transition-colors`}
-                    >
-                      {salesProcess.sale ? (
-                        <div className="rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 w-7 h-7 flex items-center justify-center">
-                          <CheckCircle className="h-4 w-4" />
-                        </div>
-                      ) : salesProcess.reservation ? (
-                        <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 w-7 h-7 flex items-center justify-center text-sm">
-                          3
-                        </div>
-                      ) : (
-                        <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 w-7 h-7 flex items-center justify-center text-sm">
-                          <LockIcon className="h-3 w-3" />
-                        </div>
-                      )}
-                      <span
-                        className={`${
-                          salesProcess.sale
-                            ? "text-green-600 dark:text-green-400"
-                            : salesProcess.reservation
-                              ? "text-gray-600 dark:text-gray-300"
-                              : "text-gray-400 dark:text-gray-500"
-                        }`}
-                      >
-                        Registrar venta
-                      </span>
-                    </button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+          {/* Mostrar componente según el estado de calificación */}
+          {canCreateSales && lead.qualification === "NOT_QUALIFIED" && (
+            <QualifyLeadComponent
+              lead={lead}
+              onQualify={(isGoodLead) => {
+                if (isGoodLead) {
+                  // Invalidar el lead para que se actualice con la nueva calificación
+                  queryClient.invalidateQueries({
+                    queryKey: ["leads", lead.id],
+                  });
+                } else {
+                  onBack();
+                }
+              }}
+            />
           )}
+
+          {/* Proceso de venta - Solo visible para usuarios con permiso de ventas y lead calificado */}
+          {canCreateSales &&
+            (lead.qualification === "GOOD_LEAD" ||
+              lead.qualification === "BAD_LEAD") && (
+              <Card className="border-gray-200 dark:border-gray-700">
+                <CardContent className="p-6">
+                  <h3 className="text-lg font-medium mb-6">Proceso de venta</h3>
+
+                  {isLoadingLeadQuotation ||
+                  isLoadingLeadReservation ||
+                  isLoadingLeadSale ? (
+                    <div className="flex items-center justify-center h-24">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <button
+                        onClick={() =>
+                          handleAction(() => setOpenModal("quotation"))
+                        }
+                        className="w-full flex items-center gap-3 mb-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md p-2 transition-colors"
+                      >
+                        {salesProcess.quotation ? (
+                          <div className="rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 w-7 h-7 flex items-center justify-center">
+                            <CheckCircle className="h-4 w-4" />
+                          </div>
+                        ) : (
+                          <div className="rounded-full bg-blue-600 text-white w-7 h-7 flex items-center justify-center text-sm">
+                            1
+                          </div>
+                        )}
+                        <span
+                          className={`${salesProcess.quotation ? "text-green-600 dark:text-green-400" : "font-medium text-gray-800 dark:text-gray-200"}`}
+                        >
+                          Crear cotización
+                        </span>
+                      </button>
+
+                      <div className="border-l-2 border-gray-200 dark:border-gray-700 h-5 ml-3.5"></div>
+
+                      <button
+                        onClick={() =>
+                          salesProcess.quotation &&
+                          handleAction(() => setOpenModal("reservation"))
+                        }
+                        disabled={!salesProcess.quotation}
+                        className={`w-full flex items-center gap-3 mb-2 ${salesProcess.quotation ? "hover:bg-gray-50 dark:hover:bg-gray-800" : "cursor-not-allowed"} rounded-md p-2 transition-colors`}
+                      >
+                        {salesProcess.reservation ? (
+                          <div className="rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 w-7 h-7 flex items-center justify-center">
+                            <CheckCircle className="h-4 w-4" />
+                          </div>
+                        ) : salesProcess.quotation ? (
+                          <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 w-7 h-7 flex items-center justify-center text-sm">
+                            2
+                          </div>
+                        ) : (
+                          <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 w-7 h-7 flex items-center justify-center text-sm">
+                            <LockIcon className="h-3 w-3" />
+                          </div>
+                        )}
+                        <span
+                          className={`${
+                            salesProcess.reservation
+                              ? "text-green-600 dark:text-green-400"
+                              : salesProcess.quotation
+                                ? "text-gray-600 dark:text-gray-300"
+                                : "text-gray-400 dark:text-gray-500"
+                          }`}
+                        >
+                          Registrar reserva
+                        </span>
+                      </button>
+
+                      <div className="border-l-2 border-gray-200 dark:border-gray-700 h-5 ml-3.5"></div>
+
+                      <button
+                        onClick={() =>
+                          salesProcess.reservation &&
+                          handleAction(() => setOpenModal("sale"))
+                        }
+                        disabled={!salesProcess.reservation}
+                        className={`w-full flex items-center gap-3 ${salesProcess.reservation ? "hover:bg-gray-50 dark:hover:bg-gray-800" : "cursor-not-allowed"} rounded-md p-2 transition-colors`}
+                      >
+                        {salesProcess.sale ? (
+                          <div className="rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 w-7 h-7 flex items-center justify-center">
+                            <CheckCircle className="h-4 w-4" />
+                          </div>
+                        ) : salesProcess.reservation ? (
+                          <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 w-7 h-7 flex items-center justify-center text-sm">
+                            3
+                          </div>
+                        ) : (
+                          <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 w-7 h-7 flex items-center justify-center text-sm">
+                            <LockIcon className="h-3 w-3" />
+                          </div>
+                        )}
+                        <span
+                          className={`${
+                            salesProcess.sale
+                              ? "text-green-600 dark:text-green-400"
+                              : salesProcess.reservation
+                                ? "text-gray-600 dark:text-gray-300"
+                                : "text-gray-400 dark:text-gray-500"
+                          }`}
+                        >
+                          Registrar venta
+                        </span>
+                      </button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
           {/* Acciones - Basadas en permisos */}
           <Card className="border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -802,16 +861,27 @@ export function LeadDetailPage({
                   {showActionsMenu && (
                     <div className="border-t border-gray-200 dark:border-gray-700">
                       {canEditLeads && (
-                        <Button
-                          className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700"
-                          variant="ghost"
-                          onClick={() =>
-                            handleAction(() => setShowArchiveDialog(true))
-                          }
-                        >
-                          <Archive className="mr-3 h-5 w-5 text-gray-500" />
-                          Archivar lead
-                        </Button>
+                        <>
+                          <Button
+                            className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700"
+                            variant="ghost"
+                            onClick={() =>
+                              handleAction(() => setShowArchiveDialog(true))
+                            }
+                          >
+                            <Archive className="mr-3 h-5 w-5 text-gray-500" />
+                            Archivar lead
+                          </Button>
+
+                          <Button
+                            className="w-full justify-start rounded-none py-3 h-auto font-normal text-base border-b border-gray-200 dark:border-gray-700"
+                            variant="ghost"
+                            onClick={() => setShowCloseLeadDialog(true)}
+                          >
+                            <X className="mr-3 h-5 w-5 text-orange-500" />
+                            Cerrar Lead
+                          </Button>
+                        </>
                       )}
 
                       {canDeleteLeads && (
@@ -860,25 +930,33 @@ export function LeadDetailPage({
           <Card className="border-gray-200 dark:border-gray-700">
             <CardContent className="p-6">
               <h3 className="text-lg font-medium mb-4">Estado actual</h3>
-              <Badge
-                className={`font-normal px-3 py-1 ${
-                  lead.status?.color === "blue"
-                    ? "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-900/50"
-                    : lead.status?.color === "green"
-                      ? "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-900/50"
-                      : lead.status?.color === "yellow"
-                        ? "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-900/50"
-                        : lead.status?.color === "red"
-                          ? "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-900/50"
-                          : lead.status?.color === "purple"
-                            ? "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-900/50"
-                            : lead.status?.color === "pink"
-                              ? "bg-pink-100 text-pink-800 border-pink-200 dark:bg-pink-900/30 dark:text-pink-400 dark:border-pink-900/50"
-                              : "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-900/50"
-                }`}
-              >
-                {lead.status?.name || "Lead calificado"}
-              </Badge>
+              {canEditLeads ? (
+                <LeadStatusSelector
+                  leadId={lead.id}
+                  currentStatusId={lead.statusId}
+                  currentStatus={lead.status}
+                />
+              ) : (
+                <Badge
+                  className={`font-normal px-3 py-1 ${
+                    lead.status?.color === "blue"
+                      ? "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-900/50"
+                      : lead.status?.color === "green"
+                        ? "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-900/50"
+                        : lead.status?.color === "yellow"
+                          ? "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-900/50"
+                          : lead.status?.color === "red"
+                            ? "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-900/50"
+                            : lead.status?.color === "purple"
+                              ? "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-900/50"
+                              : lead.status?.color === "pink"
+                                ? "bg-pink-100 text-pink-800 border-pink-200 dark:bg-pink-900/30 dark:text-pink-400 dark:border-pink-900/50"
+                                : "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-900/50"
+                  }`}
+                >
+                  {lead.status?.name || "Lead calificado"}
+                </Badge>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -913,123 +991,6 @@ export function LeadDetailPage({
         </>
       )}
 
-      {/* Diálogo de confirmación para archivar lead */}
-      {canEditLeads && (
-        <Dialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Archivar Lead</DialogTitle>
-            </DialogHeader>
-            <div className="py-4">
-              <p>
-                ¿Estás seguro que deseas archivar este lead? Esta acción no se
-                puede deshacer.
-              </p>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setShowArchiveDialog(false)}
-                disabled={isArchiving}
-              >
-                Cancelar
-              </Button>
-              <Button
-                variant="default"
-                className="bg-blue-600 hover:bg-blue-700"
-                onClick={async () => {
-                  setIsArchiving(true);
-                  try {
-                    await updateLeadMutation.mutateAsync({
-                      id: lead.id,
-                      data: {
-                        isArchived: true,
-                      },
-                    });
-                    setShowArchiveDialog(false);
-                    toast({
-                      title: "Lead archivado",
-                      description: "El lead ha sido archivado correctamente",
-                    });
-                    if (onBack) onBack();
-                  } catch (error) {
-                    toast({
-                      title: "Error",
-                      description: "No se pudo archivar el lead",
-                      variant: "destructive",
-                    });
-                  } finally {
-                    setIsArchiving(false);
-                  }
-                }}
-                disabled={isArchiving}
-              >
-                {isArchiving && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                Archivar
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {/* Diálogo de confirmación para eliminar lead */}
-      {canDeleteLeads && (
-        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Eliminar Lead</DialogTitle>
-            </DialogHeader>
-            <div className="py-4">
-              <p>
-                ¿Estás seguro que deseas eliminar este lead? Esta acción no se
-                puede deshacer.
-              </p>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setShowDeleteDialog(false)}
-                disabled={isDeleting}
-              >
-                Cancelar
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={async () => {
-                  setIsDeleting(true);
-                  try {
-                    await deleteLeadMutation.mutateAsync(lead.id);
-                    setShowDeleteDialog(false);
-                    toast({
-                      title: "Lead eliminado",
-                      description: "El lead ha sido eliminado correctamente",
-                    });
-                    if (onBack) onBack();
-                  } catch (error) {
-                    toast({
-                      title: "Error",
-                      description: "No se pudo eliminar el lead",
-                      variant: "destructive",
-                    });
-                  } finally {
-                    setIsDeleting(false);
-                  }
-                }}
-                disabled={isDeleting}
-              >
-                {isDeleting && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                Eliminar
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {/* Diálogo de tarea - Solo para usuarios con permisos */}
       {canCreateTasks && (
         <TaskTypeDialog
           open={openTaskDialog}
@@ -1040,8 +1001,7 @@ export function LeadDetailPage({
         />
       )}
 
-      {/* Diálogo de reasignación de lead */}
-      {canEditLeads && (
+      {showReassignDialog && (
         <ReassignLeadDialog
           open={showReassignDialog}
           onOpenChange={setShowReassignDialog}
@@ -1054,13 +1014,33 @@ export function LeadDetailPage({
         />
       )}
 
-      {/* Diálogo de calificación si es necesario */}
-      <QualifyLeadDialog
-        open={showQualifyDialog}
-        onOpenChange={setShowQualifyDialog}
-        lead={lead}
-        onQualify={handleQualify}
+      {showQualifyDialog && (
+        <QualifyLeadDialog
+          open={showQualifyDialog}
+          onOpenChange={setShowQualifyDialog}
+          lead={lead}
+          onQualify={handleQualify}
+        />
+      )}
+
+      {/* Diálogo para cerrar lead */}
+      <CloseLeadAction
+        leadId={lead.id}
+        open={showCloseLeadDialog}
+        onClose={() => setShowCloseLeadDialog(false)}
       />
+
+      {/* Diálogo de detalles de tarea */}
+      {selectedTask && (
+        <TaskDetailsDialog
+          taskId={selectedTask}
+          open={showTaskDetailsDialog}
+          onOpenChange={() => {
+            setShowTaskDetailsDialog(false);
+            setSelectedTask(null);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -47,6 +47,7 @@ export async function GET(
         status: true,
         source: true,
         assignedTo: true,
+        product: true,
         tasks: true,
         quotations: true,
         reservations: true,
@@ -69,7 +70,6 @@ export async function GET(
       );
     }
 
-    // Devolver el lead con sus relaciones
     return NextResponse.json(lead);
   } catch (error) {
     console.error("Error fetching lead:", error);
