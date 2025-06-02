@@ -37,8 +37,8 @@ export async function GET(
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    // Obtener el ID del lead desde los parámetros de ruta (await)
-    const { id } = params;
+    // Obtener el ID del lead desde los parámetros de ruta
+    const { id } = await params;
 
     // Obtener el lead con sus relaciones
     const lead = await prisma.lead.findUnique({
@@ -47,17 +47,6 @@ export async function GET(
         status: true,
         source: true,
         assignedTo: true,
-        tags: {
-          include: {
-            tag: true,
-          },
-        },
-        notes: {
-          orderBy: {
-            createdAt: "desc",
-          },
-          take: 5,
-        },
         tasks: true,
         quotations: true,
         reservations: true,
@@ -80,13 +69,8 @@ export async function GET(
       );
     }
 
-    // Transformar los datos para que coincidan con la interfaz LeadWithRelations
-    const formattedLead = {
-      ...lead,
-      tags: lead.tags.map((lt: any) => lt.tag),
-    };
-
-    return NextResponse.json(formattedLead);
+    // Devolver el lead con sus relaciones
+    return NextResponse.json(lead);
   } catch (error) {
     console.error("Error fetching lead:", error);
     return NextResponse.json(
