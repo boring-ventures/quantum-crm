@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { CalendarIcon, FilterIcon, X } from "lucide-react";
+import { CalendarIcon, FilterIcon, X, SearchIcon } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -40,6 +40,7 @@ export function ProductFilters({
   const [brands, setBrands] = useState<any[]>([]);
   const [models, setModels] = useState<any[]>([]);
   const [businessTypes, setBusinessTypes] = useState<any[]>([]);
+  const [countries, setCountries] = useState<any[]>([]);
   const [selectedBrand, setSelectedBrand] = useState<string>("");
   const [priceRange, setPriceRange] = useState([0, 20000]);
   const [fromDate, setFromDate] = useState<Date>();
@@ -52,6 +53,9 @@ export function ProductFilters({
     fetch("/api/business-types")
       .then((r) => r.json())
       .then(setBusinessTypes);
+    fetch("/api/admin/countries")
+      .then((r) => r.json())
+      .then(setCountries);
   }, []);
 
   useEffect(() => {
@@ -85,16 +89,38 @@ export function ProductFilters({
   return (
     <div className="flex flex-col w-full gap-4">
       <div className="flex items-center gap-4">
-        <div className="flex-1">
-          <div className="relative">
-            <Input
-              placeholder="Buscar por código, marca, modelo..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-4"
-            />
-          </div>
+        <div className="relative max-w-xs">
+          <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar productos..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-8"
+          />
         </div>
+
+        <Select
+          value={filters.countryId ?? "__all__"}
+          onValueChange={(v) =>
+            setFilters({
+              ...filters,
+              countryId: v === "__all__" ? undefined : v,
+            })
+          }
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Todos los países" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todos los países</SelectItem>
+            {countries.map((country: any) => (
+              <SelectItem key={country.id} value={country.id}>
+                {country.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <Select
           value={filters.businessType ?? "__all__"}
           onValueChange={(v) =>
@@ -116,6 +142,7 @@ export function ProductFilters({
             ))}
           </SelectContent>
         </Select>
+
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" className="gap-2">

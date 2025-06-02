@@ -25,15 +25,13 @@ export const columns = (
     header: "Precio",
     cell: ({ row }) => {
       const price = parseFloat(row.getValue("price"));
-      return new Intl.NumberFormat("es-BO", {
-        style: "currency",
-        currency: "BOB",
-      }).format(price);
+      return price.toFixed(2);
     },
   },
   {
-    accessorKey: "stock",
-    header: "Stock",
+    accessorKey: "currency",
+    header: "Moneda",
+    cell: ({ row }) => row.original.currency || "BOB",
   },
   {
     accessorKey: "brand.name",
@@ -51,12 +49,9 @@ export const columns = (
     cell: ({ row }) => row.original.businessType?.name || "-",
   },
   {
-    accessorKey: "validUntil",
-    header: "Vigencia",
-    cell: ({ row }) =>
-      row.original.validUntil
-        ? new Date(row.original.validUntil).toLocaleDateString()
-        : "-",
+    accessorKey: "country.name",
+    header: "País",
+    cell: ({ row }) => row.original.country?.name || "-",
   },
   {
     accessorKey: "isActive",
