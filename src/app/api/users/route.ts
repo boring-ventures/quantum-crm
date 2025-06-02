@@ -39,11 +39,26 @@ const deleteUserSchema = z.object({
 // GET - Obtener usuarios
 export async function GET(request: NextRequest) {
   try {
+    console.log("[API] /api/users - Iniciando solicitud GET");
     const currentUser = await getCurrentUser();
-    // Verificar permiso
-    if (!hasPermission(currentUser, "users", "view")) {
+    console.log(
+      "[API] /api/users - Usuario actual:",
+      currentUser?.id,
+      currentUser?.email
+    );
+
+    // Verificar permiso directamente y mostrar el resultado
+    const hasViewPermission = hasPermission(currentUser, "users", "view");
+    console.log(
+      "[API] /api/users - ¿Tiene permiso users.view?",
+      hasViewPermission
+    );
+
+    // Verificar permiso (este era el comentario original)
+    if (!hasViewPermission) {
+      console.log("[API] /api/users - ACCESO DENEGADO: Sin permiso users.view");
       return NextResponse.json(
-        { error: "No tienes permiso para ver usuarios" },
+        { error: "No tienes permiso para ver usuarios", permission: false },
         { status: 403 }
       );
     }
@@ -55,14 +70,28 @@ export async function GET(request: NextRequest) {
     const active = searchParams.get("active") === "true";
     const countryId = searchParams.get("countryId");
     const scope = searchParams.get("scope");
+    console.log("[API] /api/users - Parámetros:", {
+      includeDeleted,
+      role,
+      active,
+      countryId,
+      scope,
+    });
 
     // Obtener el usuario actual completo para verificar país
     const currentUserInfo = await prisma.user.findUnique({
       where: { id: currentUser?.id },
       include: { userPermission: true, country: true },
     });
+    console.log(
+      "[API] /api/users - Usuario encontrado:",
+      currentUserInfo
+        ? { id: currentUserInfo.id, role: currentUserInfo.role }
+        : "No encontrado"
+    );
 
     if (!currentUserInfo) {
+      console.log("[API] /api/users - ERROR: Usuario no encontrado");
       return NextResponse.json(
         { error: "Usuario no encontrado" },
         { status: 404 }
@@ -72,20 +101,19 @@ export async function GET(request: NextRequest) {
     // Determinar el scope para "users.view" basado en los permisos del usuario
     let userScope: string | boolean = "all"; // Por defecto para Super Admin
 
-    // Si no es Super Admin, obtener scope de los permisos
-    if (
-      currentUserInfo.role !== "Super Administrador" &&
-      currentUserInfo.userPermission?.permissions
-    ) {
+    if (currentUserInfo.userPermission?.permissions) {
       // Extraer permisos
       const permissions =
         typeof currentUserInfo.userPermission.permissions === "string"
           ? JSON.parse(currentUserInfo.userPermission.permissions)
           : currentUserInfo.userPermission.permissions;
 
+      console.log("[API] /api/users - Permisos del usuario:", permissions);
+
       // Verificar módulo users
       if (permissions.users) {
         const viewPermission = permissions.users.view;
+        console.log("[API] /api/users - Permiso users.view:", viewPermission);
 
         // Si es un string de scope, usar ese scope
         if (
@@ -102,6 +130,8 @@ export async function GET(request: NextRequest) {
         userScope = false;
       }
     }
+
+    console.log("[API] /api/users - Scope determinado:", userScope);
 
     // Criterios base de búsqueda
     const whereClause: any = {};
@@ -136,6 +166,8 @@ export async function GET(request: NextRequest) {
       whereClause.id = currentUserInfo.id;
     }
 
+    console.log("[API] /api/users - Consulta final:", whereClause);
+
     // Si el scope query parameter es "self", filtrar solo usuarios con scope self
     // Solo aplica si el usuario tiene permiso para ver otros usuarios
     if (scope === "self" && userScope !== "self") {
@@ -147,6 +179,11 @@ export async function GET(request: NextRequest) {
           country: true,
         },
       });
+
+      console.log(
+        "[API] /api/users - Usuarios encontrados (filtro scope=self):",
+        allUsers.length
+      );
 
       // Filtrar usuarios con scope "self" para leads.view
       const selfUsers = allUsers.filter((user) => {
@@ -165,6 +202,11 @@ export async function GET(request: NextRequest) {
         }
       });
 
+      console.log(
+        "[API] /api/users - Usuarios filtrados (scope=self):",
+        selfUsers.length
+      );
+
       return NextResponse.json({
         users: selfUsers.map((user) => ({
           id: user.id,
@@ -179,6 +221,7 @@ export async function GET(request: NextRequest) {
 
     // Si el scope es false, no hay acceso
     if (userScope === false) {
+      console.log("[API] /api/users - Sin acceso, devolviendo lista vacía");
       return NextResponse.json({ users: [] });
     }
 
@@ -204,9 +247,17 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    console.log("[API] /api/users - Total usuarios encontrados:", users.length);
+    if (users.length === 0) {
+      console.log(
+        "[API] /api/users - ADVERTENCIA: No se encontraron usuarios con los criterios",
+        whereClause
+      );
+    }
+
     return NextResponse.json({ users });
   } catch (error) {
-    console.error("Error al obtener usuarios:", error);
+    console.error("[API] /api/users - Error al obtener usuarios:", error);
     return NextResponse.json(
       { error: "Error al obtener usuarios" },
       { status: 500 }

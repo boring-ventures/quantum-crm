@@ -10,7 +10,6 @@ import {
   useToggleFavoriteMutation,
   useLeadTasks,
   useLeadQuery,
-  useUserRole,
 } from "@/lib/hooks";
 import type { LeadWithRelations } from "@/types/lead";
 import { formatDistanceToNow, format } from "date-fns";
