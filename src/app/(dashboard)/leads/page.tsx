@@ -32,6 +32,8 @@ import {
   Archive,
   Lock,
   UserCheck,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
@@ -63,6 +65,8 @@ export default function LeadsPage() {
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("active");
   const [canSelectLeads, setCanSelectLeads] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(50);
 
   const { toast } = useToast();
   const { user: currentUser, isLoading: isLoadingCurrentUser } = useUserStore();
@@ -107,6 +111,11 @@ export default function LeadsPage() {
     setSelectedLeads([]);
   }, [searchTerm, interestFilter, activeTab, selectedSellerId, showAllLeads]);
 
+  // Resetear página cuando cambien los filtros
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, interestFilter, activeTab, selectedSellerId, showAllLeads]);
+
   // Consulta para obtener vendedores si tiene permiso adecuado
   const canManageTeam = ["team", "all"].includes(leadsScope as string);
 
@@ -137,10 +146,12 @@ export default function LeadsPage() {
   });
 
   // Obtener datos de leads con los filtros adecuados
-  const { data: rawLeadsData } = useLeadsQuery({
+  const { data: rawLeadsData, isLoading: isLoadingLeads } = useLeadsQuery({
     assignedToId,
     countryId,
     search: searchTerm,
+    page: currentPage,
+    pageSize: pageSize,
   });
 
   // Procesar los leads para estadísticas (filtrando por estado según el tab activo)
@@ -479,6 +490,43 @@ export default function LeadsPage() {
                       )}
                     </div>
 
+                    {/* Componente de paginación */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="text-sm text-muted-foreground">
+                        Mostrando{" "}
+                        {isLoadingLeads
+                          ? "..."
+                          : `${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, rawLeadsData?.total || 0)} de ${rawLeadsData?.total || 0}`}{" "}
+                        leads
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setCurrentPage((p) => Math.max(1, p - 1))
+                          }
+                          disabled={currentPage === 1 || isLoadingLeads}
+                        >
+                          <ChevronLeft className="h-4 w-4 mr-1" />
+                          Anterior
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage((p) => p + 1)}
+                          disabled={
+                            isLoadingLeads ||
+                            !rawLeadsData?.total ||
+                            currentPage * pageSize >= rawLeadsData.total
+                          }
+                        >
+                          Siguiente
+                          <ChevronRight className="h-4 w-4 ml-1" />
+                        </Button>
+                      </div>
+                    </div>
+
                     {/* Estado de selección y botón para reasignación masiva */}
                     {selectedLeads.length > 0 && (
                       <div className="mb-4 flex items-center justify-between p-2 bg-blue-50 dark:bg-blue-900/20 rounded-md">
@@ -592,6 +640,8 @@ export default function LeadsPage() {
                           showSelectionColumn={canSelectLeads}
                           selectedLeads={selectedLeads}
                           onLeadSelect={handleLeadSelect}
+                          page={currentPage}
+                          pageSize={pageSize}
                         />
                       </TabsContent>
                       <TabsContent value="no-management">
@@ -611,6 +661,8 @@ export default function LeadsPage() {
                           showSelectionColumn={canSelectLeads}
                           selectedLeads={selectedLeads}
                           onLeadSelect={handleLeadSelect}
+                          page={currentPage}
+                          pageSize={pageSize}
                         />
                       </TabsContent>
                       <TabsContent value="tasks">
@@ -630,6 +682,8 @@ export default function LeadsPage() {
                           showSelectionColumn={canSelectLeads}
                           selectedLeads={selectedLeads}
                           onLeadSelect={handleLeadSelect}
+                          page={currentPage}
+                          pageSize={pageSize}
                         />
                       </TabsContent>
                       <TabsContent value="overdue">
@@ -649,6 +703,8 @@ export default function LeadsPage() {
                           showSelectionColumn={canSelectLeads}
                           selectedLeads={selectedLeads}
                           onLeadSelect={handleLeadSelect}
+                          page={currentPage}
+                          pageSize={pageSize}
                         />
                       </TabsContent>
                       <TabsContent value="favorites">
@@ -668,6 +724,8 @@ export default function LeadsPage() {
                           showSelectionColumn={canSelectLeads}
                           selectedLeads={selectedLeads}
                           onLeadSelect={handleLeadSelect}
+                          page={currentPage}
+                          pageSize={pageSize}
                         />
                       </TabsContent>
                       {leadsScope !== "self" && (
@@ -688,6 +746,8 @@ export default function LeadsPage() {
                             showSelectionColumn={canSelectLeads}
                             selectedLeads={selectedLeads}
                             onLeadSelect={handleLeadSelect}
+                            page={currentPage}
+                            pageSize={pageSize}
                           />
                         </TabsContent>
                       )}
