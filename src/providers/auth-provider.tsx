@@ -166,6 +166,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
 
+      // Limpiar manualmente cualquier caché o storage local adicional
+      if (typeof window !== "undefined") {
+        // Eliminar cualquier otra clave de storage que pueda contener datos de usuario
+        const keysToRemove = [
+          "user-storage",
+          "user-storage-v1",
+          "supabase.auth.token",
+        ];
+        keysToRemove.forEach((key) => {
+          try {
+            localStorage.removeItem(key);
+            sessionStorage.removeItem(key);
+          } catch (e) {
+            // Ignorar errores al limpiar storage
+          }
+        });
+      }
+
       router.replace("/sign-in");
     } catch (error) {
       console.error("Error durante el cierre de sesión:", error);
