@@ -71,23 +71,23 @@ export async function middleware(request: NextRequest) {
   const supabase = createMiddlewareClient({ req: request, res });
 
   try {
-    // Verificar sesión
+    // Verificar sesión usando getUser en lugar de getSession para evitar exceso de solicitudes
     const {
-      data: { session },
-    } = await supabase.auth.getSession();
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    // Si no hay sesión, redirigir a login
-    if (!session?.user) {
+    // Si no hay usuario, redirigir a login
+    if (!user) {
       //console.log(`[MIDDLEWARE] No session, redirecting to sign-in`);
       return NextResponse.redirect(new URL("/sign-in", request.url));
     }
 
-    //console.log(`[MIDDLEWARE] Session found for user: ${session.user.id}`);
+    //console.log(`[MIDDLEWARE] Session found for user: ${user.id}`);
 
     // Obtener los permisos del usuario utilizando el endpoint API
     const protocol = request.headers.get("x-forwarded-proto") || "http";
     const host = request.headers.get("host") || "localhost:3000";
-    const apiUrl = `${protocol}://${host}/api/users/${session.user.id}?requireAuth=false`;
+    const apiUrl = `${protocol}://${host}/api/users/${user.id}?requireAuth=false`;
 
     //console.log(`[MIDDLEWARE] Fetching user data from API: ${apiUrl}`);
 

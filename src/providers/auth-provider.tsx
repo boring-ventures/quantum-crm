@@ -49,15 +49,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchUser(session.user.id);
-      }
-      setIsLoading(false);
-    });
+    // Inicialización inicial: obtener usuario actual
+    const initializeAuth = async () => {
+      try {
+        // Usar getUser en lugar de getSession para reducir solicitudes de token
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
+        if (user) {
+          setUser(user);
+          // Obtener la sesión solo una vez al inicio
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          setSession(session);
+          await fetchUser(user.id);
+        }
+      } catch (error) {
+        console.error("Error al inicializar auth:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeAuth();
+
+    // Suscribirse a cambios de autenticación
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -95,8 +113,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!data.user) {
         throw new Error("No se pudo obtener la información del usuario");
       }
-
-      console.log("data.user (auth)", data.user.id);
 
       // Obtener datos del usuario usando el endpoint API
       const response = await fetch(
