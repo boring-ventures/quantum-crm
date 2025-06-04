@@ -48,8 +48,8 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || undefined;
     const page = parseInt(searchParams.get("page") || "1", 10);
     const limit = searchParams.get("limit")
-      ? parseInt(searchParams.get("limit") as string, 10)
-      : undefined;
+      ? parseInt(searchParams.get("limit") || "10", 10)
+      : 10; // Establecer un límite predeterminado de 10
 
     // Construir condiciones de búsqueda
     const where: any = {};
@@ -67,17 +67,14 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Si hay paginación, calcular total de páginas
-    let pagination = {};
-    if (limit) {
-      const total = await prisma.product.count({ where });
-      const totalPages = Math.ceil(total / limit);
-      pagination = {
-        totalPages,
-        currentPage: page,
-        total,
-      };
-    }
+    // Calcular total y páginas
+    const total = await prisma.product.count({ where });
+    const totalPages = Math.ceil(total / limit);
+    const pagination = {
+      totalPages,
+      currentPage: page,
+      total,
+    };
 
     const products = await prisma.product.findMany({
       where,
@@ -91,18 +88,15 @@ export async function GET(request: NextRequest) {
       orderBy: {
         name: "asc",
       },
-      // Solo aplicar skip y take si hay un límite definido
-      ...(limit
-        ? {
-            skip: (page - 1) * limit,
-            take: limit,
-          }
-        : {}),
+      skip: (page - 1) * limit,
+      take: limit,
     });
 
-    return NextResponse.json(
-      limit ? { data: products, ...pagination } : products
-    );
+    // Siempre devolver la misma estructura
+    return NextResponse.json({
+      data: products,
+      ...pagination,
+    });
   } catch (error) {
     console.error("Error fetching products:", error);
     return NextResponse.json(

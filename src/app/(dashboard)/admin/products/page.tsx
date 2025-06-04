@@ -41,17 +41,6 @@ export default function ProductsPage() {
   const canDeleteProducts = hasPermission(currentUser, "products", "delete");
   const canViewProducts = hasPermission(currentUser, "products", "view");
 
-  // Validar acceso a la página
-  if (!canViewProducts) {
-    return (
-      <div className="flex h-[400px] w-full items-center justify-center">
-        <p className="text-muted-foreground">
-          No tienes permisos para ver esta sección
-        </p>
-      </div>
-    );
-  }
-
   const fetchProducts = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -63,8 +52,9 @@ export default function ProductsPage() {
       const response = await fetch(`/api/products?${params.toString()}`);
       if (!response.ok) throw new Error("Error al cargar productos");
       const { data, totalPages: total } = await response.json();
-      setProducts(data);
-      setTotalPages(total);
+      console.log("Total products", data);
+      setProducts(data || []); // Asegurar que siempre sea un array
+      setTotalPages(total || 1);
     } catch (error) {
       console.error("Error fetching products:", error);
       toast({
@@ -72,6 +62,7 @@ export default function ProductsPage() {
         title: "Error",
         description: "No se pudieron cargar los productos",
       });
+      setProducts([]); // Siempre establecer un array vacío en caso de error
     } finally {
       setIsLoading(false);
     }
@@ -101,6 +92,17 @@ export default function ProductsPage() {
       description: "Producto creado correctamente",
     });
   }, [fetchProducts, toast]);
+
+  // Validar acceso a la página
+  if (!canViewProducts) {
+    return (
+      <div className="flex h-[400px] w-full items-center justify-center">
+        <p className="text-muted-foreground">
+          No tienes permisos para ver esta sección
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -134,7 +136,7 @@ export default function ProductsPage() {
         <CardContent>
           <DataTable
             columns={columns(canEditProducts, canDeleteProducts)}
-            data={products}
+            data={products || []} /* Asegurar que nunca sea undefined */
             isLoading={isLoading}
             noResultsMessage="No se encontraron productos"
           />
