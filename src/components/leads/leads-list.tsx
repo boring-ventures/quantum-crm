@@ -195,7 +195,11 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
               <AvatarFallback className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 text-lg">
                 {lead.firstName && lead.lastName
                   ? `${lead.firstName.charAt(0)}${lead.lastName.charAt(0)}`
-                  : "NN"}
+                  : lead.firstName
+                    ? lead.firstName.charAt(0)
+                    : lead.lastName
+                      ? lead.lastName.charAt(0)
+                      : "NN"}
               </AvatarFallback>
             </Avatar>
             <div>
@@ -203,7 +207,11 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                   {lead.firstName && lead.lastName
                     ? `${lead.firstName} ${lead.lastName}`
-                    : "Lead sin nombre"}
+                    : lead.firstName
+                      ? lead.firstName
+                      : lead.lastName
+                        ? lead.lastName
+                        : "Lead sin nombre"}
                 </h3>
                 <Star
                   className={`h-5 w-5 ml-2 cursor-pointer ${
@@ -570,9 +578,12 @@ export function LeadsList({
   // Paso 3: Aplicar filtro según el tipo seleccionado
   switch (filterType) {
     case "no-management":
-      // Leads sin tareas - Ahora usando tasks de la relación
+      // Leads sin tareas y que no estén cerrados/archivados
       filteredLeads = filteredLeads.filter(
-        (lead) => !lead.tasks || lead.tasks.length === 0
+        (lead) =>
+          (!lead.tasks || lead.tasks.length === 0) &&
+          !lead.isClosed &&
+          !lead.isArchived
       );
       break;
     case "today-tasks":
