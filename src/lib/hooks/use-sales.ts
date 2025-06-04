@@ -19,6 +19,8 @@ interface CreateSalePayload {
   amount: number;
   paymentMethod: string;
   saleContractUrl?: string;
+  invoiceUrl?: string;
+  paymentReceiptUrl?: string;
   additionalNotes?: string;
   currency?: string;
 }

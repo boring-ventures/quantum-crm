@@ -62,6 +62,12 @@ export function SaleDialog({
   const [saleContractName, setSaleContractName] = useState(
     "Ningún archivo seleccionado"
   );
+  const [invoice, setInvoice] = useState<File | null>(null);
+  const [invoiceName, setInvoiceName] = useState("Ningún archivo seleccionado");
+  const [paymentReceipt, setPaymentReceipt] = useState<File | null>(null);
+  const [paymentReceiptName, setPaymentReceiptName] = useState(
+    "Ningún archivo seleccionado"
+  );
 
   const [notes, setNotes] = useState("");
 
@@ -96,8 +102,29 @@ export function SaleDialog({
     }
   };
 
-  // Validar el formulario
-  const isFormValid = parseFloat(saldo) > 0 && paymentMethod && saleContract;
+  // Manejador para subir factura
+  const handleInvoiceUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setInvoice(file);
+      setInvoiceName(file.name);
+    }
+  };
+
+  // Manejador para subir comprobante de pago
+  const handlePaymentReceiptUpload = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPaymentReceipt(file);
+      setPaymentReceiptName(file.name);
+    }
+  };
+
+  // Validar el formulario - contrato es opcional, factura y comprobante son obligatorios
+  const isFormValid =
+    parseFloat(saldo) > 0 && paymentMethod && invoice && paymentReceipt;
 
   // Manejar envío del formulario
   const handleSubmit = async () => {
@@ -106,52 +133,93 @@ export function SaleDialog({
     setIsUploading(true);
 
     try {
-      // 1. Subir el contrato de venta (requerido)
+      // 1. Subir documentos
       let saleContractUrl: string | undefined;
+      let invoiceUrl: string | undefined;
+      let paymentReceiptUrl: string | undefined;
 
+      // 1.1 Subir el contrato de venta (opcional)
       if (saleContract) {
-        const documentData = await uploadDocument(
+        const contractData = await uploadDocument(
           saleContract,
           leadId,
           "sale-contract"
         );
 
-        saleContractUrl = documentData.url;
+        saleContractUrl = contractData.url;
 
-        // 2. Crear el registro del documento
+        // Crear el registro del documento
         await createDocumentMutation.mutateAsync({
           leadId,
           name: saleContract.name,
           type: saleContract.type,
           size: saleContract.size,
-          url: documentData.url,
+          url: contractData.url,
         });
       }
 
-      // 3. Crear la venta
+      // 1.2 Subir la factura (obligatorio)
+      if (invoice) {
+        const invoiceData = await uploadDocument(invoice, leadId, "invoice");
+
+        invoiceUrl = invoiceData.url;
+
+        // Crear el registro del documento
+        await createDocumentMutation.mutateAsync({
+          leadId,
+          name: invoice.name,
+          type: invoice.type,
+          size: invoice.size,
+          url: invoiceData.url,
+        });
+      }
+
+      // 1.3 Subir el comprobante de pago (obligatorio)
+      if (paymentReceipt) {
+        const receiptData = await uploadDocument(
+          paymentReceipt,
+          leadId,
+          "payment-receipt"
+        );
+
+        paymentReceiptUrl = receiptData.url;
+
+        // Crear el registro del documento
+        await createDocumentMutation.mutateAsync({
+          leadId,
+          name: paymentReceipt.name,
+          type: paymentReceipt.type,
+          size: paymentReceipt.size,
+          url: receiptData.url,
+        });
+      }
+
+      // 2. Crear la venta
       await createSaleMutation.mutateAsync({
         leadId,
         reservationId: existingReservation?.id,
         amount: parseFloat(saldo),
         paymentMethod,
         saleContractUrl,
+        invoiceUrl,
+        paymentReceiptUrl,
         additionalNotes: notes,
         currency,
       });
 
-      // 4. Mostrar mensaje de éxito
+      // 3. Mostrar mensaje de éxito
       toast({
         title: "Venta registrada",
         description: "La venta se ha registrado correctamente",
         variant: "default",
       });
 
-      // 5. Completar el proceso
+      // 4. Completar el proceso
       if (onComplete) {
         onComplete();
       }
 
-      // 6. Cerrar el diálogo
+      // 5. Cerrar el diálogo
       onClose();
     } catch (error) {
       console.error("Error al crear venta:", error);
@@ -241,7 +309,8 @@ export function SaleDialog({
             {/* Contrato de venta */}
             <div>
               <Label className="block mb-2">
-                Contrato de venta <span className="text-red-500">*</span>
+                Contrato de venta{" "}
+                <span className="text-gray-500">(opcional)</span>
               </Label>
               <div className="flex items-center gap-2">
                 <div className="border rounded-md p-3 flex-1 text-sm text-gray-500 dark:text-gray-400">
@@ -265,6 +334,70 @@ export function SaleDialog({
                   className="hidden"
                   accept=".pdf,.doc,.docx"
                   onChange={handleContractUpload}
+                  disabled={isUploading}
+                />
+              </div>
+            </div>
+
+            {/* Factura */}
+            <div>
+              <Label className="block mb-2">
+                Factura <span className="text-red-500">*</span>
+              </Label>
+              <div className="flex items-center gap-2">
+                <div className="border rounded-md p-3 flex-1 text-sm text-gray-500 dark:text-gray-400">
+                  {invoiceName}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0"
+                  onClick={() =>
+                    document.getElementById("invoice-upload")?.click()
+                  }
+                  disabled={isUploading}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Subir
+                </Button>
+                <input
+                  id="invoice-upload"
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.doc,.docx"
+                  onChange={handleInvoiceUpload}
+                  disabled={isUploading}
+                />
+              </div>
+            </div>
+
+            {/* Comprobante de pago */}
+            <div>
+              <Label className="block mb-2">
+                Comprobante de pago <span className="text-red-500">*</span>
+              </Label>
+              <div className="flex items-center gap-2">
+                <div className="border rounded-md p-3 flex-1 text-sm text-gray-500 dark:text-gray-400">
+                  {paymentReceiptName}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0"
+                  onClick={() =>
+                    document.getElementById("payment-receipt-upload")?.click()
+                  }
+                  disabled={isUploading}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Subir
+                </Button>
+                <input
+                  id="payment-receipt-upload"
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.doc,.docx"
+                  onChange={handlePaymentReceiptUpload}
                   disabled={isUploading}
                 />
               </div>
