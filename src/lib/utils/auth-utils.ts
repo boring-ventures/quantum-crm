@@ -13,18 +13,18 @@ export async function getCurrentUser(): Promise<User | null> {
   try {
     const supabase = createRouteHandlerClient({ cookies });
 
-    // Obtener sesión de Supabase
+    // Usar getUser en lugar de getSession para reducir solicitudes de token
     const {
-      data: { session },
-    } = await supabase.auth.getSession();
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
 
-    if (!session?.user?.id) {
+    if (!authUser?.id) {
       return null;
     }
 
     // Obtener datos completos del usuario desde prisma
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: authUser.id },
       include: {
         country: true,
         userPermission: true,
@@ -60,7 +60,14 @@ export async function getCurrentUser(): Promise<User | null> {
       role: user.role,
       roleId: user.roleId,
       isActive: user.isActive,
-      countryId: user.countryId || undefined,
+      isDeleted: user.isDeleted ?? false,
+      createdAt: user.createdAt?.toISOString() || new Date().toISOString(),
+      updatedAt: user.updatedAt?.toISOString() || new Date().toISOString(),
+      deletedAt: user.deletedAt?.toISOString() || null,
+      deletedBy: user.deletedBy || null,
+      conversionRate: user.conversionRate || null,
+      responseTime: user.responseTime || null,
+      countryId: user.countryId || null,
       userPermission: user.userPermission
         ? {
             id: user.userPermission.id,
@@ -69,7 +76,7 @@ export async function getCurrentUser(): Promise<User | null> {
             createdAt: user.userPermission.createdAt.toISOString(),
             updatedAt: user.userPermission.updatedAt.toISOString(),
           }
-        : undefined,
+        : null,
     };
   } catch (error) {
     console.error("[AUTH] Error getting current user:", error);
