@@ -284,3 +284,38 @@ export const useLeadDocuments = (leadId?: string) => {
     enabled: !!leadId,
   });
 };
+
+// Hook para subir documentos de un lead
+export const useUploadDocumentMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: {
+      leadId: string;
+      name: string;
+      type: string;
+      size: number;
+      url: string;
+    }) => {
+      const response = await fetch("/api/documents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || errorData.error || "Error al subir documento"
+        );
+      }
+
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["leadDocuments", variables.leadId],
+      });
+    },
+  });
+};

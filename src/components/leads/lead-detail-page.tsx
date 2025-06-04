@@ -70,6 +70,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { DocumentUploadDialog } from "@/components/leads/document-upload-dialog";
 
 interface LeadDetailPageProps {
   lead: LeadWithRelations;
@@ -495,42 +496,67 @@ export function LeadDetailPage({
 
   // Componente para mostrar los documentos
   function LeadDocumentsTab() {
+    const [showDocumentUpload, setShowDocumentUpload] = useState(false);
+
     if (isLoadingDocuments) {
       return <div className="p-6">Cargando documentos...</div>;
     }
-    if (!documents || documents.length === 0) {
-      return (
-        <div className="p-6 text-gray-500">
-          No hay documentos subidos para este lead.
-        </div>
-      );
-    }
+
     return (
       <div className="p-6 space-y-4">
-        <h3 className="text-lg font-semibold mb-4">Archivos subidos</h3>
-        <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-          {documents.map((doc) => (
-            <li key={doc.id} className="flex items-center justify-between py-2">
-              <div>
-                <span className="font-medium text-gray-900 dark:text-gray-100">
-                  {doc.name}
-                </span>
-                <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
-                  ({(doc.size / 1024).toFixed(1)} KB)
-                </span>
-              </div>
-              <a
-                href={doc.url}
-                download={doc.name}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:underline dark:text-blue-400"
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-semibold">Documentos del lead</h3>
+          {canEditLeads && (
+            <Button
+              onClick={() => setShowDocumentUpload(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              size="sm"
+            >
+              Subir documento
+            </Button>
+          )}
+        </div>
+
+        {!documents || documents.length === 0 ? (
+          <div className="text-gray-500 dark:text-gray-400 p-4 bg-gray-50 dark:bg-gray-800 rounded-md">
+            No hay documentos subidos para este lead.
+          </div>
+        ) : (
+          <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+            {documents.map((doc) => (
+              <li
+                key={doc.id}
+                className="flex items-center justify-between py-3"
               >
-                Descargar
-              </a>
-            </li>
-          ))}
-        </ul>
+                <div>
+                  <span className="font-medium text-gray-900 dark:text-gray-100">
+                    {doc.name}
+                  </span>
+                  <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                    ({(doc.size / 1024).toFixed(1)} KB)
+                  </span>
+                </div>
+                <a
+                  href={doc.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline dark:text-blue-400"
+                >
+                  Ver documento
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {/* Diálogo para subir documentos */}
+        {showDocumentUpload && (
+          <DocumentUploadDialog
+            open={showDocumentUpload}
+            onOpenChange={setShowDocumentUpload}
+            leadId={lead.id}
+          />
+        )}
       </div>
     );
   }
@@ -862,11 +888,7 @@ export function LeadDetailPage({
 
               {canViewTasks && (
                 <TabsContent value="tareas" className="p-6">
-                  <TaskList
-                    leadId={lead.id}
-                    currentUser={currentUser}
-                    onTaskClick={handleTaskClick}
-                  />
+                  <TaskList leadId={lead.id} currentUser={currentUser} />
                 </TabsContent>
               )}
 
