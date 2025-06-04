@@ -10,6 +10,7 @@ import {
   User,
   Calendar as CalendarIcon,
   ClipboardList,
+  Trash2,
 } from "lucide-react";
 import {
   Dialog,
@@ -20,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { Task } from "@/types/lead";
 import { useToast } from "@/components/ui/use-toast";
 import { useUpdateTaskStatusMutation } from "@/lib/hooks";
@@ -30,6 +32,7 @@ interface TaskDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currentUser?: any;
+  onUpdate?: () => void;
 }
 
 export function TaskDetailsDialog({
@@ -37,6 +40,7 @@ export function TaskDetailsDialog({
   open,
   onOpenChange,
   currentUser,
+  onUpdate,
 }: TaskDetailsDialogProps) {
   const [task, setTask] = useState<Task | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -85,11 +89,19 @@ export function TaskDetailsDialog({
 
       setIsLoading(true);
       try {
+        console.log("Cargando tarea:", taskId); // Para depuración
         const response = await fetch(`/api/tasks/${taskId}`);
+
         if (!response.ok) {
-          throw new Error("Error al cargar los detalles de la tarea");
+          const errorData = await response.text();
+          console.error("Error en la respuesta:", response.status, errorData);
+          throw new Error(
+            `Error al cargar los detalles de la tarea: ${response.status}`
+          );
         }
+
         const data = await response.json();
+        console.log("Datos de tarea recibidos:", data); // Para depuración
         setTask(data);
 
         // Si la tarea tiene un responsable asignado, obtener su información
@@ -149,6 +161,11 @@ export function TaskDetailsDialog({
         title: "Tarea completada",
         description: "La tarea ha sido marcada como completada",
       });
+
+      // Si existe la función onUpdate, la llamamos
+      if (onUpdate) {
+        onUpdate();
+      }
     } catch (error) {
       console.error("Error al completar la tarea:", error);
       toast({
@@ -161,33 +178,39 @@ export function TaskDetailsDialog({
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
-      case "COMPLETED":
-        return (
-          <Badge className="bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-900/50">
-            Completada
-          </Badge>
-        );
+      case "PENDING":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
       case "IN_PROGRESS":
-        return (
-          <Badge className="bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-900/50">
-            En progreso
-          </Badge>
-        );
+        return "bg-blue-100 text-blue-800 border-blue-200";
+      case "COMPLETED":
+        return "bg-green-100 text-green-800 border-green-200";
       case "CANCELLED":
-        return (
-          <Badge className="bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-900/50">
-            Cancelada
-          </Badge>
-        );
+        return "bg-red-100 text-red-800 border-red-200";
       default:
-        return (
-          <Badge className="bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700">
-            Pendiente
-          </Badge>
-        );
+        return "bg-gray-100 text-gray-800 border-gray-200";
     }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "PENDING":
+        return "Pendiente";
+      case "IN_PROGRESS":
+        return "En progreso";
+      case "COMPLETED":
+        return "Completada";
+      case "CANCELLED":
+        return "Cancelada";
+      default:
+        return status;
+    }
+  };
+
+  const formatScheduledDate = (date: string | Date | null) => {
+    if (!date) return "No programada";
+    return format(new Date(date), "PPP 'a las' p", { locale: es });
   };
 
   // Verificar si la tarea se puede completar
@@ -197,11 +220,7 @@ export function TaskDetailsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>Detalles de la Tarea</DialogTitle>
-        </DialogHeader>
-
+      <DialogContent className="sm:max-w-md">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-8">
             <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
@@ -216,110 +235,104 @@ export function TaskDetailsDialog({
             </p>
           </div>
         ) : (
-          <div className="py-4 space-y-5">
-            {/* Título y estado */}
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold">{task.title}</h2>
-              {getStatusBadge(task.status)}
-            </div>
+          <>
+            <DialogHeader>
+              <DialogTitle className="text-xl">{task.title}</DialogTitle>
+              <div className="flex items-center gap-2 pt-1 text-sm text-muted-foreground">
+                <Badge
+                  variant="outline"
+                  className={`${getStatusColor(task.status)} px-2 py-0.5`}
+                >
+                  {getStatusText(task.status)}
+                </Badge>
 
-            {/* Detalles */}
-            <div className="space-y-3 mt-4">
-              <div className="flex items-start gap-2">
-                <ClipboardList className="h-5 w-5 text-gray-500 mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold text-gray-600">
-                    Descripción
-                  </p>
-                  <p className="text-gray-700 dark:text-gray-300">
-                    {task.description || "Sin descripción"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-gray-500" />
-                <div>
-                  <p className="text-sm font-semibold text-gray-600">
-                    Creada el
-                  </p>
-                  <p className="text-gray-700 dark:text-gray-300">
-                    {format(new Date(task.createdAt), "d 'de' MMMM, yyyy", {
-                      locale: es,
-                    })}
-                  </p>
-                </div>
-              </div>
-
-              {task.scheduledFor && (
-                <div className="flex items-center gap-2">
-                  <CalendarIcon className="h-5 w-5 text-blue-500" />
-                  <div>
-                    <p className="text-sm font-semibold text-gray-600">
-                      Programada para
-                    </p>
-                    <p className="text-blue-600 dark:text-blue-400">
-                      {format(
-                        new Date(task.scheduledFor),
-                        "d 'de' MMMM, yyyy • HH:mm",
-                        { locale: es }
-                      )}
-                    </p>
+                {task.scheduledFor && (
+                  <div className="flex items-center text-muted-foreground">
+                    <CalendarIcon className="mr-1 h-3 w-3" />
+                    <span className="text-xs">
+                      {formatScheduledDate(task.scheduledFor)}
+                    </span>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
+            </DialogHeader>
 
+            <div className="space-y-4">
+              {/* Información del vendedor asignado */}
               {assignee && (
-                <div className="flex items-center gap-2">
-                  <User className="h-5 w-5 text-gray-500" />
-                  <div>
-                    <p className="text-sm font-semibold text-gray-600">
-                      Asignada a
-                    </p>
-                    <p className="text-gray-700 dark:text-gray-300">
-                      {assignee.name}
-                    </p>
+                <div>
+                  <h3 className="text-sm font-medium mb-1">Asignado a:</h3>
+                  <div className="flex items-center gap-2 text-sm">
+                    <User className="h-4 w-4 text-green-500" />
+                    <span>{assignee.name}</span>
                   </div>
                 </div>
               )}
 
-              {task.completedAt && (
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-green-500" />
+              <Separator />
+
+              {/* Descripción de la tarea */}
+              <div>
+                <h3 className="text-sm font-medium mb-1">Descripción:</h3>
+                <p className="text-sm">
+                  {task.description || "Sin descripción"}
+                </p>
+              </div>
+
+              {/* Datos de tiempo */}
+              <div>
+                <div className="flex items-start gap-6 text-xs text-muted-foreground">
                   <div>
-                    <p className="text-sm font-semibold text-gray-600">
-                      Completada el
-                    </p>
-                    <p className="text-gray-700 dark:text-gray-300">
-                      {format(
-                        new Date(task.completedAt),
-                        "d 'de' MMMM, yyyy • HH:mm",
-                        { locale: es }
-                      )}
+                    <h4 className="font-medium mb-1">Creada</h4>
+                    <p>
+                      {task.createdAt
+                        ? format(new Date(task.createdAt), "Pp", { locale: es })
+                        : "N/A"}
                     </p>
                   </div>
+                  <div>
+                    <h4 className="font-medium mb-1">Actualizada</h4>
+                    <p>
+                      {task.updatedAt
+                        ? format(new Date(task.updatedAt), "Pp", { locale: es })
+                        : "N/A"}
+                    </p>
+                  </div>
+                  {task.completedAt && (
+                    <div>
+                      <h4 className="font-medium mb-1">Completada</h4>
+                      <p>
+                        {format(new Date(task.completedAt), "Pp", {
+                          locale: es,
+                        })}
+                      </p>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
-          </div>
+
+            <DialogFooter className="flex justify-end">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Cerrar
+              </Button>
+
+              {canCompleteTask() && (
+                <Button
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                  onClick={handleCompleteTask}
+                  disabled={isUpdating}
+                >
+                  {isUpdating && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Completar
+                </Button>
+              )}
+            </DialogFooter>
+          </>
         )}
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cerrar
-          </Button>
-
-          {canCompleteTask() && (
-            <Button
-              className="bg-green-600 hover:bg-green-700 text-white"
-              onClick={handleCompleteTask}
-              disabled={isUpdating}
-            >
-              {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Marcar como completada
-            </Button>
-          )}
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

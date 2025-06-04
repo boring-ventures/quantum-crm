@@ -32,31 +32,32 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { hasPermission } from "@/lib/utils/permissions";
+import { TaskQuickViewModal } from "@/app/(dashboard)/tasks/components/task-quick-view-modal";
 
 interface TaskListProps {
   leadId: string;
   currentUser?: any;
-  onTaskClick?: (taskId: string) => void;
 }
 
 interface TaskListItemProps {
   task: Task;
   onUpdate: () => void;
   isSeller?: boolean;
-  onTaskClick?: (taskId: string) => void;
+  currentUser?: any;
 }
 
 function TaskListItem({
   task,
   onUpdate,
   isSeller = false,
-  onTaskClick,
+  currentUser,
 }: TaskListItemProps) {
   const { toast } = useToast();
   const updateTaskStatusMutation = useUpdateTaskStatusMutation();
   const deleteTaskMutation = useDeleteTaskMutation();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [showTaskModal, setShowTaskModal] = useState(false);
 
   const handleComplete = async () => {
     if (!isSeller) return;
@@ -114,116 +115,137 @@ function TaskListItem({
   };
 
   return (
-    <div
-      className="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-200 dark:border-gray-700 py-4 gap-3"
-      onClick={() => onTaskClick && onTaskClick(task.id)}
-      style={{ cursor: onTaskClick ? "pointer" : "default" }}
-    >
-      <div className="flex-1">
-        <h5
-          className={`text-lg font-medium ${
-            task.status === "COMPLETED" || task.status === "CANCELLED"
-              ? "text-gray-600 dark:text-gray-400"
-              : "text-gray-900 dark:text-gray-100"
-          }`}
-        >
-          {task.title}
-        </h5>
-        <div className="flex items-center mt-2 text-sm text-gray-500 dark:text-gray-400">
-          <Clock className="h-4 w-4 mr-1" />
-          {format(new Date(task.createdAt), "d 'de' MMMM, yyyy", {
-            locale: es,
-          })}
-        </div>
-        {task.scheduledFor && (
-          <div className="flex items-center mt-1 text-sm text-blue-500 dark:text-blue-400">
-            <Calendar className="h-4 w-4 mr-1" />
-            {format(new Date(task.scheduledFor), "d 'de' MMMM, yyyy • HH:mm", {
+    <>
+      <div
+        className="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-200 dark:border-gray-700 py-4 gap-3"
+        onClick={() => setShowTaskModal(true)}
+        style={{ cursor: "pointer" }}
+      >
+        <div className="flex-1">
+          <h5
+            className={`text-lg font-medium ${
+              task.status === "COMPLETED" || task.status === "CANCELLED"
+                ? "text-gray-600 dark:text-gray-400"
+                : "text-gray-900 dark:text-gray-100"
+            }`}
+          >
+            {task.title}
+          </h5>
+          <div className="flex items-center mt-2 text-sm text-gray-500 dark:text-gray-400">
+            <Clock className="h-4 w-4 mr-1" />
+            {format(new Date(task.createdAt), "d 'de' MMMM, yyyy", {
               locale: es,
             })}
           </div>
-        )}
-        {task.description && (
-          <div className="mt-2 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 p-2 rounded-md">
-            {task.description}
+          {task.scheduledFor && (
+            <div className="flex items-center mt-1 text-sm text-blue-500 dark:text-blue-400">
+              <Calendar className="h-4 w-4 mr-1" />
+              {format(
+                new Date(task.scheduledFor),
+                "d 'de' MMMM, yyyy • HH:mm",
+                {
+                  locale: es,
+                }
+              )}
+            </div>
+          )}
+          {task.description && (
+            <div className="mt-2 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 p-2 rounded-md">
+              {task.description}
+            </div>
+          )}
+        </div>
+
+        {isSeller ? (
+          <div className="flex gap-2 justify-end">
+            {task.status === "PENDING" && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 px-2 text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700 dark:text-green-500 dark:border-green-800/30 dark:hover:bg-green-900/20"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleComplete();
+                }}
+                disabled={isUpdating}
+              >
+                {isUpdating ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <CheckCircle className="h-3.5 w-3.5" />
+                )}
+                <span className="ml-1.5">Completar</span>
+              </Button>
+            )}
+
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 px-2 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-500 dark:hover:bg-red-900/20"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowDeleteDialog(true);
+              }}
+            >
+              <Trash className="h-3.5 w-3.5" />
+            </Button>
           </div>
+        ) : (
+          <div>
+            <Badge
+              variant={task.status === "COMPLETED" ? "success" : "outline"}
+              className={
+                task.status === "COMPLETED"
+                  ? "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-900/50"
+                  : ""
+              }
+            >
+              {task.status === "COMPLETED" ? "Completada" : "Pendiente"}
+            </Badge>
+          </div>
+        )}
+
+        {isSeller && (
+          <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Eliminar tarea</DialogTitle>
+              </DialogHeader>
+              <div className="py-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  ¿Estás seguro de que quieres eliminar esta tarea? Esta acción
+                  no se puede deshacer.
+                </p>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDeleteDialog(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button variant="destructive" onClick={handleDelete}>
+                  Eliminar
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         )}
       </div>
 
-      {isSeller ? (
-        <div className="flex gap-2 justify-end">
-          {task.status === "PENDING" && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 px-2 text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700 dark:text-green-500 dark:border-green-800/30 dark:hover:bg-green-900/20"
-              onClick={handleComplete}
-              disabled={isUpdating}
-            >
-              {isUpdating ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <CheckCircle className="h-3.5 w-3.5" />
-              )}
-              <span className="ml-1.5">Completar</span>
-            </Button>
-          )}
-
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-8 px-2 text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-500 dark:hover:bg-red-900/20"
-            onClick={() => setShowDeleteDialog(true)}
-          >
-            <Trash className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      ) : (
-        <div>
-          <Badge
-            variant={task.status === "COMPLETED" ? "success" : "outline"}
-            className={
-              task.status === "COMPLETED"
-                ? "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-900/50"
-                : ""
-            }
-          >
-            {task.status === "COMPLETED" ? "Completada" : "Pendiente"}
-          </Badge>
-        </div>
-      )}
-
-      {isSeller && (
-        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Eliminar tarea</DialogTitle>
-            </DialogHeader>
-            <div className="py-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                ¿Estás seguro de que quieres eliminar esta tarea? Esta acción no
-                se puede deshacer.
-              </p>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setShowDeleteDialog(false)}
-              >
-                Cancelar
-              </Button>
-              <Button variant="destructive" onClick={handleDelete}>
-                Eliminar
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-    </div>
+      <TaskQuickViewModal
+        open={showTaskModal}
+        onOpenChange={setShowTaskModal}
+        task={task}
+        onDelete={onUpdate}
+        onUpdate={onUpdate}
+        currentUser={currentUser}
+      />
+    </>
   );
 }
 
-export function TaskList({ leadId, currentUser, onTaskClick }: TaskListProps) {
+export function TaskList({ leadId, currentUser }: TaskListProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { data: tasks, isLoading, refetch } = useLeadTasks(leadId);
   const { toast } = useToast();
@@ -339,7 +361,7 @@ export function TaskList({ leadId, currentUser, onTaskClick }: TaskListProps) {
                       task={task}
                       onUpdate={refetch}
                       isSeller={canUpdateTasks}
-                      onTaskClick={onTaskClick}
+                      currentUser={currentUser}
                     />
                   ))}
                 </div>
