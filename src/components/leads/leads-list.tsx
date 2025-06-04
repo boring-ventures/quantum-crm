@@ -648,9 +648,8 @@ export function LeadsList({
         lead.firstName?.toLowerCase(),
         lead.lastName?.toLowerCase(),
         lead.email?.toLowerCase(),
-        lead.phone?.toLowerCase(),
-        lead.cellphone?.toLowerCase(),
-        lead.company?.toLowerCase(),
+        lead.phone?.toString().toLowerCase(),
+        lead.cellphone?.toString().toLowerCase(),
       ].filter(Boolean);
 
       return searchFields.some((field) => field?.includes(search));
