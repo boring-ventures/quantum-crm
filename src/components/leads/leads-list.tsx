@@ -637,7 +637,7 @@ export function LeadsList({
         lead.firstName.toLowerCase().includes(search) ||
         lead.lastName.toLowerCase().includes(search) ||
         (lead.email && lead.email.toLowerCase().includes(search)) ||
-        (lead.phone && lead.phone.toLowerCase().includes(search)) ||
+        (lead.cellphone && lead.cellphone.toLowerCase().includes(search)) ||
         (lead.company && lead.company.toLowerCase().includes(search))
     );
   }
