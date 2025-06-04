@@ -59,11 +59,153 @@ import { LeadStatusSelector } from "@/components/leads/lead-status-selector";
 import { CloseLeadAction } from "@/components/leads/close-lead-action";
 import { TaskDetailsDialog } from "@/components/tasks/task-details-dialog";
 import { QualifyLeadComponent } from "@/components/leads/qualify-lead-component";
+import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface LeadDetailPageProps {
   lead: LeadWithRelations;
   onBack: () => void;
   currentUser: any; // Reemplazar isSeller por currentUser
+}
+
+// Componente para el diálogo de confirmación de archivado
+interface ArchiveConfirmDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  lead: LeadWithRelations;
+  onConfirm: () => void;
+}
+
+function ArchiveConfirmDialog({
+  open,
+  onOpenChange,
+  lead,
+  onConfirm,
+}: ArchiveConfirmDialogProps) {
+  const [confirmText, setConfirmText] = useState("");
+  const [isValid, setIsValid] = useState(false);
+
+  useEffect(() => {
+    // Validar si el texto coincide con el celular del lead
+    setIsValid(confirmText === lead.cellphone);
+  }, [confirmText, lead.cellphone]);
+
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent className="bg-background dark:bg-gray-900 border-border dark:border-gray-800">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="text-foreground dark:text-gray-100">
+            Archivar Lead
+          </AlertDialogTitle>
+          <AlertDialogDescription className="text-muted-foreground dark:text-gray-400">
+            Esta acción archivará el lead y lo moverá a la sección de
+            archivados. Los leads archivados no aparecerán en las listas
+            predeterminadas.
+            <br />
+            <br />
+            Para confirmar, ingresa el número de celular del lead:{" "}
+            <span className="font-medium">{lead.cellphone}</span>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="py-4">
+          <Input
+            className="bg-input dark:bg-gray-800 dark:border-gray-700"
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            placeholder="Ingresa el celular del lead para confirmar"
+          />
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel className="bg-transparent dark:bg-gray-800 dark:border-gray-700">
+            Cancelar
+          </AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-amber-600 hover:bg-amber-700 text-white"
+            onClick={onConfirm}
+            disabled={!isValid}
+          >
+            Archivar Lead
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+// Componente para el diálogo de confirmación de eliminación
+interface DeleteConfirmDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  lead: LeadWithRelations;
+  onConfirm: () => void;
+}
+
+function DeleteConfirmDialog({
+  open,
+  onOpenChange,
+  lead,
+  onConfirm,
+}: DeleteConfirmDialogProps) {
+  const [confirmText, setConfirmText] = useState("");
+  const [isValid, setIsValid] = useState(false);
+
+  useEffect(() => {
+    // Validar si el texto coincide con el celular del lead
+    setIsValid(confirmText === lead.cellphone);
+  }, [confirmText, lead.cellphone]);
+
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent className="bg-background dark:bg-gray-900 border-border dark:border-gray-800">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="text-foreground dark:text-gray-100">
+            Eliminar Lead
+          </AlertDialogTitle>
+          <AlertDialogDescription className="text-muted-foreground dark:text-gray-400">
+            Esta acción{" "}
+            <span className="font-semibold text-red-600">
+              eliminará permanentemente
+            </span>{" "}
+            el lead y todos sus datos asociados. Esta acción no se puede
+            deshacer.
+            <br />
+            <br />
+            Para confirmar, ingresa el número de celular del lead:{" "}
+            <span className="font-medium">{lead.cellphone}</span>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="py-4">
+          <Input
+            className="bg-input dark:bg-gray-800 dark:border-gray-700"
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            placeholder="Ingresa el celular del lead para confirmar"
+          />
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel className="bg-transparent dark:bg-gray-800 dark:border-gray-700">
+            Cancelar
+          </AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-red-600 hover:bg-red-700 text-white"
+            onClick={onConfirm}
+            disabled={!isValid}
+          >
+            Eliminar Permanentemente
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
 }
 
 export function LeadDetailPage({
@@ -416,6 +558,74 @@ export function LeadDetailPage({
   const handleTaskClick = (taskId: string) => {
     setSelectedTask(taskId);
     setShowTaskDetailsDialog(true);
+  };
+
+  // Archivar el lead
+  const handleArchiveLead = async () => {
+    if (!canEditLeads) return;
+
+    setIsArchiving(true);
+
+    try {
+      await updateLeadMutation.mutateAsync({
+        id: lead.id,
+        data: {
+          isArchived: true,
+        },
+      });
+
+      toast({
+        title: "Lead archivado",
+        description: "El lead ha sido archivado correctamente.",
+      });
+
+      // Redirigir de vuelta a la lista de leads
+      onBack();
+    } catch (error: any) {
+      console.error("Error al archivar el lead:", error);
+      toast({
+        title: "Error al archivar el lead",
+        description:
+          error.message || "Ocurrió un error al intentar archivar el lead.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsArchiving(false);
+      setShowArchiveDialog(false);
+    }
+  };
+
+  // Eliminar el lead
+  const handleDeleteLead = async () => {
+    if (!canDeleteLeads) return;
+
+    setIsDeleting(true);
+
+    try {
+      await deleteLeadMutation.mutateAsync(lead.id);
+
+      toast({
+        title: "Lead eliminado",
+        description: "El lead ha sido eliminado permanentemente.",
+      });
+
+      // Invalidar queries para actualizar listas
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+
+      // Redirigir de vuelta a la lista de leads
+      onBack();
+    } catch (error: any) {
+      console.error("Error al eliminar el lead:", error);
+      toast({
+        title: "Error al eliminar el lead",
+        description:
+          error.message || "Ocurrió un error al intentar eliminar el lead.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+    }
   };
 
   return (
@@ -868,9 +1078,14 @@ export function LeadDetailPage({
                             onClick={() =>
                               handleAction(() => setShowArchiveDialog(true))
                             }
+                            disabled={isArchiving}
                           >
-                            <Archive className="mr-3 h-5 w-5 text-gray-500" />
-                            Archivar lead
+                            {isArchiving ? (
+                              <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                            ) : (
+                              <Archive className="mr-3 h-5 w-5 text-gray-500" />
+                            )}
+                            {isArchiving ? "Archivando..." : "Archivar lead"}
                           </Button>
 
                           <Button
@@ -891,9 +1106,14 @@ export function LeadDetailPage({
                           onClick={() =>
                             handleAction(() => setShowDeleteDialog(true))
                           }
+                          disabled={isDeleting}
                         >
-                          <Trash2 className="mr-3 h-5 w-5" />
-                          Eliminar lead
+                          {isDeleting ? (
+                            <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                          ) : (
+                            <Trash2 className="mr-3 h-5 w-5" />
+                          )}
+                          {isDeleting ? "Eliminando..." : "Eliminar lead"}
                         </Button>
                       )}
 
@@ -1042,6 +1262,22 @@ export function LeadDetailPage({
           currentUser={currentUser}
         />
       )}
+
+      {/* Diálogo de confirmación de archivado */}
+      <ArchiveConfirmDialog
+        open={showArchiveDialog}
+        onOpenChange={setShowArchiveDialog}
+        lead={lead}
+        onConfirm={handleArchiveLead}
+      />
+
+      {/* Diálogo de confirmación de eliminación */}
+      <DeleteConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        lead={lead}
+        onConfirm={handleDeleteLead}
+      />
     </div>
   );
 }
