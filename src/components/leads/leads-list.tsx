@@ -642,7 +642,7 @@ export function LeadsList({
 
   // Paso 5: Aplicar filtro de búsqueda por texto
   if (searchTerm) {
-    const search = searchTerm.toLowerCase();
+    const search = searchTerm.toString().toLowerCase();
     filteredLeads = filteredLeads.filter((lead) => {
       const searchFields = [
         lead.firstName?.toLowerCase(),
