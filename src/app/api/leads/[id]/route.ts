@@ -5,17 +5,20 @@ import { z } from "zod";
 
 // Esquema de validación para actualización de leads
 const updateLeadSchema = z.object({
-  firstName: z.string().min(1, "El nombre es requerido").optional(),
-  lastName: z.string().min(1, "El apellido es requerido").optional(),
+  firstName: z.string().optional().nullable(),
+  lastName: z.string().optional().nullable(),
   email: z.string().email("Email inválido").optional().nullable(),
   phone: z.string().optional().nullable(),
-  company: z.string().optional().nullable(),
+  cellphone: z.string().optional().nullable(),
   statusId: z.string().uuid("ID de estado inválido").optional(),
   sourceId: z.string().uuid("ID de fuente inválido").optional(),
   assignedToId: z.string().uuid("ID de usuario inválido").optional().nullable(),
   interest: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
+  extraComments: z.string().optional().nullable(),
   isArchived: z.boolean().optional(),
+  productId: z.string().optional().nullable(),
+  qualityScore: z.number().optional().nullable(),
 });
 
 // Función para verificar si un lead existe
@@ -118,8 +121,8 @@ export async function PUT(
         data.lastName = validatedData.lastName;
       if (validatedData.email !== undefined) data.email = validatedData.email;
       if (validatedData.phone !== undefined) data.phone = validatedData.phone;
-      if (validatedData.company !== undefined)
-        data.company = validatedData.company;
+      if (validatedData.cellphone !== undefined)
+        data.cellphone = validatedData.cellphone;
       if (validatedData.statusId !== undefined)
         data.statusId = validatedData.statusId;
       if (validatedData.sourceId !== undefined)
@@ -129,8 +132,14 @@ export async function PUT(
       if (validatedData.interest !== undefined)
         data.interest = validatedData.interest;
       if (validatedData.notes !== undefined) data.notes = validatedData.notes;
+      if (validatedData.extraComments !== undefined)
+        data.extraComments = validatedData.extraComments;
       if (validatedData.isArchived !== undefined)
         data.isArchived = validatedData.isArchived;
+      if (validatedData.productId !== undefined)
+        data.productId = validatedData.productId;
+      if (validatedData.qualityScore !== undefined)
+        data.qualityScore = validatedData.qualityScore;
 
       const updatedLead = await prisma.lead.update({
         where: { id },
