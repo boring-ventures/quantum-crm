@@ -82,7 +82,9 @@ export function NewLeadDialog({
   // Obtener datos necesarios para el formulario
   const { data: statuses, isLoading: isLoadingStatuses } = useLeadStatuses();
   const { data: sources, isLoading: isLoadingSources } = useLeadSources();
-  const { data: products, isLoading: isLoadingProducts } = useProducts();
+  const { data: products, isLoading: isLoadingProducts } = useProducts({
+    limit: 1000,
+  });
   const createLeadMutation = useCreateLeadMutation();
 
   // Valores por defecto del formulario

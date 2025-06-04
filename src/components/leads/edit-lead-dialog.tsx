@@ -85,7 +85,9 @@ export function EditLeadDialog({
   // Obtener datos necesarios para el formulario
   const { data: statuses, isLoading: isLoadingStatuses } = useLeadStatuses();
   const { data: sources, isLoading: isLoadingSources } = useLeadSources();
-  const { data: products, isLoading: isLoadingProducts } = useProducts();
+  const { data: products, isLoading: isLoadingProducts } = useProducts({
+    limit: 1000,
+  });
   const updateLeadMutation = useUpdateLeadMutation();
 
   // Configurar el formulario con react-hook-form

@@ -24,9 +24,10 @@ export function useProducts(
     brandId?: string;
     modelId?: string;
     active?: boolean;
+    limit?: number;
   } = {}
 ) {
-  const { businessTypeId, brandId, modelId, active } = filters;
+  const { businessTypeId, brandId, modelId, active, limit = 1000 } = filters;
 
   // Construir parámetros de consulta
   const queryParams = new URLSearchParams();
@@ -34,7 +35,7 @@ export function useProducts(
   if (brandId) queryParams.append("brandId", brandId);
   if (modelId) queryParams.append("modelId", modelId);
   if (active !== undefined) queryParams.append("active", active.toString());
-  // No agregar parámetro limit para obtener todos los productos
+  if (limit) queryParams.append("limit", limit.toString());
 
   return useQuery<Product[]>({
     queryKey: ["products", filters],
