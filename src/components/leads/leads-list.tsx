@@ -643,14 +643,18 @@ export function LeadsList({
   // Paso 5: Aplicar filtro de búsqueda por texto
   if (searchTerm) {
     const search = searchTerm.toLowerCase();
-    filteredLeads = filteredLeads.filter(
-      (lead) =>
-        lead.firstName.toLowerCase().includes(search) ||
-        lead.lastName.toLowerCase().includes(search) ||
-        (lead.email && lead.email.toLowerCase().includes(search)) ||
-        (lead.cellphone && lead.cellphone.toLowerCase().includes(search)) ||
-        (lead.company && lead.company.toLowerCase().includes(search))
-    );
+    filteredLeads = filteredLeads.filter((lead) => {
+      const searchFields = [
+        lead.firstName?.toLowerCase(),
+        lead.lastName?.toLowerCase(),
+        lead.email?.toLowerCase(),
+        lead.phone?.toLowerCase(),
+        lead.cellphone?.toLowerCase(),
+        lead.company?.toLowerCase(),
+      ].filter(Boolean);
+
+      return searchFields.some((field) => field?.includes(search));
+    });
   }
 
   if (filteredLeads.length === 0) {
