@@ -193,14 +193,17 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
           <div className="flex space-x-3">
             <Avatar className="h-14 w-14 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-700">
               <AvatarFallback className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 text-lg">
-                {lead.firstName.charAt(0)}
-                {lead.lastName.charAt(0)}
+                {lead.firstName && lead.lastName
+                  ? `${lead.firstName.charAt(0)}${lead.lastName.charAt(0)}`
+                  : "NN"}
               </AvatarFallback>
             </Avatar>
             <div>
               <div className="flex items-center">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  {lead.firstName} {lead.lastName}
+                  {lead.firstName && lead.lastName
+                    ? `${lead.firstName} ${lead.lastName}`
+                    : "Lead sin nombre"}
                 </h3>
                 <Star
                   className={`h-5 w-5 ml-2 cursor-pointer ${
@@ -218,7 +221,7 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
                 )}
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                {lead.source?.name} {lead.company ? `- ${lead.company}` : ""}
+                {lead.source?.name}
               </p>
             </div>
           </div>
@@ -350,7 +353,7 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
                   : "Sin calificar"}
             </span>
           </div>
-          {lead.phone && (
+          {lead.cellphone && (
             <div className="flex items-center">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -366,7 +369,7 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
               >
                 <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
               </svg>
-              {lead.phone}
+              {lead.cellphone}
             </div>
           )}
         </div>
@@ -567,15 +570,6 @@ export function LeadsList({
   // Paso 3: Aplicar filtro según el tipo seleccionado
   switch (filterType) {
     case "no-management":
-      // Leads sin cotizaciones, ventas o reservas
-      filteredLeads = filteredLeads.filter(
-        (lead) =>
-          (!lead.quotations || lead.quotations.length === 0) &&
-          (!lead.reservations || lead.reservations.length === 0) &&
-          (!lead.sales || lead.sales.length === 0)
-      );
-      break;
-    case "no-tasks":
       // Leads sin tareas - Ahora usando tasks de la relación
       filteredLeads = filteredLeads.filter(
         (lead) => !lead.tasks || lead.tasks.length === 0
