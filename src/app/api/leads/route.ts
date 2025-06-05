@@ -127,7 +127,11 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Error fetching leads:", error);
     return NextResponse.json(
-      { error: "Error al obtener los leads" },
+      {
+        success: false,
+        error:
+          error instanceof Error ? error.message : "Error al obtener los leads",
+      },
       { status: 500 }
     );
   }

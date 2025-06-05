@@ -50,7 +50,7 @@ const editLeadSchema = z.object({
   productId: z.string().optional().nullable(),
   statusId: z.string().min(1, "El estado es requerido"),
   sourceId: z.string().min(1, "La fuente es requerida"),
-  interest: z.string().optional().nullable(),
+  qualityScore: z.string().optional().nullable(),
   extraComments: z.string().optional().nullable(),
 });
 
@@ -106,7 +106,7 @@ export function EditLeadDialog({
       phone: "",
       cellphone: "",
       productId: "",
-      interest: "",
+      qualityScore: "",
       statusId: "",
       sourceId: "",
       extraComments: "",
@@ -133,7 +133,7 @@ export function EditLeadDialog({
         setValue("productId", "");
       }
 
-      setValue("interest", lead.qualityScore?.toString() || "");
+      setValue("qualityScore", lead.qualityScore?.toString() || "");
       setValue("statusId", lead.statusId);
       setValue("sourceId", lead.sourceId);
       setValue("extraComments", lead.extraComments || "");
@@ -638,10 +638,10 @@ export function EditLeadDialog({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="interest">Grado de interés</Label>
+                <Label htmlFor="qualityScore">Grado de interés</Label>
                 <Select
-                  value={watch("interest") || ""}
-                  onValueChange={(value) => setValue("interest", value)}
+                  value={watch("qualityScore") || ""}
+                  onValueChange={(value) => setValue("qualityScore", value)}
                   disabled={isPending}
                 >
                   <SelectTrigger className="bg-input dark:bg-gray-800 dark:border-gray-700">

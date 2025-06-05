@@ -106,12 +106,27 @@ export const useUpdateLeadMutation = () => {
         body: JSON.stringify(data),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Error updating lead");
+      let responseData: any = null;
+      try {
+        responseData = await response.json();
+      } catch (jsonError) {
+        // Si la respuesta no es JSON válida
+        console.error(
+          "[useUpdateLeadMutation] Error al parsear respuesta JSON:",
+          jsonError
+        );
       }
 
-      return response.json();
+      if (!response.ok) {
+        // Log completo para depuración
+        console.error("[useUpdateLeadMutation] Error response:", responseData);
+        throw new Error(
+          (responseData && (responseData.error || responseData.message)) ||
+            `Error actualizando lead (status ${response.status})`
+        );
+      }
+
+      return responseData;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["leads", variables.id] });
