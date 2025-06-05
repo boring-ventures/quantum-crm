@@ -7,9 +7,13 @@ import { z } from "zod";
 const updateLeadSchema = z.object({
   firstName: z.string().optional().nullable(),
   lastName: z.string().optional().nullable(),
-  email: z.string().email("Email inválido").optional().nullable(),
+  email: z
+    .string()
+    .optional()
+    .nullable()
+    .or(z.string().email("Email inválido")),
   phone: z.string().optional().nullable(),
-  cellphone: z.string().optional().nullable(),
+  cellphone: z.string().min(1, "El celular es requerido").optional().nullable(),
   statusId: z.string().uuid("ID de estado inválido").optional(),
   sourceId: z.string().uuid("ID de fuente inválido").optional(),
   assignedToId: z.string().uuid("ID de usuario inválido").optional().nullable(),
