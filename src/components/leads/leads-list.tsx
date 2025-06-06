@@ -304,6 +304,18 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
                             : "Marcar como favorito"}
                         </button>
                       </li>
+                      <li>
+                        <button
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowDropdown(false);
+                            window.open(`/leads/${lead.id}`, "_blank");
+                          }}
+                        >
+                          Abrir en nueva pestaña
+                        </button>
+                      </li>
                     </>
                   )}
                 </ul>
