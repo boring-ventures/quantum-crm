@@ -260,6 +260,7 @@ export async function POST(request: NextRequest) {
             productId: validatedData.productId,
             assignedToId: validatedData.assignedToId,
             isArchived: validatedData.isArchived || false,
+            extraComments: validatedData.extraComments,
           },
           include: {
             status: true,
