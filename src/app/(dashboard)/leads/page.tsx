@@ -613,7 +613,14 @@ export default function LeadsPage() {
                           <Star className="mr-2 h-4 w-4" />
                           Favoritos ({leadCounts.favorites})
                         </TabsTrigger>
-                        {leadsScope !== "self" && (
+                        <TabsTrigger
+                          value="closed-leads"
+                          className="flex items-center"
+                        >
+                          <Lock className="mr-2 h-4 w-4" />
+                          Cerrados ({leadCounts.closed})
+                        </TabsTrigger>
+                        {leadsScope !== "self" && leadsScope === "all" && (
                           <TabsTrigger
                             value="my-leads"
                             className="flex items-center"
@@ -728,7 +735,28 @@ export default function LeadsPage() {
                           pageSize={pageSize}
                         />
                       </TabsContent>
-                      {leadsScope !== "self" && (
+                      <TabsContent value="closed-leads">
+                        <LeadsList
+                          filterBadLeads={true}
+                          searchTerm={searchTerm}
+                          filterType="closed-leads"
+                          leadStatus={
+                            activeTab as "active" | "closed" | "archived"
+                          }
+                          interestLevel={getInterestScore(interestFilter)}
+                          assignedToId={assignedToId}
+                          countryId={countryId}
+                          canEdit={canEditLeads}
+                          canDelete={canDeleteLeads}
+                          currentUser={currentUser}
+                          showSelectionColumn={canSelectLeads}
+                          selectedLeads={selectedLeads}
+                          onLeadSelect={handleLeadSelect}
+                          page={currentPage}
+                          pageSize={pageSize}
+                        />
+                      </TabsContent>
+                      {leadsScope !== "self" && leadsScope === "all" && (
                         <TabsContent value="my-leads">
                           <LeadsList
                             filterBadLeads={true}
