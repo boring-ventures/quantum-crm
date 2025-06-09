@@ -41,6 +41,10 @@ import {
   useLeadQuery,
   useLeadDocuments,
 } from "@/lib/hooks";
+import {
+  useApproveSaleMutation,
+  useRejectSaleMutation,
+} from "@/lib/hooks/use-sales";
 import { useToast } from "@/components/ui/use-toast";
 import {
   Dialog,
@@ -60,6 +64,7 @@ import { CloseLeadAction } from "@/components/leads/close-lead-action";
 import { TaskDetailsDialog } from "@/components/tasks/task-details-dialog";
 import { QualifyLeadComponent } from "@/components/leads/qualify-lead-component";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -241,9 +246,13 @@ export function LeadDetailPage({
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
   const [showTaskDetailsDialog, setShowTaskDetailsDialog] = useState(false);
   const [pendingAction, setPendingAction] = useState<null | (() => void)>(null);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
   const updateLeadMutation = useUpdateLeadMutation();
   const deleteLeadMutation = useDeleteLeadMutation();
   const toggleFavoriteMutation = useToggleFavoriteMutation();
+  const approveSaleMutation = useApproveSaleMutation();
+  const rejectSaleMutation = useRejectSaleMutation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: documents, isLoading: isLoadingDocuments } = useLeadDocuments(
@@ -309,6 +318,9 @@ export function LeadDetailPage({
   const canCreateSales = hasPermission(currentUser, "sales", "create");
   const canCreateTasks = hasPermission(currentUser, "tasks", "create");
   const canViewTasks = hasPermission(currentUser, "tasks", "view");
+  const canApproveSales =
+    hasPermission(currentUser, "sales", "approve") ||
+    hasPermission(currentUser, "sales", "edit");
 
   // Si el usuario no tiene permiso para ver leads, no mostrar nada
   if (!canViewLeads) {
@@ -577,6 +589,58 @@ export function LeadDetailPage({
       });
     } else {
       onBack();
+    }
+  };
+
+  // Aprobar venta
+  const handleApproveSale = async () => {
+    if (!leadSale || !currentUser?.id) return;
+
+    try {
+      await approveSaleMutation.mutateAsync({
+        saleId: leadSale.id,
+        approvedBy: currentUser.id,
+      });
+
+      toast({
+        title: "Venta aprobada",
+        description: "La venta ha sido aprobada correctamente",
+      });
+    } catch (error) {
+      console.error("Error al aprobar venta:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo aprobar la venta",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Rechazar venta
+  const handleRejectSale = async () => {
+    if (!leadSale || !currentUser?.id || !rejectionReason.trim()) return;
+
+    try {
+      await rejectSaleMutation.mutateAsync({
+        saleId: leadSale.id,
+        rejectedBy: currentUser.id,
+        rejectionReason: rejectionReason.trim(),
+      });
+
+      toast({
+        title: "Venta rechazada",
+        description: "La venta ha sido rechazada",
+      });
+
+      setShowRejectDialog(false);
+      setRejectionReason("");
+    } catch (error) {
+      console.error("Error al rechazar venta:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo rechazar la venta",
+        variant: "destructive",
+      });
     }
   };
 
@@ -998,39 +1062,124 @@ export function LeadDetailPage({
 
                       <div className="border-l-2 border-gray-200 dark:border-gray-700 h-5 ml-3.5"></div>
 
-                      <button
-                        onClick={() =>
-                          salesProcess.reservation &&
-                          handleAction(() => setOpenModal("sale"))
-                        }
-                        disabled={!salesProcess.reservation}
-                        className={`w-full flex items-center gap-3 ${salesProcess.reservation ? "hover:bg-gray-50 dark:hover:bg-gray-800" : "cursor-not-allowed"} rounded-md p-2 transition-colors`}
-                      >
-                        {salesProcess.sale ? (
-                          <div className="rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 w-7 h-7 flex items-center justify-center">
-                            <CheckCircle className="h-4 w-4" />
-                          </div>
-                        ) : salesProcess.reservation ? (
-                          <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 w-7 h-7 flex items-center justify-center text-sm">
-                            3
-                          </div>
-                        ) : (
-                          <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 w-7 h-7 flex items-center justify-center text-sm">
-                            <LockIcon className="h-3 w-3" />
+                      <div className="space-y-2">
+                        <button
+                          onClick={() =>
+                            salesProcess.reservation &&
+                            (!leadSale ||
+                              (leadSale as any).approvalStatus ===
+                                "REJECTED") &&
+                            handleAction(() => setOpenModal("sale"))
+                          }
+                          disabled={
+                            !!(
+                              !salesProcess.reservation ||
+                              (leadSale &&
+                                (leadSale as any).approvalStatus !== "REJECTED")
+                            )
+                          }
+                          className={`w-full flex items-center gap-3 ${
+                            salesProcess.reservation &&
+                            (!leadSale ||
+                              leadSale.approvalStatus === "REJECTED")
+                              ? "hover:bg-gray-50 dark:hover:bg-gray-800"
+                              : "cursor-not-allowed"
+                          } rounded-md p-2 transition-colors`}
+                        >
+                          {salesProcess.sale &&
+                          leadSale?.approvalStatus === "APPROVED" ? (
+                            <div className="rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 w-7 h-7 flex items-center justify-center">
+                              <CheckCircle className="h-4 w-4" />
+                            </div>
+                          ) : salesProcess.reservation ? (
+                            <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 w-7 h-7 flex items-center justify-center text-sm">
+                              3
+                            </div>
+                          ) : (
+                            <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 w-7 h-7 flex items-center justify-center text-sm">
+                              <LockIcon className="h-3 w-3" />
+                            </div>
+                          )}
+                          <span
+                            className={`${
+                              salesProcess.sale &&
+                              leadSale?.approvalStatus === "APPROVED"
+                                ? "text-green-600 dark:text-green-400"
+                                : salesProcess.reservation
+                                  ? "text-gray-600 dark:text-gray-300"
+                                  : "text-gray-400 dark:text-gray-500"
+                            }`}
+                          >
+                            Registrar venta
+                          </span>
+                        </button>
+
+                        {/* Estado de aprobación de venta */}
+                        {/* @ts-ignore - Tipos de Prisma actualizándose */}
+                        {leadSale && (
+                          <div className="ml-10 space-y-2">
+                            {leadSale.approvalStatus === "PENDING" && (
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+                                  <span className="text-sm text-yellow-600 dark:text-yellow-400">
+                                    Pendiente de aprobación
+                                  </span>
+                                </div>
+                                {canApproveSales && (
+                                  <div className="flex gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-8 text-xs bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+                                      onClick={handleApproveSale}
+                                      disabled={approveSaleMutation.isPending}
+                                    >
+                                      {approveSaleMutation.isPending
+                                        ? "Aprobando..."
+                                        : "Aprobar"}
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-8 text-xs bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
+                                      onClick={() => setShowRejectDialog(true)}
+                                      disabled={rejectSaleMutation.isPending}
+                                    >
+                                      Rechazar
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {leadSale.approvalStatus === "APPROVED" && (
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                <span className="text-sm text-green-600 dark:text-green-400">
+                                  Venta aprobada
+                                </span>
+                              </div>
+                            )}
+
+                            {leadSale.approvalStatus === "REJECTED" && (
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                                  <span className="text-sm text-red-600 dark:text-red-400">
+                                    Venta rechazada
+                                  </span>
+                                </div>
+                                {leadSale.rejectionReason && (
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 ml-4">
+                                    Motivo: {leadSale.rejectionReason}
+                                  </p>
+                                )}
+                              </div>
+                            )}
                           </div>
                         )}
-                        <span
-                          className={`${
-                            salesProcess.sale
-                              ? "text-green-600 dark:text-green-400"
-                              : salesProcess.reservation
-                                ? "text-gray-600 dark:text-gray-300"
-                                : "text-gray-400 dark:text-gray-500"
-                          }`}
-                        >
-                          Registrar venta
-                        </span>
-                      </button>
+                      </div>
                     </div>
                   )}
                 </CardContent>
@@ -1300,6 +1449,51 @@ export function LeadDetailPage({
         lead={lead}
         onConfirm={handleDeleteLead}
       />
+
+      {/* Diálogo de rechazo de venta */}
+      <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rechazar Venta</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Motivo del rechazo</Label>
+              <Textarea
+                placeholder="Ingresa el motivo por el cual se rechaza la venta..."
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                className="min-h-[100px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowRejectDialog(false);
+                setRejectionReason("");
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleRejectSale}
+              disabled={!rejectionReason.trim() || rejectSaleMutation.isPending}
+            >
+              {rejectSaleMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Rechazando...
+                </>
+              ) : (
+                "Rechazar Venta"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -237,7 +237,7 @@ export function SaleDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-xl">
             Registrar venta para {leadName}
@@ -247,176 +247,178 @@ export function SaleDialog({
           </p>
         </DialogHeader>
 
-        {saleLoading ? (
-          <div className="flex flex-col items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-gray-400 mb-2" />
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Cargando...
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-6 mt-4">
-            {/* Monto total */}
-            <div>
-              <Label>
-                Saldo <span className="text-red-500">*</span>
-              </Label>
-              <div className="flex space-x-1">
-                <Input
-                  type="number"
-                  min={0}
-                  value={saldo}
-                  onChange={(e) => setSaldo(e.target.value)}
-                  placeholder="$ 0.00"
-                  className="flex-1"
-                />
-                <Select value={currency} onValueChange={setCurrency}>
-                  <SelectTrigger className="w-20">
-                    <SelectValue placeholder="BOB" />
+        <div className="flex-1 overflow-y-auto">
+          {saleLoading ? (
+            <div className="flex flex-col items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-gray-400 mb-2" />
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Cargando...
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6 mt-4 pr-2">
+              {/* Monto total */}
+              <div>
+                <Label>
+                  Saldo <span className="text-red-500">*</span>
+                </Label>
+                <div className="flex space-x-1">
+                  <Input
+                    type="number"
+                    min={0}
+                    value={saldo}
+                    onChange={(e) => setSaldo(e.target.value)}
+                    placeholder="$ 0.00"
+                    className="flex-1"
+                  />
+                  <Select value={currency} onValueChange={setCurrency}>
+                    <SelectTrigger className="w-20">
+                      <SelectValue placeholder="BOB" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="BOB">BOB</SelectItem>
+                      <SelectItem value="USD">USD</SelectItem>
+                      <SelectItem value="USDT">USDT</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Método de pago */}
+              <div>
+                <Label>
+                  Método de pago <span className="text-red-500">*</span>
+                </Label>
+                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar método de pago" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="BOB">BOB</SelectItem>
-                    <SelectItem value="USD">USD</SelectItem>
-                    <SelectItem value="USDT">USDT</SelectItem>
+                    <SelectItem value="CASH">Efectivo</SelectItem>
+                    <SelectItem value="CARD">
+                      Tarjeta de crédito/débito
+                    </SelectItem>
+                    <SelectItem value="TRANSFER">
+                      Transferencia bancaria
+                    </SelectItem>
+                    <SelectItem value="FINANCING">Financiamiento</SelectItem>
+                    <SelectItem value="CHECK">Cheque</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-            </div>
 
-            {/* Método de pago */}
-            <div>
-              <Label>
-                Método de pago <span className="text-red-500">*</span>
-              </Label>
-              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar método de pago" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CASH">Efectivo</SelectItem>
-                  <SelectItem value="CARD">
-                    Tarjeta de crédito/débito
-                  </SelectItem>
-                  <SelectItem value="TRANSFER">
-                    Transferencia bancaria
-                  </SelectItem>
-                  <SelectItem value="FINANCING">Financiamiento</SelectItem>
-                  <SelectItem value="CHECK">Cheque</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Contrato de venta */}
-            <div>
-              <Label className="block mb-2">
-                Contrato de venta{" "}
-                <span className="text-gray-500">(opcional)</span>
-              </Label>
-              <div className="flex items-center gap-2">
-                <div className="border rounded-md p-3 flex-1 text-sm text-gray-500 dark:text-gray-400">
-                  {saleContractName}
+              {/* Contrato de venta */}
+              <div>
+                <Label className="block mb-2">
+                  Contrato de venta{" "}
+                  <span className="text-gray-500">(opcional)</span>
+                </Label>
+                <div className="flex items-center gap-2">
+                  <div className="border rounded-md p-3 flex-1 text-sm text-gray-500 dark:text-gray-400">
+                    {saleContractName}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="shrink-0"
+                    onClick={() =>
+                      document.getElementById("contract-upload")?.click()
+                    }
+                    disabled={isUploading}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Subir
+                  </Button>
+                  <input
+                    id="contract-upload"
+                    type="file"
+                    className="hidden"
+                    accept=".pdf,.doc,.docx"
+                    onChange={handleContractUpload}
+                    disabled={isUploading}
+                  />
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="shrink-0"
-                  onClick={() =>
-                    document.getElementById("contract-upload")?.click()
-                  }
-                  disabled={isUploading}
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Subir
-                </Button>
-                <input
-                  id="contract-upload"
-                  type="file"
-                  className="hidden"
-                  accept=".pdf,.doc,.docx"
-                  onChange={handleContractUpload}
-                  disabled={isUploading}
+              </div>
+
+              {/* Factura */}
+              <div>
+                <Label className="block mb-2">
+                  Factura <span className="text-red-500">*</span>
+                </Label>
+                <div className="flex items-center gap-2">
+                  <div className="border rounded-md p-3 flex-1 text-sm text-gray-500 dark:text-gray-400">
+                    {invoiceName}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="shrink-0"
+                    onClick={() =>
+                      document.getElementById("invoice-upload")?.click()
+                    }
+                    disabled={isUploading}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Subir
+                  </Button>
+                  <input
+                    id="invoice-upload"
+                    type="file"
+                    className="hidden"
+                    accept=".pdf,.doc,.docx"
+                    onChange={handleInvoiceUpload}
+                    disabled={isUploading}
+                  />
+                </div>
+              </div>
+
+              {/* Comprobante de pago */}
+              <div>
+                <Label className="block mb-2">
+                  Comprobante de pago <span className="text-red-500">*</span>
+                </Label>
+                <div className="flex items-center gap-2">
+                  <div className="border rounded-md p-3 flex-1 text-sm text-gray-500 dark:text-gray-400">
+                    {paymentReceiptName}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="shrink-0"
+                    onClick={() =>
+                      document.getElementById("payment-receipt-upload")?.click()
+                    }
+                    disabled={isUploading}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Subir
+                  </Button>
+                  <input
+                    id="payment-receipt-upload"
+                    type="file"
+                    className="hidden"
+                    accept=".pdf,.doc,.docx"
+                    onChange={handlePaymentReceiptUpload}
+                    disabled={isUploading}
+                  />
+                </div>
+              </div>
+
+              {/* Notas adicionales */}
+              <div>
+                <Label>Notas adicionales</Label>
+                <Textarea
+                  placeholder="Detalles adicionales sobre la venta..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="min-h-[100px]"
                 />
               </div>
             </div>
+          )}
+        </div>
 
-            {/* Factura */}
-            <div>
-              <Label className="block mb-2">
-                Factura <span className="text-red-500">*</span>
-              </Label>
-              <div className="flex items-center gap-2">
-                <div className="border rounded-md p-3 flex-1 text-sm text-gray-500 dark:text-gray-400">
-                  {invoiceName}
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="shrink-0"
-                  onClick={() =>
-                    document.getElementById("invoice-upload")?.click()
-                  }
-                  disabled={isUploading}
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Subir
-                </Button>
-                <input
-                  id="invoice-upload"
-                  type="file"
-                  className="hidden"
-                  accept=".pdf,.doc,.docx"
-                  onChange={handleInvoiceUpload}
-                  disabled={isUploading}
-                />
-              </div>
-            </div>
-
-            {/* Comprobante de pago */}
-            <div>
-              <Label className="block mb-2">
-                Comprobante de pago <span className="text-red-500">*</span>
-              </Label>
-              <div className="flex items-center gap-2">
-                <div className="border rounded-md p-3 flex-1 text-sm text-gray-500 dark:text-gray-400">
-                  {paymentReceiptName}
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="shrink-0"
-                  onClick={() =>
-                    document.getElementById("payment-receipt-upload")?.click()
-                  }
-                  disabled={isUploading}
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Subir
-                </Button>
-                <input
-                  id="payment-receipt-upload"
-                  type="file"
-                  className="hidden"
-                  accept=".pdf,.doc,.docx"
-                  onChange={handlePaymentReceiptUpload}
-                  disabled={isUploading}
-                />
-              </div>
-            </div>
-
-            {/* Notas adicionales */}
-            <div>
-              <Label>Notas adicionales</Label>
-              <Textarea
-                placeholder="Detalles adicionales sobre la venta..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="min-h-[100px]"
-              />
-            </div>
-          </div>
-        )}
-
-        <DialogFooter className="mt-6">
+        <DialogFooter className="mt-6 flex-shrink-0">
           <Button variant="outline" onClick={onClose} disabled={isUploading}>
             Cancelar
           </Button>

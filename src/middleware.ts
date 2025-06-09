@@ -39,6 +39,11 @@ export async function middleware(request: NextRequest) {
   //console.log(`[MIDDLEWARE] Path: ${pathname}`);
 
   // Ignorar completamente todas las rutas de API excepto las que necesitamos para verificar permisos por país
+  // Permitir rutas de aprobación/rechazo de ventas sin middleware
+  if (pathname.match(/^\/api\/sales\/[^/]+\/(approve|reject)$/)) {
+    return NextResponse.next();
+  }
+
   if (
     pathname.startsWith("/api/") &&
     !pathname.includes("/api/leads/") &&

@@ -223,3 +223,59 @@ export function useBusinessTypes() {
     },
   });
 }
+
+// AGREGAR: Hook para obtener cotizaciones
+export function useQuotations(filters?: {
+  dateRange?: [Date, Date];
+  category?: string;
+  status?: string;
+  searchQuery?: string;
+  assignedToId?: string;
+  countryId?: string;
+}) {
+  return useQuery<any[]>({
+    queryKey: ["quotations", filters],
+    queryFn: async () => {
+      // Construir parámetros de consulta basados en filtros
+      const params = new URLSearchParams();
+
+      if (filters?.dateRange) {
+        params.append("startDate", filters.dateRange[0].toISOString());
+        params.append("endDate", filters.dateRange[1].toISOString());
+      }
+
+      if (filters?.category && filters.category !== "all") {
+        params.append("category", filters.category);
+      }
+
+      if (filters?.status && filters.status !== "all") {
+        params.append("status", filters.status);
+      }
+
+      if (filters?.searchQuery) {
+        params.append("search", filters.searchQuery);
+      }
+
+      // Agregar filtro por vendedor asignado
+      if (filters?.assignedToId) {
+        params.append("assignedToId", filters.assignedToId);
+      }
+
+      // Agregar filtro por país
+      if (filters?.countryId) {
+        params.append("countryId", filters.countryId);
+      }
+
+      const queryString = params.toString();
+      const response = await fetch(
+        `/api/quotations/all${queryString ? `?${queryString}` : ""}`
+      );
+
+      if (!response.ok) {
+        throw new Error("Error al obtener cotizaciones");
+      }
+
+      return response.json();
+    },
+  });
+}
