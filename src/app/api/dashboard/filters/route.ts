@@ -11,21 +11,13 @@ export async function GET() {
     }
 
     // Obtener datos para los filtros
-    const [companies, brands, businessTypes] = await Promise.all([
-      // Empresas activas
-      prisma.company.findMany({
-        where: { isActive: true },
-        select: { id: true, name: true },
-        orderBy: { name: "asc" },
-      }),
-
+    const [brands, businessTypes] = await Promise.all([
       // Marcas activas
       prisma.brand.findMany({
         where: { isActive: true },
         select: {
           id: true,
           name: true,
-          companyId: true,
         },
         orderBy: { name: "asc" },
       }),
@@ -39,7 +31,6 @@ export async function GET() {
     ]);
 
     return NextResponse.json({
-      companies,
       brands,
       businessTypes,
     });
