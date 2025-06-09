@@ -197,8 +197,17 @@ export function EditLeadDialog({
     try {
       // Limpiar valores "none" por vacíos antes de enviar
       const cleanedData = {
-        ...data,
-        productId: data.productId === "none" ? null : data.productId || null,
+        firstName: data.firstName || "",
+        lastName: data.lastName || "",
+        email: data.email || null,
+        phone: data.phone || null,
+        cellphone: data.cellphone,
+        productId:
+          data.productId === "none" || !data.productId ? null : data.productId,
+        statusId: data.statusId,
+        sourceId: data.sourceId,
+        qualityScore: data.qualityScore ? parseInt(data.qualityScore) : null,
+        extraComments: data.extraComments || null,
       };
 
       await updateLeadMutation.mutateAsync({
@@ -344,6 +353,11 @@ export function EditLeadDialog({
                     {...register("cellphone")}
                     disabled={isPending}
                   />
+                  {errors.cellphone && (
+                    <p className="text-red-500 text-xs">
+                      {errors.cellphone.message}
+                    </p>
+                  )}
                 </div>
               </div>
 
