@@ -26,7 +26,6 @@ export type Lead = {
   lastName: string;
   email?: string;
   phone?: string;
-  company?: string;
   source?: {
     id: string;
     name: string;
@@ -54,6 +53,9 @@ interface LeadCardProps {
 function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
   const canReadLeads = hasPermission(currentUser, "leads", "view");
   const canUpdateLeads = hasPermission(currentUser, "leads", "edit");
+
+  // Verificar si el lead está cerrado
+  const isLeadClosed = lead.isClosed || lead.isArchived;
 
   const { data: updatedLead, isLoading: isLoadingUpdatedLead } = useLeadQuery(
     lead.id
@@ -85,6 +87,20 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
         const dateB = new Date(b.scheduledFor as string);
         return dateA.getTime() - dateB.getTime();
       })[0];
+  }, [tasks]);
+
+  // Verificar si el lead tiene tareas vencidas
+  const hasOverdueTasks = useMemo(() => {
+    if (!tasks || tasks.length === 0) return false;
+
+    const now = new Date();
+    return tasks.some((task) => {
+      if (task.status === "COMPLETED") return false;
+      if (!task.scheduledFor) return false;
+
+      const taskDate = new Date(task.scheduledFor);
+      return taskDate < now;
+    });
   }, [tasks]);
 
   // Manejar el clic fuera para cerrar el dropdown
@@ -179,8 +195,12 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
   return (
     <>
       <div
-        className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-4 mb-4 transition-all hover:-translate-y-1 hover:shadow-md cursor-pointer relative ${
+        className={`bg-white dark:bg-gray-800 border rounded-md p-4 mb-4 transition-all hover:-translate-y-1 hover:shadow-md cursor-pointer relative ${
           isLoadingUpdatedLead ? "opacity-50" : ""
+        } ${
+          hasOverdueTasks
+            ? "border-red-500 dark:border-red-400"
+            : "border-gray-200 dark:border-gray-700"
         }`}
         onClick={handleCardClick}
       >
@@ -214,11 +234,14 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
                         : "Lead sin nombre"}
                 </h3>
                 <Star
-                  className={`h-5 w-5 ml-2 cursor-pointer ${
+                  className={`h-5 w-5 ml-2 ${
+                    isLeadClosed ? "cursor-default" : "cursor-pointer"
+                  } ${
                     isFavorite
                       ? "fill-yellow-400 text-yellow-400"
                       : "text-gray-400"
                   }`}
+                  onClick={!isLeadClosed ? handleToggleFavorite : undefined}
                 />
                 {lead.qualityScore && (
                   <Badge
@@ -276,7 +299,19 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
                       </button>
                     </li>
                   )}
-                  {canUpdateLeads && (
+                  <li>
+                    <button
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowDropdown(false);
+                        window.open(`/leads/${lead.id}`, "_blank");
+                      }}
+                    >
+                      Abrir en nueva pestaña
+                    </button>
+                  </li>
+                  {canUpdateLeads && !isLeadClosed && (
                     <>
                       <li>
                         <button
@@ -302,18 +337,6 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
                           {isFavorite
                             ? "Quitar de favoritos"
                             : "Marcar como favorito"}
-                        </button>
-                      </li>
-                      <li>
-                        <button
-                          className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowDropdown(false);
-                            window.open(`/leads/${lead.id}`, "_blank");
-                          }}
-                        >
-                          Abrir en nueva pestaña
                         </button>
                       </li>
                     </>
@@ -637,11 +660,26 @@ export function LeadsList({
       // Leads marcados como favoritos
       filteredLeads = filteredLeads.filter((lead) => lead.isFavorite);
       break;
+    case "closed-leads":
+      // Solo leads cerrados (ya filtrados por estado en el paso 1)
+      break;
     case "my-leads":
       // Leads asignados al usuario actual
       filteredLeads = filteredLeads.filter(
         (lead) => lead.assignedToId === currentUser?.id
       );
+      break;
+    case "all":
+    default:
+      // Para el tab "all", ordenar para que los leads cerrados aparezcan al final
+      if (leadStatus === "active") {
+        filteredLeads = filteredLeads.sort((a, b) => {
+          // Primero los leads activos, después los cerrados
+          if (a.isClosed && !b.isClosed) return 1;
+          if (!a.isClosed && b.isClosed) return -1;
+          return 0;
+        });
+      }
       break;
   }
 
@@ -660,8 +698,7 @@ export function LeadsList({
         lead.firstName.toLowerCase().includes(search) ||
         lead.lastName.toLowerCase().includes(search) ||
         (lead.email && lead.email.toLowerCase().includes(search)) ||
-        (lead.cellphone && lead.cellphone.toLowerCase().includes(search)) ||
-        (lead.company && lead.company.toLowerCase().includes(search))
+        (lead.cellphone && lead.cellphone.toLowerCase().includes(search))
     );
   }
 
