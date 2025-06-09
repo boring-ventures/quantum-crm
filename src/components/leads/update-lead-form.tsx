@@ -27,7 +27,6 @@ export function UpdateLeadForm({ lead, onSuccess }: UpdateLeadFormProps) {
     lastName: lead.lastName,
     email: lead.email || "",
     phone: lead.phone || "",
-    company: lead.company || "",
     statusId: lead.statusId,
     sourceId: lead.sourceId,
     interest: lead.interest || "",
@@ -126,18 +125,6 @@ export function UpdateLeadForm({ lead, onSuccess }: UpdateLeadFormProps) {
             id="phone"
             name="phone"
             value={formData.phone}
-            onChange={handleChange}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label htmlFor="company" className="text-sm font-medium">
-            Empresa
-          </label>
-          <Input
-            id="company"
-            name="company"
-            value={formData.company}
             onChange={handleChange}
           />
         </div>
