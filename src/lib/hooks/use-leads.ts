@@ -16,6 +16,9 @@ interface LeadsFilter {
   assignedTo?: string;
   assignedToId?: string;
   countryId?: string;
+  isArchived?: boolean;
+  isClosed?: boolean;
+  includeArchived?: boolean;
 }
 
 // Consulta de leads con filtros
@@ -33,6 +36,12 @@ export const useLeadsQuery = (filters: LeadsFilter = {}) => {
   if (filters.assignedToId)
     queryParams.append("assignedToId", filters.assignedToId);
   if (filters.countryId) queryParams.append("countryId", filters.countryId);
+  if (filters.isArchived !== undefined)
+    queryParams.append("isArchived", filters.isArchived.toString());
+  if (filters.isClosed !== undefined)
+    queryParams.append("isClosed", filters.isClosed.toString());
+  if (filters.includeArchived !== undefined)
+    queryParams.append("includeArchived", filters.includeArchived.toString());
 
   return useQuery<LeadsResponse>({
     queryKey: ["leads", filters],
@@ -331,6 +340,78 @@ export const useUploadDocumentMutation = () => {
       queryClient.invalidateQueries({
         queryKey: ["leadDocuments", variables.leadId],
       });
+    },
+  });
+};
+
+// Buscar leads por celular duplicado
+export const useCheckDuplicateCellphone = (cellphone: string) => {
+  return useQuery<LeadWithRelations[]>({
+    queryKey: ["checkDuplicateCellphone", cellphone],
+    queryFn: async () => {
+      if (!cellphone || cellphone.length < 5) return [];
+
+      const response = await fetch(
+        `/api/leads/check-duplicate?cellphone=${encodeURIComponent(cellphone)}`
+      );
+      if (!response.ok) {
+        throw new Error("Error checking duplicate cellphone");
+      }
+      return response.json();
+    },
+    enabled: !!cellphone && cellphone.length >= 5,
+  });
+};
+
+// Exportar leads
+export const useExportLeadsMutation = () => {
+  return useMutation({
+    mutationFn: async (filters: LeadsFilter & { format: "csv" | "excel" }) => {
+      const queryParams = new URLSearchParams();
+
+      // Agregar filtros a los parámetros de consulta
+      if (filters.page) queryParams.append("page", filters.page.toString());
+      if (filters.pageSize)
+        queryParams.append("pageSize", filters.pageSize.toString());
+      if (filters.search) queryParams.append("search", filters.search);
+      if (filters.status) queryParams.append("status", filters.status);
+      if (filters.source) queryParams.append("source", filters.source);
+      if (filters.assignedTo)
+        queryParams.append("assignedTo", filters.assignedTo);
+      if (filters.assignedToId)
+        queryParams.append("assignedToId", filters.assignedToId);
+      if (filters.countryId) queryParams.append("countryId", filters.countryId);
+      if (filters.isArchived !== undefined)
+        queryParams.append("isArchived", filters.isArchived.toString());
+      if (filters.isClosed !== undefined)
+        queryParams.append("isClosed", filters.isClosed.toString());
+      if (filters.includeArchived !== undefined)
+        queryParams.append(
+          "includeArchived",
+          filters.includeArchived.toString()
+        );
+
+      queryParams.append("format", filters.format);
+
+      const response = await fetch(
+        `/api/leads/export?${queryParams.toString()}`
+      );
+      if (!response.ok) {
+        throw new Error("Error exporting leads");
+      }
+
+      // Descargar el archivo
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `leads_export_${new Date().toISOString().split("T")[0]}.${filters.format === "excel" ? "xlsx" : "csv"}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      return { success: true };
     },
   });
 };

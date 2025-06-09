@@ -26,6 +26,7 @@ import {
   useLeadStatuses,
   useLeadSources,
   useCreateLeadMutation,
+  useCheckDuplicateCellphone,
 } from "@/lib/hooks";
 import { useProducts } from "@/lib/hooks/use-products";
 import { useAuth } from "@/providers/auth-provider";
@@ -119,6 +120,12 @@ export function NewLeadDialog({
   const watchedStatusId = watch("statusId");
   const watchedSourceId = watch("sourceId");
   const watchedProductId = watch("productId");
+  const watchedCellphone = watch("cellphone");
+
+  // Verificar duplicados por celular
+  const { data: duplicateLeads } = useCheckDuplicateCellphone(
+    watchedCellphone || ""
+  );
 
   // Filtrar los dropdowns según la búsqueda
   const filteredProducts = products?.filter(
@@ -331,6 +338,27 @@ export function NewLeadDialog({
                     <p className="text-red-500 text-xs">
                       {errors.cellphone.message}
                     </p>
+                  )}
+                  {duplicateLeads && duplicateLeads.length > 0 && (
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded p-3 mt-2">
+                      <p className="text-yellow-800 dark:text-yellow-200 text-xs font-medium mb-2">
+                        ⚠️ Ya existe un lead con este número de celular:
+                      </p>
+                      {duplicateLeads.map((lead) => (
+                        <div
+                          key={lead.id}
+                          className="text-xs text-yellow-700 dark:text-yellow-300 mb-1"
+                        >
+                          • {lead.firstName} {lead.lastName} - Asignado a:{" "}
+                          {lead.assignedTo?.name || "Sin asignar"} - Creado:{" "}
+                          {new Date(lead.createdAt).toLocaleDateString()}
+                        </div>
+                      ))}
+                      <p className="text-yellow-600 dark:text-yellow-400 text-xs mt-2">
+                        Puedes continuar y crear el lead duplicado si es
+                        necesario.
+                      </p>
+                    </div>
                   )}
                 </div>
               </div>

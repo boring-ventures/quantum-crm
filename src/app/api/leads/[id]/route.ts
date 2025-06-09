@@ -19,6 +19,14 @@ const updateLeadSchema = z.object({
   assignedToId: z.string().uuid("ID de usuario inválido").optional().nullable(),
   extraComments: z.string().optional().nullable(),
   isArchived: z.boolean().optional(),
+  isClosed: z.boolean().optional(),
+  closedAt: z
+    .string()
+    .datetime()
+    .optional()
+    .nullable()
+    .transform((val) => (val ? new Date(val) : val)),
+  reasonClosed: z.string().optional().nullable(),
   productId: z.string().optional().nullable(),
   qualityScore: z.number().optional().nullable(),
 });
@@ -157,6 +165,14 @@ export async function PUT(
         );
       if (validatedData.isArchived !== undefined)
         data.isArchived = validatedData.isArchived;
+      if (validatedData.isClosed !== undefined)
+        data.isClosed = validatedData.isClosed;
+      if (validatedData.closedAt !== undefined)
+        data.closedAt = validatedData.closedAt;
+      if (validatedData.reasonClosed !== undefined)
+        data.reasonClosed = normalizeEmptyStringToNull(
+          validatedData.reasonClosed
+        );
       if (validatedData.qualityScore !== undefined)
         data.qualityScore = validatedData.qualityScore;
 

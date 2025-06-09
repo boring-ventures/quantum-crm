@@ -189,3 +189,32 @@ export const useDeleteTaskMutation = () => {
     },
   });
 };
+
+// Obtener tareas de test drive del equipo para el calendario
+export const useTeamTestDriveTasks = (startDate?: Date, endDate?: Date) => {
+  const queryParams = new URLSearchParams();
+
+  if (startDate) {
+    queryParams.append("startDate", startDate.toISOString());
+  }
+  if (endDate) {
+    queryParams.append("endDate", endDate.toISOString());
+  }
+
+  // Filtrar solo tareas de test drive y visitas al salon
+  queryParams.append("taskTypes", "test-drive,client-visit");
+  queryParams.append("status", "PENDING,IN_PROGRESS");
+
+  return useQuery<Task[]>({
+    queryKey: ["teamTestDriveTasks", startDate, endDate],
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/tasks/team-calendar?${queryParams.toString()}`
+      );
+      if (!response.ok) {
+        throw new Error("Error fetching team test drive tasks");
+      }
+      return response.json();
+    },
+  });
+};

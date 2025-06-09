@@ -311,16 +311,24 @@ export function LeadDetailPage({
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   };
 
+  // Verificar si el lead está cerrado (solo lectura)
+  const isLeadClosed = lead.isClosed || lead.isArchived;
+
   // Determinamos los permisos del usuario actual
   const canViewLeads = hasPermission(currentUser, "leads", "view");
-  const canEditLeads = hasPermission(currentUser, "leads", "edit");
-  const canDeleteLeads = hasPermission(currentUser, "leads", "delete");
-  const canCreateSales = hasPermission(currentUser, "sales", "create");
-  const canCreateTasks = hasPermission(currentUser, "tasks", "create");
+  const canEditLeads =
+    hasPermission(currentUser, "leads", "edit") && !isLeadClosed;
+  const canDeleteLeads =
+    hasPermission(currentUser, "leads", "delete") && !isLeadClosed;
+  const canCreateSales =
+    hasPermission(currentUser, "sales", "create") && !isLeadClosed;
+  const canCreateTasks =
+    hasPermission(currentUser, "tasks", "create") && !isLeadClosed;
   const canViewTasks = hasPermission(currentUser, "tasks", "view");
   const canApproveSales =
-    hasPermission(currentUser, "sales", "approve") ||
-    hasPermission(currentUser, "sales", "edit");
+    (hasPermission(currentUser, "sales", "approve") ||
+      hasPermission(currentUser, "sales", "edit")) &&
+    !isLeadClosed;
 
   // Si el usuario no tiene permiso para ver leads, no mostrar nada
   if (!canViewLeads) {
@@ -745,10 +753,27 @@ export function LeadDetailPage({
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {lead.source?.name || "Facebook - Campaña Q4"}
-            {lead.company ? ` - ${lead.company}` : ""}
           </p>
         </div>
       </div>
+
+      {/* Banner para lead cerrado */}
+      {isLeadClosed && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-6">
+          <div className="flex items-center">
+            <LockIcon className="h-5 w-5 text-amber-600 dark:text-amber-400 mr-3" />
+            <div>
+              <h3 className="text-amber-800 dark:text-amber-200 font-medium">
+                {lead.isClosed ? "Lead Cerrado" : "Lead Archivado"}
+              </h3>
+              <p className="text-amber-700 dark:text-amber-300 text-sm">
+                Este lead está en modo de solo lectura. No se pueden realizar
+                acciones de edición, creación de tareas o procesos de venta.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Sección principal */}
@@ -797,7 +822,7 @@ export function LeadDetailPage({
                 >
                   Información
                 </TabsTrigger>
-                {canViewTasks && (
+                {canViewTasks && !isLeadClosed && (
                   <TabsTrigger
                     value="tareas"
                     className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:rounded-none data-[state=active]:shadow-none rounded-none px-6 py-3"
@@ -950,7 +975,7 @@ export function LeadDetailPage({
                 </div>
               </TabsContent>
 
-              {canViewTasks && (
+              {canViewTasks && !isLeadClosed && (
                 <TabsContent value="tareas" className="p-6">
                   <TaskList leadId={lead.id} currentUser={currentUser} />
                 </TabsContent>
@@ -969,25 +994,28 @@ export function LeadDetailPage({
 
         {/* Sidebar derecho */}
         <div className="lg:w-[350px] space-y-4">
-          {/* Mostrar componente según el estado de calificación */}
-          {canCreateSales && lead.qualification === "NOT_QUALIFIED" && (
-            <QualifyLeadComponent
-              lead={lead}
-              onQualify={(isGoodLead) => {
-                if (isGoodLead) {
-                  // Invalidar el lead para que se actualice con la nueva calificación
-                  queryClient.invalidateQueries({
-                    queryKey: ["leads", lead.id],
-                  });
-                } else {
-                  onBack();
-                }
-              }}
-            />
-          )}
-
-          {/* Proceso de venta - Solo visible para usuarios con permiso de ventas y lead calificado */}
+          {/* Mostrar componente según el estado de calificación - Solo si no está cerrado */}
           {canCreateSales &&
+            !isLeadClosed &&
+            lead.qualification === "NOT_QUALIFIED" && (
+              <QualifyLeadComponent
+                lead={lead}
+                onQualify={(isGoodLead) => {
+                  if (isGoodLead) {
+                    // Invalidar el lead para que se actualice con la nueva calificación
+                    queryClient.invalidateQueries({
+                      queryKey: ["leads", lead.id],
+                    });
+                  } else {
+                    onBack();
+                  }
+                }}
+              />
+            )}
+
+          {/* Proceso de venta - Solo visible para usuarios con permiso de ventas, lead calificado y no cerrado */}
+          {canCreateSales &&
+            !isLeadClosed &&
             (lead.qualification === "GOOD_LEAD" ||
               lead.qualification === "BAD_LEAD") && (
               <Card className="border-gray-200 dark:border-gray-700">
@@ -1321,7 +1349,7 @@ export function LeadDetailPage({
           <Card className="border-gray-200 dark:border-gray-700">
             <CardContent className="p-6">
               <h3 className="text-lg font-medium mb-4">Estado actual</h3>
-              {canEditLeads ? (
+              {canEditLeads && !isLeadClosed ? (
                 <LeadStatusSelector
                   leadId={lead.id}
                   currentStatusId={lead.statusId}
@@ -1353,8 +1381,8 @@ export function LeadDetailPage({
         </div>
       </div>
 
-      {/* Modales para el proceso de venta - Solo para usuarios con permisos */}
-      {canCreateSales && (
+      {/* Modales para el proceso de venta - Solo para usuarios con permisos y leads no cerrados */}
+      {canCreateSales && !isLeadClosed && (
         <>
           <QuotationDialog
             open={openModal === "quotation"}
@@ -1382,7 +1410,7 @@ export function LeadDetailPage({
         </>
       )}
 
-      {canCreateTasks && (
+      {canCreateTasks && !isLeadClosed && (
         <TaskTypeDialog
           open={openTaskDialog}
           onOpenChange={setOpenTaskDialog}
