@@ -14,8 +14,11 @@ const createSaleSchema = z.object({
     .string()
     .url("URL del contrato de venta inválida")
     .optional(),
-  invoiceUrl: z.string().url("URL de la factura inválida"),
-  paymentReceiptUrl: z.string().url("URL del comprobante de pago inválida"),
+  invoiceUrl: z.string().url("URL de la factura inválida").optional(),
+  paymentReceiptUrl: z
+    .string()
+    .url("URL del comprobante de pago inválida")
+    .optional(),
   additionalNotes: z.string().optional(),
   currency: z.enum(["BOB", "USD", "USDT"]).optional(),
 });
@@ -72,7 +75,8 @@ export async function POST(request: NextRequest) {
           paymentReceiptUrl: validatedData.paymentReceiptUrl,
           additionalNotes: validatedData.additionalNotes,
           currency: validatedData.currency || "BOB",
-          status: "COMPLETED",
+          saleStatus: "IN_PRODUCTION", // Estado inicial de la venta
+          approvalStatus: "PENDING", // Requiere aprobación
         },
       });
 
