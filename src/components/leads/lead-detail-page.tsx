@@ -325,10 +325,6 @@ export function LeadDetailPage({
   const canCreateTasks =
     hasPermission(currentUser, "tasks", "create") && !isLeadClosed;
   const canViewTasks = hasPermission(currentUser, "tasks", "view");
-  const canApproveSales =
-    (hasPermission(currentUser, "sales", "approve") ||
-      hasPermission(currentUser, "sales", "edit")) &&
-    !isLeadClosed;
 
   // Si el usuario no tiene permiso para ver leads, no mostrar nada
   if (!canViewLeads) {
@@ -1154,30 +1150,6 @@ export function LeadDetailPage({
                                     Pendiente de aprobación
                                   </span>
                                 </div>
-                                {canApproveSales && (
-                                  <div className="flex gap-2">
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="h-8 text-xs bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
-                                      onClick={handleApproveSale}
-                                      disabled={approveSaleMutation.isPending}
-                                    >
-                                      {approveSaleMutation.isPending
-                                        ? "Aprobando..."
-                                        : "Aprobar"}
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="h-8 text-xs bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
-                                      onClick={() => setShowRejectDialog(true)}
-                                      disabled={rejectSaleMutation.isPending}
-                                    >
-                                      Rechazar
-                                    </Button>
-                                  </div>
-                                )}
                               </div>
                             )}
 
