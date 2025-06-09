@@ -65,6 +65,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Excluir explícitamente las rutas de check-duplicate
+  if (pathname === "/api/leads/check-duplicate") {
+    return NextResponse.next();
+  }
+
   // Si es una ruta pública, permitir acceso
   if (isPublicRoute(pathname)) {
     //console.log(`[MIDDLEWARE] Public route: ${pathname}, allowing access`);
