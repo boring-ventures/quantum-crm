@@ -237,7 +237,7 @@ export function SaleDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
+      <DialogContent className="sm:max-w-[700px] max-w-[95vw] max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="text-xl">
             Registrar venta para {leadName}
@@ -247,7 +247,7 @@ export function SaleDialog({
           </p>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
           {saleLoading ? (
             <div className="flex flex-col items-center justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-gray-400 mb-2" />
@@ -256,7 +256,7 @@ export function SaleDialog({
               </p>
             </div>
           ) : (
-            <div className="space-y-6 mt-4 pr-2">
+            <div className="space-y-4 mt-4 pr-2 pb-4">
               {/* Monto total */}
               <div>
                 <Label>
