@@ -575,11 +575,17 @@ export function LeadsList({
 
   if (!data?.items || data.items.length === 0) {
     return (
-      <div className="text-center py-10">
-        <p className="text-gray-400">No se encontraron leads.</p>
-        <p className="text-gray-500 text-sm mt-1">
-          Crea un nuevo lead para comenzar.
-        </p>
+      <div className="text-center py-10 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6">
+        <div className="flex flex-col items-center gap-2">
+          <Package className="h-12 w-12 text-gray-400" />
+          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+            No hay leads disponibles
+          </h3>
+          <p className="text-gray-500 text-sm max-w-md">
+            No se encontraron leads con los filtros de búsqueda actuales. Prueba
+            ajustar los filtros o navegar a otra página.
+          </p>
+        </div>
       </div>
     );
   }
@@ -704,13 +710,22 @@ export function LeadsList({
 
   if (filteredLeads.length === 0) {
     return (
-      <div className="text-center py-10">
-        <p className="text-gray-400">
-          No se encontraron leads que coincidan con los criterios.
-        </p>
-        <p className="text-gray-500 text-sm mt-1">
-          Prueba con otros filtros o crea nuevos leads.
-        </p>
+      <div className="text-center py-10 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6">
+        <div className="flex flex-col items-center gap-2">
+          <Package className="h-12 w-12 text-gray-400" />
+          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+            No hay leads en esta categoría
+          </h3>
+          <p className="text-gray-500 text-sm max-w-md">
+            Los filtros de pestañas solo aplican a los {pageSize} leads cargados
+            en esta página. Si buscas algo específico, prueba cambiar de página
+            o usar la búsqueda por texto.
+          </p>
+          <div className="text-xs text-muted-foreground mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded border-l-4 border-blue-500">
+            💡 Tip: Los filtros solo aplican a los leads visibles en la página
+            actual
+          </div>
+        </div>
       </div>
     );
   }
@@ -724,11 +739,17 @@ export function LeadsList({
         ))
       ) : filteredLeads.length === 0 ? (
         // Mostrar mensaje cuando no hay leads
-        <div className="text-center py-10">
-          <h3 className="text-lg font-medium">No hay leads disponibles</h3>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">
-            No se encontraron leads con los criterios actuales.
-          </p>
+        <div className="text-center py-10 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6">
+          <div className="flex flex-col items-center gap-2">
+            <Package className="h-12 w-12 text-gray-400" />
+            <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+              No hay leads disponibles
+            </h3>
+            <p className="text-gray-500 text-sm max-w-md">
+              No se encontraron leads con los criterios actuales en esta página.
+              Prueba navegar a otra página o ajustar los filtros.
+            </p>
+          </div>
         </div>
       ) : (
         // Mostrar lista de leads

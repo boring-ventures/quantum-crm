@@ -66,7 +66,7 @@ export default function LeadsPage() {
   const [activeTab, setActiveTab] = useState("active");
   const [canSelectLeads, setCanSelectLeads] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(500);
+  const pageSize = 100;
 
   const { toast } = useToast();
   const { user: currentUser, isLoading: isLoadingCurrentUser } = useUserStore();
@@ -490,40 +490,56 @@ export default function LeadsPage() {
                       )}
                     </div>
 
-                    {/* Componente de paginación */}
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="text-sm text-muted-foreground">
-                        Mostrando{" "}
-                        {isLoadingLeads
-                          ? "..."
-                          : `${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, rawLeadsData?.total || 0)} de ${rawLeadsData?.total || 0}`}{" "}
-                        leads
-                      </div>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            setCurrentPage((p) => Math.max(1, p - 1))
-                          }
-                          disabled={currentPage === 1 || isLoadingLeads}
-                        >
-                          <ChevronLeft className="h-4 w-4 mr-1" />
-                          Anterior
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setCurrentPage((p) => p + 1)}
-                          disabled={
-                            isLoadingLeads ||
-                            !rawLeadsData?.total ||
-                            currentPage * pageSize >= rawLeadsData.total
-                          }
-                        >
-                          Siguiente
-                          <ChevronRight className="h-4 w-4 ml-1" />
-                        </Button>
+                    {/* Componente de paginación mejorado */}
+                    <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 mb-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex flex-col gap-1">
+                          <div className="text-sm font-medium">
+                            Mostrando{" "}
+                            {isLoadingLeads
+                              ? "..."
+                              : `${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, rawLeadsData?.total || 0)} de ${rawLeadsData?.total || 0}`}{" "}
+                            leads
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            📄 Los filtros de pestañas solo aplican a los{" "}
+                            {pageSize} leads mostrados en esta página
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="text-sm font-medium text-center min-w-[100px]">
+                            Página {currentPage} de{" "}
+                            {Math.ceil((rawLeadsData?.total || 0) / pageSize)}
+                          </div>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                setCurrentPage((p) => Math.max(1, p - 1))
+                              }
+                              disabled={currentPage === 1 || isLoadingLeads}
+                              className="h-9 px-3"
+                            >
+                              <ChevronLeft className="h-4 w-4 mr-1" />
+                              Anterior
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setCurrentPage((p) => p + 1)}
+                              disabled={
+                                isLoadingLeads ||
+                                !rawLeadsData?.total ||
+                                currentPage * pageSize >= rawLeadsData.total
+                              }
+                              className="h-9 px-3"
+                            >
+                              Siguiente
+                              <ChevronRight className="h-4 w-4 ml-1" />
+                            </Button>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
