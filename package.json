@@ -6,7 +6,9 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "check-optimization": "node check-optimization.js",
+    "check-optimization:watch": "node check-optimization.js --watch"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.17",

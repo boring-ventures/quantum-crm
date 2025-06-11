@@ -56,11 +56,18 @@ export async function GET(
         name: true,
         role: true,
         isActive: true,
+        isDeleted: true,
         roleId: true,
         userRole: {
           select: {
             id: true,
             name: true,
+            permissions: true,
+          },
+        },
+        userPermission: {
+          select: {
+            id: true,
             permissions: true,
           },
         },
@@ -74,6 +81,11 @@ export async function GET(
       );
     }
 
+    // 🔧 PRIORIZAR: user_permissions > role_permissions
+    // Si el usuario tiene permisos específicos, usarlos; sino usar permisos del rol
+    const permissions =
+      user.userPermission?.permissions || user.userRole?.permissions || {};
+
     // Adaptar la respuesta para mantener compatibilidad con la API anterior
     const profile = {
       id: user.id,
@@ -81,8 +93,9 @@ export async function GET(
       name: user.name,
       role: user.role,
       isActive: user.isActive,
+      isDeleted: user.isDeleted,
       roleId: user.roleId,
-      permissions: user.userRole?.permissions || {},
+      permissions: permissions,
     };
 
     return NextResponse.json({ profile });

@@ -6,6 +6,11 @@ import {
   hasPermission as sharedHasPermission,
 } from "@/lib/utils/permissions";
 import { NestedSectionPermissions } from "@/types/dashboard";
+import {
+  getUserForMiddleware,
+  getCacheStatistics,
+  invalidateUserCache,
+} from "@/lib/utils/middleware-cache";
 
 // Rutas públicas que no requieren autenticación (paths exactos o prefijos)
 const publicRoutes = [
@@ -99,32 +104,29 @@ export async function middleware(request: NextRequest) {
     const host = request.headers.get("host") || "localhost:3000";
     const apiUrl = `${protocol}://${host}/api/users/${user.id}?requireAuth=false`;
 
-    //console.log(`[MIDDLEWARE] Fetching user data from API: ${apiUrl}`);
+    const userData = await getUserForMiddleware(user.id, request);
 
-    const apiResponse = await fetch(apiUrl, {
-      headers: {
-        "Content-Type": "application/json",
-        Cookie: request.headers.get("cookie") || "",
-      },
-    });
-
-    if (!apiResponse.ok) {
-      console.error(`[MIDDLEWARE] API returned error ${apiResponse.status}`);
+    if (!userData) {
+      console.error(`[MIDDLEWARE] ❌ No se pudieron obtener datos de usuario`);
       return NextResponse.redirect(new URL("/access-denied", request.url));
     }
 
-    const { profile } = await apiResponse.json();
+    const { profile, cacheSource } = userData;
 
-    if (!profile) {
-      console.error(`[MIDDLEWARE] No user profile found`);
-      return NextResponse.redirect(new URL("/access-denied", request.url));
+    // Log estadísticas de cache (solo en desarrollo)
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[MIDDLEWARE] 📊 ${getCacheStatistics()}`);
+      console.log(
+        `[MIDDLEWARE] 🎯 Fuente de datos: ${cacheSource.toUpperCase()}`
+      );
     }
 
     // Verificar si el usuario está eliminado
     if (profile.isDeleted) {
       //console.log(`[MIDDLEWARE] User is deleted, signing out and redirecting`);
 
-      // Cerrar sesión del usuario
+      // Invalidar cache y cerrar sesión
+      invalidateUserCache(user.id);
       await supabase.auth.signOut();
 
       // Redirigir a sign-in con mensaje
@@ -138,7 +140,8 @@ export async function middleware(request: NextRequest) {
     if (!profile.isActive) {
       //console.log(`[MIDDLEWARE] User is inactive, signing out and redirecting`);
 
-      // Cerrar sesión del usuario
+      // Invalidar cache y cerrar sesión
+      invalidateUserCache(user.id);
       await supabase.auth.signOut();
 
       // Redirigir a sign-in con mensaje
@@ -148,6 +151,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(signInUrl);
     }
 
+    // 🔧 RESTAURAR LÓGICA ORIGINAL: Usar profile.permissions como antes
     if (!profile.permissions) {
       console.error(`[MIDDLEWARE] No permissions found`);
       return NextResponse.redirect(new URL("/access-denied", request.url));
@@ -225,7 +229,9 @@ export async function middleware(request: NextRequest) {
           //  `[MIDDLEWARE] Checking scope permission for ${module}.${action} on resource ${resourceId}`
           //);
 
-          // Obtener información del recurso para verificar propiedad/país
+          // 🚀 OPTIMIZACIÓN: Usar el protocolo original para API calls si es necesario
+          const protocol = request.headers.get("x-forwarded-proto") || "http";
+          const host = request.headers.get("host") || "localhost:3000";
           const resourceApiUrl = `${protocol}://${host}/api/${module}/${resourceId}?scopeCheck=true`;
 
           try {
