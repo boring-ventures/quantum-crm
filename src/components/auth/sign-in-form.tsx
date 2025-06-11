@@ -46,6 +46,8 @@ export function SignInForm() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (isLoading) return; // Evitar múltiples envíos simultáneos
+
     setIsLoading(true);
     setAuthError("");
 
@@ -59,8 +61,6 @@ export function SignInForm() {
       if (error) {
         throw error;
       }
-
-      console.log("data", data);
 
       // Verificar que el usuario existe en la tabla users y tiene un rol válido
       const { data: userData, error: userError } = await supabase
@@ -96,10 +96,20 @@ export function SignInForm() {
       console.error("Error de inicio de sesión:", error);
 
       // Mensajes de error amigables
-      if (error.message.includes("Invalid login credentials")) {
+      if (error.message?.includes("Invalid login credentials")) {
         setAuthError("Email o contraseña incorrectos");
-      } else if (error.message.includes("Too many requests")) {
+      } else if (
+        error.message?.includes("Too many requests") ||
+        error.message?.includes("Rate limit exceeded")
+      ) {
         setAuthError("Demasiados intentos fallidos. Intenta más tarde");
+
+        // Esperar más tiempo antes de permitir otro intento
+        setTimeout(() => {
+          setIsLoading(false);
+        }, 5000);
+
+        return; // Salir temprano para mantener el estado de carga por más tiempo
       } else {
         setAuthError(error.message || "Error al iniciar sesión");
       }
@@ -168,7 +178,7 @@ export function SignInForm() {
           />
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Iniciar sesión SignInForm
+            Iniciar sesión
           </Button>
         </form>
       </Form>

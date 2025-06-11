@@ -111,8 +111,25 @@ export function ProfileDropdown() {
         <DropdownMenuItem
           onClick={async () => {
             try {
-              clearUser();
               await signOut();
+              clearUser();
+
+              // Limpiar cualquier caché adicional que pueda existir
+              if (typeof window !== "undefined") {
+                const keysToRemove = [
+                  "user-storage",
+                  "user-storage-v1",
+                  "supabase.auth.token",
+                ];
+                keysToRemove.forEach((key) => {
+                  try {
+                    localStorage.removeItem(key);
+                    sessionStorage.removeItem(key);
+                  } catch (e) {
+                    // Ignorar errores
+                  }
+                });
+              }
             } catch (error) {
               clearUser();
               console.error("Error al cerrar sesión:", error);

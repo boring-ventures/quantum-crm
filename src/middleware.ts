@@ -43,6 +43,7 @@ export async function middleware(request: NextRequest) {
 
   //console.log(`[MIDDLEWARE] Path: ${pathname}`);
 
+  // Ignorar completamente todas las rutas de API excepto las que necesitamos para verificar permisos por país
   // Permitir rutas de aprobación/rechazo de ventas sin middleware
   if (pathname.match(/^\/api\/sales\/[^/]+\/(approve|reject)$/)) {
     return NextResponse.next();
@@ -98,10 +99,10 @@ export async function middleware(request: NextRequest) {
 
     //console.log(`[MIDDLEWARE] Session found for user: ${user.id}`);
 
-    // 🚀 OPTIMIZACIÓN: Usar cache inteligente pero mantener compatibilidad
-    console.log(
-      `[MIDDLEWARE] 🔍 Obteniendo datos de usuario con cache inteligente`
-    );
+    // Obtener los permisos del usuario utilizando el endpoint API
+    const protocol = request.headers.get("x-forwarded-proto") || "http";
+    const host = request.headers.get("host") || "localhost:3000";
+    const apiUrl = `${protocol}://${host}/api/users/${user.id}?requireAuth=false`;
 
     const userData = await getUserForMiddleware(user.id, request);
 

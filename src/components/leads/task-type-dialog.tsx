@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { TeamCalendar } from "@/components/leads/team-calendar";
 
 interface TaskType {
   id: string;
@@ -132,6 +133,11 @@ export function TaskTypeDialog({
 
   const handleTaskTypeSelect = (taskType: TaskType) => {
     setSelectedTaskType(taskType.id);
+
+    // Si es Test Drive o Cliente visita salon, ir directamente al paso 2 para mostrar calendario
+    if (taskType.id === "test-drive" || taskType.id === "client-visit") {
+      setStep(2);
+    }
   };
 
   const handleNextStep = () => {
@@ -294,6 +300,14 @@ export function TaskTypeDialog({
                 className="h-32 bg-gray-50 dark:bg-gray-800"
               />
             </div>
+
+            {/* Mostrar calendario del equipo para Test Drive y visitas */}
+            {(selectedTaskType === "test-drive" ||
+              selectedTaskType === "client-visit") && (
+              <div className="mt-6">
+                <TeamCalendar selectedDate={date} />
+              </div>
+            )}
           </div>
         )}
 

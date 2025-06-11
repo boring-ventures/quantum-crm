@@ -80,8 +80,13 @@ export const useUserStore = create<UserState>()(
         // Limpiar el storage manualmente
         try {
           if (typeof window !== "undefined") {
-            window.localStorage.removeItem(STORAGE_KEY);
-            window.sessionStorage.removeItem(STORAGE_KEY);
+            // Eliminar específicamente el storage de este store
+            localStorage.removeItem(STORAGE_KEY);
+            sessionStorage.removeItem(STORAGE_KEY);
+
+            // Limpiar también cualquier otra clave que pueda estar relacionada
+            localStorage.removeItem(`${STORAGE_KEY}-v1`);
+            sessionStorage.removeItem(`${STORAGE_KEY}-v1`);
           }
         } catch (error) {
           console.error("Error al limpiar storage:", error);

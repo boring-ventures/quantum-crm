@@ -390,23 +390,32 @@ model Reservation {
 }
 
 model Sale {
-  id              String             @id @default(uuid())
-  createdAt       DateTime           @default(now()) @map("created_at")
-  updatedAt       DateTime           @updatedAt @map("updated_at")
-  leadId          String             @map("lead_id")
-  reservationId   String?            @map("reservation_id")
-  amount          Decimal            @db.Decimal(10, 2)
-  paymentMethod   PaymentMethod      @map("payment_method")
-  saleContractUrl String?            @map("sale_contract_url")
-  additionalNotes String?            @map("additional_notes")
-  status          SalesProcessStatus @default(DRAFT)
-  lead            Lead               @relation(fields: [leadId], references: [id])
-  reservation     Reservation?       @relation(fields: [reservationId], references: [id])
-  currency        Currency           @default(BOB)
+  id                String         @id @default(uuid())
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+  leadId            String         @map("lead_id")
+  reservationId     String?        @map("reservation_id")
+  amount            Decimal        @db.Decimal(10, 2)
+  paymentMethod     PaymentMethod  @map("payment_method")
+  saleContractUrl   String?        @map("sale_contract_url")
+  invoiceUrl        String?        @map("invoice_url")
+  paymentReceiptUrl String?        @map("payment_receipt_url")
+  additionalNotes   String?        @map("additional_notes")
+  saleStatus        SaleStatus     @default(IN_PRODUCTION) @map("sale_status")
+  approvalStatus    ApprovalStatus @default(PENDING) @map("approval_status")
+  rejectionReason   String?        @map("rejection_reason")
+  approvedBy        String?        @map("approved_by")
+  approvedAt        DateTime?      @map("approved_at")
+  rejectedBy        String?        @map("rejected_by")
+  rejectedAt        DateTime?      @map("rejected_at")
+  lead              Lead           @relation(fields: [leadId], references: [id])
+  reservation       Reservation?   @relation(fields: [reservationId], references: [id])
+  currency          Currency       @default(BOB)
 
   @@index([leadId])
   @@index([reservationId])
-  @@index([status])
+  @@index([approvalStatus])
+  @@index([saleStatus])
   @@index([createdAt])
   @@map("sales")
 }
@@ -497,4 +506,17 @@ enum Currency {
   BOB
   USD
   USDT
+}
+
+enum SaleStatus {
+  IN_PRODUCTION
+  IN_STORE
+  INVOICED
+  REFUND_REQUEST
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }

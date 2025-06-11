@@ -77,7 +77,7 @@ export async function POST(req: Request) {
     const dataRows = rawData.slice(1) as any[][];
 
     // Validar headers requeridos
-    const requiredHeaders = ["phone"];
+    const requiredHeaders = ["cellphone"];
     const missingHeaders = requiredHeaders.filter((h) => {
       // Buscar el header ignorando mayúsculas y asteriscos
       return !headers.some(
@@ -282,20 +282,20 @@ async function validateAndCleanRow(rowData: ImportRow, rowIndex: number) {
   const errors: ValidationError[] = [];
   const cleaned: any = {};
 
-  // Buscar el valor de phone considerando diferentes formatos (phone, phone*, etc)
-  const phoneValue = rowData.phone || rowData["phone*"];
+  // Buscar el valor de cellphone
+  const cellphoneValue = rowData.cellphone;
 
-  // Validar phone (requerido)
-  if (!phoneValue || phoneValue.toString().trim() === "") {
+  // Validar cellphone (requerido)
+  if (!cellphoneValue || cellphoneValue.toString().trim() === "") {
     errors.push({
       row: rowIndex,
-      field: "phone",
-      message: "Teléfono es requerido",
-      received: phoneValue,
+      field: "cellphone",
+      message: "Celular es requerido",
+      received: cellphoneValue,
       expected: "string",
     });
   } else {
-    cleaned.phone = phoneValue.toString().trim();
+    cleaned.cellphone = cellphoneValue.toString().trim();
   }
 
   // Validar first_name (opcional)
@@ -380,8 +380,9 @@ async function validateAndCleanRow(rowData: ImportRow, rowIndex: number) {
   }
 
   // Limpiar teléfonos (convertir números a string)
-  if (rowData.cellphone) {
-    cleaned.cellphone = rowData.cellphone.toString().trim();
+  if (rowData.phone || rowData["phone*"]) {
+    const phoneValue = rowData.phone || rowData["phone*"];
+    cleaned.phone = phoneValue ? phoneValue.toString().trim() : "";
   }
 
   // Limpiar campos de texto

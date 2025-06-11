@@ -34,47 +34,105 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const supabase = createClientComponentClient();
 
-  // Fetch user function
-  const fetchUser = async (userId: string) => {
+  // Fetch user function con manejo optimizado de errores y reintentos
+  const fetchUser = async (
+    userId: string,
+    retryCount = 0
+  ): Promise<AppUser | null> => {
     try {
       const response = await fetch(`/api/users/${userId}?requireAuth=false`);
-      if (!response.ok) throw new Error("Error al obtener datos de usuario");
+      if (!response.ok) {
+        if (response.status === 429 && retryCount < 3) {
+          // Esperar tiempo exponencial en caso de rate limit
+          const delay = Math.pow(2, retryCount) * 1000;
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          return fetchUser(userId, retryCount + 1);
+        }
+        throw new Error(
+          `Error al obtener datos de usuario: ${response.status}`
+        );
+      }
       const data = await response.json();
-      setAppUser(data.profile);
+      return data.profile;
     } catch (error) {
       console.error("Error al cargar datos de usuario:", error);
+      return null;
+    }
+  };
+
+  // Inicializar autenticación
+  const initializeAuth = async () => {
+    try {
+      // Usar getUser para verificar estado de autenticación (menos solicitudes)
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser();
+
+      if (!authUser) {
+        setUser(null);
+        setSession(null);
+        setAppUser(null);
+        setIsLoading(false);
+        return;
+      }
+
+      setUser(authUser);
+
+      // Solo obtener la sesión si el usuario está autenticado
+      if (authUser) {
+        const {
+          data: { session: authSession },
+        } = await supabase.auth.getSession();
+        setSession(authSession);
+
+        // Obtener perfil del usuario
+        const profile = await fetchUser(authUser.id);
+        if (profile) {
+          setAppUser(profile);
+        } else {
+          // Si no se puede obtener el perfil, limpiar sesión
+          await supabase.auth.signOut();
+          setUser(null);
+          setSession(null);
+        }
+      }
+    } catch (error) {
+      console.error("Error al inicializar auth:", error);
+      // Limpiar estado en caso de error
+      setUser(null);
+      setSession(null);
       setAppUser(null);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchUser(session.user.id);
-      }
-      setIsLoading(false);
-    });
+    // Ejecutar inicialización
+    initializeAuth();
 
+    // Suscribirse a cambios de autenticación
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_OUT" || !session) {
+        setUser(null);
+        setSession(null);
+        setAppUser(null);
+        router.push("/sign-in");
+        return;
+      }
+
       setSession(session);
-      setUser(session?.user ?? null);
+      setUser(session.user ?? null);
 
       if (session?.user) {
-        await fetchUser(session.user.id);
-      } else {
-        setAppUser(null);
+        const profile = await fetchUser(session.user.id);
+        setAppUser(profile);
       }
 
       setIsLoading(false);
-
-      if (event === "SIGNED_OUT") {
-        router.push("/sign-in");
-      }
     });
 
     return () => {
@@ -84,32 +142,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
+      setIsLoading(true);
+
       // Iniciar sesión con Supabase
       const { error, data } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        if (error.message.includes("Rate limit")) {
+          throw new Error("Demasiados intentos fallidos. Intenta más tarde.");
+        }
+        throw error;
+      }
 
       if (!data.user) {
         throw new Error("No se pudo obtener la información del usuario");
       }
 
-      console.log("data.user (auth)", data.user.id);
-
-      // Obtener datos del usuario usando el endpoint API
-      const response = await fetch(
-        `/api/users/${data.user.id}?requireAuth=false`
-      );
-      if (!response.ok) {
-        const errorData = await response.json();
-        // Limpiar la sesión en caso de error
+      // Obtener datos del usuario
+      const profile = await fetchUser(data.user.id);
+      if (!profile) {
         await supabase.auth.signOut();
-        throw new Error(errorData.error || "Error al obtener datos de usuario");
+        throw new Error("Error al obtener datos de usuario");
       }
-
-      const { profile } = await response.json();
 
       // Verificar que el usuario tiene un rol válido y está activo
       if (!profile.roleId) {
@@ -138,12 +195,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Traducir errores comunes de Supabase a mensajes amigables
       if (error.message.includes("Invalid login credentials")) {
         throw new Error("Email o contraseña incorrectos");
-      } else if (error.message.includes("Too many requests")) {
+      } else if (
+        error.message.includes("Too many requests") ||
+        error.message.includes("Rate limit")
+      ) {
         throw new Error("Demasiados intentos fallidos. Intenta más tarde");
       }
 
       // Lanzar el error original o uno personalizado
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -165,6 +227,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Luego cerramos sesión en Supabase
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+
+      // Limpiar manualmente cualquier caché o storage local adicional
+      if (typeof window !== "undefined") {
+        // Eliminar cualquier otra clave de storage que pueda contener datos de usuario
+        const keysToRemove = [
+          "user-storage",
+          "user-storage-v1",
+          "supabase.auth.token",
+        ];
+        keysToRemove.forEach((key) => {
+          try {
+            localStorage.removeItem(key);
+            sessionStorage.removeItem(key);
+          } catch (e) {
+            // Ignorar errores al limpiar storage
+          }
+        });
+      }
 
       router.replace("/sign-in");
     } catch (error) {

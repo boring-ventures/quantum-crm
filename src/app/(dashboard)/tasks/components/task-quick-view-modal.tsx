@@ -12,16 +12,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import {
-  CheckCircle2,
-  Clock,
-  CalendarIcon,
-  Trash2,
-  Edit,
-  XCircle,
-  AlertTriangle,
-  User,
-} from "lucide-react";
+import { CheckCircle2, Clock, CalendarIcon, Trash2, User } from "lucide-react";
 import { Task, LeadWithRelations } from "@/types/lead";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -40,6 +31,7 @@ import {
   useUpdateTaskStatusMutation,
 } from "@/lib/hooks/use-tasks";
 import { toast } from "@/components/ui/use-toast";
+import { hasPermission, getScope } from "@/lib/utils/permissions";
 
 // Extender el tipo Task para incluir las relaciones que esperamos
 interface TaskWithRelations extends Task {
@@ -59,20 +51,18 @@ interface TaskQuickViewModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   task: TaskWithRelations;
-  onEdit: () => void;
   onDelete: () => void;
   onUpdate: () => void;
-  isManagerRole?: boolean;
+  currentUser?: any;
 }
 
 export function TaskQuickViewModal({
   open,
   onOpenChange,
   task,
-  onEdit,
   onDelete,
   onUpdate,
-  isManagerRole = false,
+  currentUser,
 }: TaskQuickViewModalProps) {
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [isStatusChangeLoading, setIsStatusChangeLoading] = useState(false);
@@ -80,6 +70,39 @@ export function TaskQuickViewModal({
 
   const updateTaskStatusMutation = useUpdateTaskStatusMutation();
   const deleteTaskMutation = useDeleteTaskMutation();
+
+  // Verificar permisos
+  const canEditTasks = hasPermission(currentUser, "tasks", "edit");
+  const canDeleteTasks = hasPermission(currentUser, "tasks", "delete");
+
+  // Obtener el scope de permisos
+  const taskScope = getScope(currentUser, "tasks", "edit");
+
+  // Verificar si el usuario puede modificar esta tarea específica según su scope
+  const canModifyThisTask = () => {
+    if (!canEditTasks) return false;
+
+    // Si no hay usuario actual o tarea, no se puede modificar
+    if (!currentUser || !task) return false;
+
+    // Si scope es 'all', puede modificar cualquier tarea
+    if (taskScope === "all") return true;
+
+    // Si scope es 'self', solo puede modificar tareas asignadas a él
+    if (taskScope === "self") {
+      return task.assignedToId === currentUser.id;
+    }
+
+    // Si scope es 'team', puede modificar tareas de su mismo país
+    if (taskScope === "team" && task.assignedTo && currentUser.countryId) {
+      // Aquí necesitaríamos el país del usuario asignado a la tarea
+      // Como no tenemos el país en el objeto task.assignedTo, asumimos que solo
+      // se puede modificar si está asignada al usuario actual
+      return task.assignedToId === currentUser.id;
+    }
+
+    return false;
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -117,11 +140,10 @@ export function TaskQuickViewModal({
   };
 
   const handleCompleteTask = async () => {
-    if (isManagerRole) {
+    if (!canModifyThisTask()) {
       toast({
         title: "Acción no permitida",
-        description:
-          "Los administradores no pueden cambiar el estado de las tareas",
+        description: "No tienes permiso para modificar esta tarea",
         variant: "destructive",
       });
       return;
@@ -151,42 +173,16 @@ export function TaskQuickViewModal({
     }
   };
 
-  const handleCancelTask = async () => {
-    if (isManagerRole) {
+  const handleDeleteTask = async () => {
+    if (!canDeleteTasks) {
       toast({
         title: "Acción no permitida",
-        description:
-          "Los administradores no pueden cambiar el estado de las tareas",
+        description: "No tienes permiso para eliminar tareas",
         variant: "destructive",
       });
       return;
     }
 
-    try {
-      setIsStatusChangeLoading(true);
-      await updateTaskStatusMutation.mutateAsync({
-        taskId: task.id,
-        leadId: task.leadId,
-        status: "CANCELLED",
-      });
-      onUpdate();
-      onOpenChange(false);
-      toast({
-        title: "Tarea cancelada",
-        description: "La tarea ha sido cancelada",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "No se pudo cancelar la tarea",
-        variant: "destructive",
-      });
-    } finally {
-      setIsStatusChangeLoading(false);
-    }
-  };
-
-  const handleDeleteTask = async () => {
     try {
       setIsDeleteLoading(true);
       await deleteTaskMutation.mutateAsync({
@@ -207,14 +203,10 @@ export function TaskQuickViewModal({
     }
   };
 
-  // Determinar si el botón debe estar deshabilitado
-  const isStatusButtonDisabled = (status: string) => {
+  // Verificar si la tarea se puede completar
+  const canCompleteTask = () => {
     return (
-      isManagerRole || // Si es administrador
-      isStatusChangeLoading || // Si hay una operación en curso
-      task.status === status || // Si ya tiene ese estado
-      task.status === "COMPLETED" || // Si ya está completada
-      task.status === "CANCELLED" // Si ya está cancelada
+      canModifyThisTask() && task.status === "PENDING" && !isStatusChangeLoading
     );
   };
 
@@ -224,7 +216,8 @@ export function TaskQuickViewModal({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-xl">{task.title}</DialogTitle>
-            <DialogDescription className="flex items-center gap-2 pt-1">
+            {/* Reemplazar DialogDescription con div para evitar problema de anidación */}
+            <div className="flex items-center gap-2 pt-1 text-sm text-muted-foreground">
               <Badge
                 variant="outline"
                 className={`${getStatusColor(task.status)} px-2 py-0.5`}
@@ -240,7 +233,7 @@ export function TaskQuickViewModal({
                   </span>
                 </div>
               )}
-            </DialogDescription>
+            </div>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -299,12 +292,20 @@ export function TaskQuickViewModal({
             </div>
           </div>
 
-          <DialogFooter className="sm:justify-between flex flex-wrap gap-2">
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={onEdit}>
-                <Edit className="mr-2 h-4 w-4" />
-                Editar
+          <DialogFooter className="flex justify-end">
+            {task.status === "PENDING" && canCompleteTask() && (
+              <Button
+                size="sm"
+                className="bg-green-600 hover:bg-green-700 text-white"
+                onClick={handleCompleteTask}
+                disabled={isStatusChangeLoading}
+              >
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                Completar
               </Button>
+            )}
+
+            {canDeleteTasks && (
               <Button
                 variant="outline"
                 size="sm"
@@ -314,41 +315,7 @@ export function TaskQuickViewModal({
                 <Trash2 className="mr-2 h-4 w-4" />
                 Eliminar
               </Button>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {task.status === "PENDING" && (
-                <>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-red-500 hover:text-red-600"
-                    onClick={handleCancelTask}
-                    disabled={isStatusButtonDisabled("CANCELLED")}
-                  >
-                    <XCircle className="mr-2 h-4 w-4" />
-                    Cancelar
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                    onClick={handleCompleteTask}
-                    disabled={isStatusButtonDisabled("COMPLETED")}
-                  >
-                    <CheckCircle2 className="mr-2 h-4 w-4" />
-                    Completar
-                  </Button>
-                </>
-              )}
-              {isStatusButtonDisabled("COMPLETED") &&
-                isManagerRole &&
-                task.status === "PENDING" && (
-                  <div className="text-xs text-muted-foreground flex items-center">
-                    <AlertTriangle className="h-3 w-3 mr-1 text-amber-500" />
-                    Solo el vendedor puede cambiar el estado
-                  </div>
-                )}
-            </div>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

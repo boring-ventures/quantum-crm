@@ -11,6 +11,10 @@ interface Sale {
   status: string;
   createdAt: string;
   updatedAt: string;
+  approvalStatus: string;
+  approvedBy?: string;
+  rejectedBy?: string;
+  rejectionReason?: string;
 }
 
 interface CreateSalePayload {
@@ -19,8 +23,21 @@ interface CreateSalePayload {
   amount: number;
   paymentMethod: string;
   saleContractUrl?: string;
+  invoiceUrl?: string;
+  paymentReceiptUrl?: string;
   additionalNotes?: string;
   currency?: string;
+}
+
+interface ApproveSalePayload {
+  saleId: string;
+  approvedBy: string;
+}
+
+interface RejectSalePayload {
+  saleId: string;
+  rejectedBy: string;
+  rejectionReason: string;
 }
 
 // Obtener venta por id de lead
@@ -77,6 +94,73 @@ export function useCreateSaleMutation() {
         queryKey: ["sale", variables.leadId],
       });
       queryClient.invalidateQueries({ queryKey: ["lead", variables.leadId] });
+    },
+  });
+}
+
+// Aprobar venta
+export function useApproveSaleMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: ApproveSalePayload) => {
+      const response = await fetch(`/api/sales/${data.saleId}/approve`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ approvedBy: data.approvedBy }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || errorData.error || "Error al aprobar venta"
+        );
+      }
+
+      return response.json();
+    },
+    onSuccess: (data) => {
+      // Invalidar queries relacionadas
+      queryClient.invalidateQueries({
+        queryKey: ["sale", data.leadId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["lead", data.leadId] });
+      queryClient.invalidateQueries({ queryKey: ["sales"] });
+    },
+  });
+}
+
+// Rechazar venta
+export function useRejectSaleMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: RejectSalePayload) => {
+      const response = await fetch(`/api/sales/${data.saleId}/reject`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rejectedBy: data.rejectedBy,
+          rejectionReason: data.rejectionReason,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || errorData.error || "Error al rechazar venta"
+        );
+      }
+
+      return response.json();
+    },
+    onSuccess: (data) => {
+      // Invalidar queries relacionadas
+      queryClient.invalidateQueries({
+        queryKey: ["sale", data.leadId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["lead", data.leadId] });
+      queryClient.invalidateQueries({ queryKey: ["sales"] });
     },
   });
 }

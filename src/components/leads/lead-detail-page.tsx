@@ -41,6 +41,10 @@ import {
   useLeadQuery,
   useLeadDocuments,
 } from "@/lib/hooks";
+import {
+  useApproveSaleMutation,
+  useRejectSaleMutation,
+} from "@/lib/hooks/use-sales";
 import { useToast } from "@/components/ui/use-toast";
 import {
   Dialog,
@@ -59,11 +63,155 @@ import { LeadStatusSelector } from "@/components/leads/lead-status-selector";
 import { CloseLeadAction } from "@/components/leads/close-lead-action";
 import { TaskDetailsDialog } from "@/components/tasks/task-details-dialog";
 import { QualifyLeadComponent } from "@/components/leads/qualify-lead-component";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { DocumentUploadDialog } from "@/components/leads/document-upload-dialog";
 
 interface LeadDetailPageProps {
   lead: LeadWithRelations;
   onBack: () => void;
   currentUser: any; // Reemplazar isSeller por currentUser
+}
+
+// Componente para el diálogo de confirmación de archivado
+interface ArchiveConfirmDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  lead: LeadWithRelations;
+  onConfirm: () => void;
+}
+
+function ArchiveConfirmDialog({
+  open,
+  onOpenChange,
+  lead,
+  onConfirm,
+}: ArchiveConfirmDialogProps) {
+  const [confirmText, setConfirmText] = useState("");
+  const [isValid, setIsValid] = useState(false);
+
+  useEffect(() => {
+    // Validar si el texto coincide con el celular del lead
+    setIsValid(confirmText === lead.cellphone);
+  }, [confirmText, lead.cellphone]);
+
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent className="bg-background dark:bg-gray-900 border-border dark:border-gray-800">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="text-foreground dark:text-gray-100">
+            Archivar Lead
+          </AlertDialogTitle>
+          <AlertDialogDescription className="text-muted-foreground dark:text-gray-400">
+            Esta acción archivará el lead y lo moverá a la sección de
+            archivados. Los leads archivados no aparecerán en las listas
+            predeterminadas.
+            <br />
+            <br />
+            Para confirmar, ingresa el número de celular del lead:{" "}
+            <span className="font-medium">{lead.cellphone}</span>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="py-4">
+          <Input
+            className="bg-input dark:bg-gray-800 dark:border-gray-700"
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            placeholder="Ingresa el celular del lead para confirmar"
+          />
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel className="bg-transparent dark:bg-gray-800 dark:border-gray-700">
+            Cancelar
+          </AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-amber-600 hover:bg-amber-700 text-white"
+            onClick={onConfirm}
+            disabled={!isValid}
+          >
+            Archivar Lead
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+// Componente para el diálogo de confirmación de eliminación
+interface DeleteConfirmDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  lead: LeadWithRelations;
+  onConfirm: () => void;
+}
+
+function DeleteConfirmDialog({
+  open,
+  onOpenChange,
+  lead,
+  onConfirm,
+}: DeleteConfirmDialogProps) {
+  const [confirmText, setConfirmText] = useState("");
+  const [isValid, setIsValid] = useState(false);
+
+  useEffect(() => {
+    // Validar si el texto coincide con el celular del lead
+    setIsValid(confirmText === lead.cellphone);
+  }, [confirmText, lead.cellphone]);
+
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent className="bg-background dark:bg-gray-900 border-border dark:border-gray-800">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="text-foreground dark:text-gray-100">
+            Eliminar Lead
+          </AlertDialogTitle>
+          <AlertDialogDescription className="text-muted-foreground dark:text-gray-400">
+            Esta acción{" "}
+            <span className="font-semibold text-red-600">
+              eliminará permanentemente
+            </span>{" "}
+            el lead y todos sus datos asociados. Esta acción no se puede
+            deshacer.
+            <br />
+            <br />
+            Para confirmar, ingresa el número de celular del lead:{" "}
+            <span className="font-medium">{lead.cellphone}</span>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="py-4">
+          <Input
+            className="bg-input dark:bg-gray-800 dark:border-gray-700"
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            placeholder="Ingresa el celular del lead para confirmar"
+          />
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel className="bg-transparent dark:bg-gray-800 dark:border-gray-700">
+            Cancelar
+          </AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-red-600 hover:bg-red-700 text-white"
+            onClick={onConfirm}
+            disabled={!isValid}
+          >
+            Eliminar Permanentemente
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
 }
 
 export function LeadDetailPage({
@@ -98,9 +246,13 @@ export function LeadDetailPage({
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
   const [showTaskDetailsDialog, setShowTaskDetailsDialog] = useState(false);
   const [pendingAction, setPendingAction] = useState<null | (() => void)>(null);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
   const updateLeadMutation = useUpdateLeadMutation();
   const deleteLeadMutation = useDeleteLeadMutation();
   const toggleFavoriteMutation = useToggleFavoriteMutation();
+  const approveSaleMutation = useApproveSaleMutation();
+  const rejectSaleMutation = useRejectSaleMutation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: documents, isLoading: isLoadingDocuments } = useLeadDocuments(
@@ -159,12 +311,19 @@ export function LeadDetailPage({
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   };
 
+  // Verificar si el lead está cerrado (solo lectura)
+  const isLeadClosed = lead.isClosed || lead.isArchived;
+
   // Determinamos los permisos del usuario actual
   const canViewLeads = hasPermission(currentUser, "leads", "view");
-  const canEditLeads = hasPermission(currentUser, "leads", "edit");
-  const canDeleteLeads = hasPermission(currentUser, "leads", "delete");
-  const canCreateSales = hasPermission(currentUser, "sales", "create");
-  const canCreateTasks = hasPermission(currentUser, "tasks", "create");
+  const canEditLeads =
+    hasPermission(currentUser, "leads", "edit") && !isLeadClosed;
+  const canDeleteLeads =
+    hasPermission(currentUser, "leads", "delete") && !isLeadClosed;
+  const canCreateSales =
+    hasPermission(currentUser, "sales", "create") && !isLeadClosed;
+  const canCreateTasks =
+    hasPermission(currentUser, "tasks", "create") && !isLeadClosed;
   const canViewTasks = hasPermission(currentUser, "tasks", "view");
 
   // Si el usuario no tiene permiso para ver leads, no mostrar nada
@@ -353,42 +512,67 @@ export function LeadDetailPage({
 
   // Componente para mostrar los documentos
   function LeadDocumentsTab() {
+    const [showDocumentUpload, setShowDocumentUpload] = useState(false);
+
     if (isLoadingDocuments) {
       return <div className="p-6">Cargando documentos...</div>;
     }
-    if (!documents || documents.length === 0) {
-      return (
-        <div className="p-6 text-gray-500">
-          No hay documentos subidos para este lead.
-        </div>
-      );
-    }
+
     return (
       <div className="p-6 space-y-4">
-        <h3 className="text-lg font-semibold mb-4">Archivos subidos</h3>
-        <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-          {documents.map((doc) => (
-            <li key={doc.id} className="flex items-center justify-between py-2">
-              <div>
-                <span className="font-medium text-gray-900 dark:text-gray-100">
-                  {doc.name}
-                </span>
-                <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
-                  ({(doc.size / 1024).toFixed(1)} KB)
-                </span>
-              </div>
-              <a
-                href={doc.url}
-                download={doc.name}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:underline dark:text-blue-400"
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-semibold">Documentos del lead</h3>
+          {canEditLeads && (
+            <Button
+              onClick={() => setShowDocumentUpload(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              size="sm"
+            >
+              Subir documento
+            </Button>
+          )}
+        </div>
+
+        {!documents || documents.length === 0 ? (
+          <div className="text-gray-500 dark:text-gray-400 p-4 bg-gray-50 dark:bg-gray-800 rounded-md">
+            No hay documentos subidos para este lead.
+          </div>
+        ) : (
+          <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+            {documents.map((doc) => (
+              <li
+                key={doc.id}
+                className="flex items-center justify-between py-3"
               >
-                Descargar
-              </a>
-            </li>
-          ))}
-        </ul>
+                <div>
+                  <span className="font-medium text-gray-900 dark:text-gray-100">
+                    {doc.name}
+                  </span>
+                  <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                    ({(doc.size / 1024).toFixed(1)} KB)
+                  </span>
+                </div>
+                <a
+                  href={doc.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline dark:text-blue-400"
+                >
+                  Ver documento
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {/* Diálogo para subir documentos */}
+        {showDocumentUpload && (
+          <DocumentUploadDialog
+            open={showDocumentUpload}
+            onOpenChange={setShowDocumentUpload}
+            leadId={lead.id}
+          />
+        )}
       </div>
     );
   }
@@ -412,10 +596,130 @@ export function LeadDetailPage({
     }
   };
 
+  // Aprobar venta
+  const handleApproveSale = async () => {
+    if (!leadSale || !currentUser?.id) return;
+
+    try {
+      await approveSaleMutation.mutateAsync({
+        saleId: leadSale.id,
+        approvedBy: currentUser.id,
+      });
+
+      toast({
+        title: "Venta aprobada",
+        description: "La venta ha sido aprobada correctamente",
+      });
+    } catch (error) {
+      console.error("Error al aprobar venta:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo aprobar la venta",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Rechazar venta
+  const handleRejectSale = async () => {
+    if (!leadSale || !currentUser?.id || !rejectionReason.trim()) return;
+
+    try {
+      await rejectSaleMutation.mutateAsync({
+        saleId: leadSale.id,
+        rejectedBy: currentUser.id,
+        rejectionReason: rejectionReason.trim(),
+      });
+
+      toast({
+        title: "Venta rechazada",
+        description: "La venta ha sido rechazada",
+      });
+
+      setShowRejectDialog(false);
+      setRejectionReason("");
+    } catch (error) {
+      console.error("Error al rechazar venta:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo rechazar la venta",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Manejar click en tarea
   const handleTaskClick = (taskId: string) => {
     setSelectedTask(taskId);
     setShowTaskDetailsDialog(true);
+  };
+
+  // Archivar el lead
+  const handleArchiveLead = async () => {
+    if (!canEditLeads) return;
+
+    setIsArchiving(true);
+
+    try {
+      await updateLeadMutation.mutateAsync({
+        id: lead.id,
+        data: {
+          isArchived: true,
+        },
+      });
+
+      toast({
+        title: "Lead archivado",
+        description: "El lead ha sido archivado correctamente.",
+      });
+
+      // Redirigir de vuelta a la lista de leads
+      onBack();
+    } catch (error: any) {
+      console.error("Error al archivar el lead:", error);
+      toast({
+        title: "Error al archivar el lead",
+        description:
+          error.message || "Ocurrió un error al intentar archivar el lead.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsArchiving(false);
+      setShowArchiveDialog(false);
+    }
+  };
+
+  // Eliminar el lead
+  const handleDeleteLead = async () => {
+    if (!canDeleteLeads) return;
+
+    setIsDeleting(true);
+
+    try {
+      await deleteLeadMutation.mutateAsync(lead.id);
+
+      toast({
+        title: "Lead eliminado",
+        description: "El lead ha sido eliminado permanentemente.",
+      });
+
+      // Invalidar queries para actualizar listas
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+
+      // Redirigir de vuelta a la lista de leads
+      onBack();
+    } catch (error: any) {
+      console.error("Error al eliminar el lead:", error);
+      toast({
+        title: "Error al eliminar el lead",
+        description:
+          error.message || "Ocurrió un error al intentar eliminar el lead.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+    }
   };
 
   return (
@@ -445,10 +749,27 @@ export function LeadDetailPage({
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {lead.source?.name || "Facebook - Campaña Q4"}
-            {lead.company ? ` - ${lead.company}` : ""}
           </p>
         </div>
       </div>
+
+      {/* Banner para lead cerrado */}
+      {isLeadClosed && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-6">
+          <div className="flex items-center">
+            <LockIcon className="h-5 w-5 text-amber-600 dark:text-amber-400 mr-3" />
+            <div>
+              <h3 className="text-amber-800 dark:text-amber-200 font-medium">
+                {lead.isClosed ? "Lead Cerrado" : "Lead Archivado"}
+              </h3>
+              <p className="text-amber-700 dark:text-amber-300 text-sm">
+                Este lead está en modo de solo lectura. No se pueden realizar
+                acciones de edición, creación de tareas o procesos de venta.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Sección principal */}
@@ -497,7 +818,7 @@ export function LeadDetailPage({
                 >
                   Información
                 </TabsTrigger>
-                {canViewTasks && (
+                {canViewTasks && !isLeadClosed && (
                   <TabsTrigger
                     value="tareas"
                     className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:rounded-none data-[state=active]:shadow-none rounded-none px-6 py-3"
@@ -650,13 +971,9 @@ export function LeadDetailPage({
                 </div>
               </TabsContent>
 
-              {canViewTasks && (
+              {canViewTasks && !isLeadClosed && (
                 <TabsContent value="tareas" className="p-6">
-                  <TaskList
-                    leadId={lead.id}
-                    currentUser={currentUser}
-                    onTaskClick={handleTaskClick}
-                  />
+                  <TaskList leadId={lead.id} currentUser={currentUser} />
                 </TabsContent>
               )}
 
@@ -673,25 +990,28 @@ export function LeadDetailPage({
 
         {/* Sidebar derecho */}
         <div className="lg:w-[350px] space-y-4">
-          {/* Mostrar componente según el estado de calificación */}
-          {canCreateSales && lead.qualification === "NOT_QUALIFIED" && (
-            <QualifyLeadComponent
-              lead={lead}
-              onQualify={(isGoodLead) => {
-                if (isGoodLead) {
-                  // Invalidar el lead para que se actualice con la nueva calificación
-                  queryClient.invalidateQueries({
-                    queryKey: ["leads", lead.id],
-                  });
-                } else {
-                  onBack();
-                }
-              }}
-            />
-          )}
-
-          {/* Proceso de venta - Solo visible para usuarios con permiso de ventas y lead calificado */}
+          {/* Mostrar componente según el estado de calificación - Solo si no está cerrado */}
           {canCreateSales &&
+            !isLeadClosed &&
+            lead.qualification === "NOT_QUALIFIED" && (
+              <QualifyLeadComponent
+                lead={lead}
+                onQualify={(isGoodLead) => {
+                  if (isGoodLead) {
+                    // Invalidar el lead para que se actualice con la nueva calificación
+                    queryClient.invalidateQueries({
+                      queryKey: ["leads", lead.id],
+                    });
+                  } else {
+                    onBack();
+                  }
+                }}
+              />
+            )}
+
+          {/* Proceso de venta - Solo visible para usuarios con permiso de ventas, lead calificado y no cerrado */}
+          {canCreateSales &&
+            !isLeadClosed &&
             (lead.qualification === "GOOD_LEAD" ||
               lead.qualification === "BAD_LEAD") && (
               <Card className="border-gray-200 dark:border-gray-700">
@@ -766,39 +1086,100 @@ export function LeadDetailPage({
 
                       <div className="border-l-2 border-gray-200 dark:border-gray-700 h-5 ml-3.5"></div>
 
-                      <button
-                        onClick={() =>
-                          salesProcess.reservation &&
-                          handleAction(() => setOpenModal("sale"))
-                        }
-                        disabled={!salesProcess.reservation}
-                        className={`w-full flex items-center gap-3 ${salesProcess.reservation ? "hover:bg-gray-50 dark:hover:bg-gray-800" : "cursor-not-allowed"} rounded-md p-2 transition-colors`}
-                      >
-                        {salesProcess.sale ? (
-                          <div className="rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 w-7 h-7 flex items-center justify-center">
-                            <CheckCircle className="h-4 w-4" />
-                          </div>
-                        ) : salesProcess.reservation ? (
-                          <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 w-7 h-7 flex items-center justify-center text-sm">
-                            3
-                          </div>
-                        ) : (
-                          <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 w-7 h-7 flex items-center justify-center text-sm">
-                            <LockIcon className="h-3 w-3" />
+                      <div className="space-y-2">
+                        <button
+                          onClick={() =>
+                            salesProcess.reservation &&
+                            (!leadSale ||
+                              (leadSale as any).approvalStatus ===
+                                "REJECTED") &&
+                            handleAction(() => setOpenModal("sale"))
+                          }
+                          disabled={
+                            !!(
+                              !salesProcess.reservation ||
+                              (leadSale &&
+                                (leadSale as any).approvalStatus !== "REJECTED")
+                            )
+                          }
+                          className={`w-full flex items-center gap-3 ${
+                            salesProcess.reservation &&
+                            (!leadSale ||
+                              leadSale.approvalStatus === "REJECTED")
+                              ? "hover:bg-gray-50 dark:hover:bg-gray-800"
+                              : "cursor-not-allowed"
+                          } rounded-md p-2 transition-colors`}
+                        >
+                          {salesProcess.sale &&
+                          leadSale?.approvalStatus === "APPROVED" ? (
+                            <div className="rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 w-7 h-7 flex items-center justify-center">
+                              <CheckCircle className="h-4 w-4" />
+                            </div>
+                          ) : salesProcess.reservation ? (
+                            <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 w-7 h-7 flex items-center justify-center text-sm">
+                              3
+                            </div>
+                          ) : (
+                            <div className="rounded-full bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 w-7 h-7 flex items-center justify-center text-sm">
+                              <LockIcon className="h-3 w-3" />
+                            </div>
+                          )}
+                          <span
+                            className={`${
+                              salesProcess.sale &&
+                              leadSale?.approvalStatus === "APPROVED"
+                                ? "text-green-600 dark:text-green-400"
+                                : salesProcess.reservation
+                                  ? "text-gray-600 dark:text-gray-300"
+                                  : "text-gray-400 dark:text-gray-500"
+                            }`}
+                          >
+                            Registrar venta
+                          </span>
+                        </button>
+
+                        {/* Estado de aprobación de venta */}
+                        {/* @ts-ignore - Tipos de Prisma actualizándose */}
+                        {leadSale && (
+                          <div className="ml-10 space-y-2">
+                            {leadSale.approvalStatus === "PENDING" && (
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+                                  <span className="text-sm text-yellow-600 dark:text-yellow-400">
+                                    Pendiente de aprobación
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+
+                            {leadSale.approvalStatus === "APPROVED" && (
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                <span className="text-sm text-green-600 dark:text-green-400">
+                                  Venta aprobada
+                                </span>
+                              </div>
+                            )}
+
+                            {leadSale.approvalStatus === "REJECTED" && (
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                                  <span className="text-sm text-red-600 dark:text-red-400">
+                                    Venta rechazada
+                                  </span>
+                                </div>
+                                {leadSale.rejectionReason && (
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 ml-4">
+                                    Motivo: {leadSale.rejectionReason}
+                                  </p>
+                                )}
+                              </div>
+                            )}
                           </div>
                         )}
-                        <span
-                          className={`${
-                            salesProcess.sale
-                              ? "text-green-600 dark:text-green-400"
-                              : salesProcess.reservation
-                                ? "text-gray-600 dark:text-gray-300"
-                                : "text-gray-400 dark:text-gray-500"
-                          }`}
-                        >
-                          Registrar venta
-                        </span>
-                      </button>
+                      </div>
                     </div>
                   )}
                 </CardContent>
@@ -868,9 +1249,14 @@ export function LeadDetailPage({
                             onClick={() =>
                               handleAction(() => setShowArchiveDialog(true))
                             }
+                            disabled={isArchiving}
                           >
-                            <Archive className="mr-3 h-5 w-5 text-gray-500" />
-                            Archivar lead
+                            {isArchiving ? (
+                              <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                            ) : (
+                              <Archive className="mr-3 h-5 w-5 text-gray-500" />
+                            )}
+                            {isArchiving ? "Archivando..." : "Archivar lead"}
                           </Button>
 
                           <Button
@@ -891,9 +1277,14 @@ export function LeadDetailPage({
                           onClick={() =>
                             handleAction(() => setShowDeleteDialog(true))
                           }
+                          disabled={isDeleting}
                         >
-                          <Trash2 className="mr-3 h-5 w-5" />
-                          Eliminar lead
+                          {isDeleting ? (
+                            <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                          ) : (
+                            <Trash2 className="mr-3 h-5 w-5" />
+                          )}
+                          {isDeleting ? "Eliminando..." : "Eliminar lead"}
                         </Button>
                       )}
 
@@ -930,7 +1321,7 @@ export function LeadDetailPage({
           <Card className="border-gray-200 dark:border-gray-700">
             <CardContent className="p-6">
               <h3 className="text-lg font-medium mb-4">Estado actual</h3>
-              {canEditLeads ? (
+              {canEditLeads && !isLeadClosed ? (
                 <LeadStatusSelector
                   leadId={lead.id}
                   currentStatusId={lead.statusId}
@@ -962,8 +1353,8 @@ export function LeadDetailPage({
         </div>
       </div>
 
-      {/* Modales para el proceso de venta - Solo para usuarios con permisos */}
-      {canCreateSales && (
+      {/* Modales para el proceso de venta - Solo para usuarios con permisos y leads no cerrados */}
+      {canCreateSales && !isLeadClosed && (
         <>
           <QuotationDialog
             open={openModal === "quotation"}
@@ -991,7 +1382,7 @@ export function LeadDetailPage({
         </>
       )}
 
-      {canCreateTasks && (
+      {canCreateTasks && !isLeadClosed && (
         <TaskTypeDialog
           open={openTaskDialog}
           onOpenChange={setOpenTaskDialog}
@@ -1039,8 +1430,70 @@ export function LeadDetailPage({
             setShowTaskDetailsDialog(false);
             setSelectedTask(null);
           }}
+          currentUser={currentUser}
         />
       )}
+
+      {/* Diálogo de confirmación de archivado */}
+      <ArchiveConfirmDialog
+        open={showArchiveDialog}
+        onOpenChange={setShowArchiveDialog}
+        lead={lead}
+        onConfirm={handleArchiveLead}
+      />
+
+      {/* Diálogo de confirmación de eliminación */}
+      <DeleteConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        lead={lead}
+        onConfirm={handleDeleteLead}
+      />
+
+      {/* Diálogo de rechazo de venta */}
+      <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rechazar Venta</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Motivo del rechazo</Label>
+              <Textarea
+                placeholder="Ingresa el motivo por el cual se rechaza la venta..."
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                className="min-h-[100px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowRejectDialog(false);
+                setRejectionReason("");
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleRejectSale}
+              disabled={!rejectionReason.trim() || rejectSaleMutation.isPending}
+            >
+              {rejectSaleMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Rechazando...
+                </>
+              ) : (
+                "Rechazar Venta"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

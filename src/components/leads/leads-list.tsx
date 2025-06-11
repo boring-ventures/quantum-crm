@@ -26,7 +26,6 @@ export type Lead = {
   lastName: string;
   email?: string;
   phone?: string;
-  company?: string;
   source?: {
     id: string;
     name: string;
@@ -54,6 +53,9 @@ interface LeadCardProps {
 function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
   const canReadLeads = hasPermission(currentUser, "leads", "view");
   const canUpdateLeads = hasPermission(currentUser, "leads", "edit");
+
+  // Verificar si el lead está cerrado
+  const isLeadClosed = lead.isClosed || lead.isArchived;
 
   const { data: updatedLead, isLoading: isLoadingUpdatedLead } = useLeadQuery(
     lead.id
@@ -85,6 +87,20 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
         const dateB = new Date(b.scheduledFor as string);
         return dateA.getTime() - dateB.getTime();
       })[0];
+  }, [tasks]);
+
+  // Verificar si el lead tiene tareas vencidas
+  const hasOverdueTasks = useMemo(() => {
+    if (!tasks || tasks.length === 0) return false;
+
+    const now = new Date();
+    return tasks.some((task) => {
+      if (task.status === "COMPLETED") return false;
+      if (!task.scheduledFor) return false;
+
+      const taskDate = new Date(task.scheduledFor);
+      return taskDate < now;
+    });
   }, [tasks]);
 
   // Manejar el clic fuera para cerrar el dropdown
@@ -179,8 +195,12 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
   return (
     <>
       <div
-        className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-4 mb-4 transition-all hover:-translate-y-1 hover:shadow-md cursor-pointer relative ${
+        className={`bg-white dark:bg-gray-800 border rounded-md p-4 mb-4 transition-all hover:-translate-y-1 hover:shadow-md cursor-pointer relative ${
           isLoadingUpdatedLead ? "opacity-50" : ""
+        } ${
+          hasOverdueTasks
+            ? "border-red-500 dark:border-red-400"
+            : "border-gray-200 dark:border-gray-700"
         }`}
         onClick={handleCardClick}
       >
@@ -193,21 +213,35 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
           <div className="flex space-x-3">
             <Avatar className="h-14 w-14 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-700">
               <AvatarFallback className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 text-lg">
-                {lead.firstName.charAt(0)}
-                {lead.lastName.charAt(0)}
+                {lead.firstName && lead.lastName
+                  ? `${lead.firstName.charAt(0)}${lead.lastName.charAt(0)}`
+                  : lead.firstName
+                    ? lead.firstName.charAt(0)
+                    : lead.lastName
+                      ? lead.lastName.charAt(0)
+                      : "NN"}
               </AvatarFallback>
             </Avatar>
             <div>
               <div className="flex items-center">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  {lead.firstName} {lead.lastName}
+                  {lead.firstName && lead.lastName
+                    ? `${lead.firstName} ${lead.lastName}`
+                    : lead.firstName
+                      ? lead.firstName
+                      : lead.lastName
+                        ? lead.lastName
+                        : "Lead sin nombre"}
                 </h3>
                 <Star
-                  className={`h-5 w-5 ml-2 cursor-pointer ${
+                  className={`h-5 w-5 ml-2 ${
+                    isLeadClosed ? "cursor-default" : "cursor-pointer"
+                  } ${
                     isFavorite
                       ? "fill-yellow-400 text-yellow-400"
                       : "text-gray-400"
                   }`}
+                  onClick={!isLeadClosed ? handleToggleFavorite : undefined}
                 />
                 {lead.qualityScore && (
                   <Badge
@@ -218,7 +252,7 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
                 )}
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                {lead.source?.name} {lead.company ? `- ${lead.company}` : ""}
+                {lead.source?.name}
               </p>
             </div>
           </div>
@@ -265,7 +299,19 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
                       </button>
                     </li>
                   )}
-                  {canUpdateLeads && (
+                  <li>
+                    <button
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowDropdown(false);
+                        window.open(`/leads/${lead.id}`, "_blank");
+                      }}
+                    >
+                      Abrir en nueva pestaña
+                    </button>
+                  </li>
+                  {canUpdateLeads && !isLeadClosed && (
                     <>
                       <li>
                         <button
@@ -350,7 +396,7 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
                   : "Sin calificar"}
             </span>
           </div>
-          {lead.phone && (
+          {lead.cellphone && (
             <div className="flex items-center">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -366,7 +412,7 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
               >
                 <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
               </svg>
-              {lead.phone}
+              {lead.cellphone}
             </div>
           )}
         </div>
@@ -529,11 +575,17 @@ export function LeadsList({
 
   if (!data?.items || data.items.length === 0) {
     return (
-      <div className="text-center py-10">
-        <p className="text-gray-400">No se encontraron leads.</p>
-        <p className="text-gray-500 text-sm mt-1">
-          Crea un nuevo lead para comenzar.
-        </p>
+      <div className="text-center py-10 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6">
+        <div className="flex flex-col items-center gap-2">
+          <Package className="h-12 w-12 text-gray-400" />
+          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+            No hay leads disponibles
+          </h3>
+          <p className="text-gray-500 text-sm max-w-md">
+            No se encontraron leads con los filtros de búsqueda actuales. Prueba
+            ajustar los filtros o navegar a otra página.
+          </p>
+        </div>
       </div>
     );
   }
@@ -567,18 +619,12 @@ export function LeadsList({
   // Paso 3: Aplicar filtro según el tipo seleccionado
   switch (filterType) {
     case "no-management":
-      // Leads sin cotizaciones, ventas o reservas
+      // Leads sin tareas y que no estén cerrados/archivados
       filteredLeads = filteredLeads.filter(
         (lead) =>
-          (!lead.quotations || lead.quotations.length === 0) &&
-          (!lead.reservations || lead.reservations.length === 0) &&
-          (!lead.sales || lead.sales.length === 0)
-      );
-      break;
-    case "no-tasks":
-      // Leads sin tareas - Ahora usando tasks de la relación
-      filteredLeads = filteredLeads.filter(
-        (lead) => !lead.tasks || lead.tasks.length === 0
+          (!lead.tasks || lead.tasks.length === 0) &&
+          !lead.isClosed &&
+          !lead.isArchived
       );
       break;
     case "today-tasks":
@@ -620,11 +666,26 @@ export function LeadsList({
       // Leads marcados como favoritos
       filteredLeads = filteredLeads.filter((lead) => lead.isFavorite);
       break;
+    case "closed-leads":
+      // Solo leads cerrados (ya filtrados por estado en el paso 1)
+      break;
     case "my-leads":
       // Leads asignados al usuario actual
       filteredLeads = filteredLeads.filter(
         (lead) => lead.assignedToId === currentUser?.id
       );
+      break;
+    case "all":
+    default:
+      // Para el tab "all", ordenar para que los leads cerrados aparezcan al final
+      if (leadStatus === "active") {
+        filteredLeads = filteredLeads.sort((a, b) => {
+          // Primero los leads activos, después los cerrados
+          if (a.isClosed && !b.isClosed) return 1;
+          if (!a.isClosed && b.isClosed) return -1;
+          return 0;
+        });
+      }
       break;
   }
 
@@ -643,20 +704,28 @@ export function LeadsList({
         lead.firstName.toLowerCase().includes(search) ||
         lead.lastName.toLowerCase().includes(search) ||
         (lead.email && lead.email.toLowerCase().includes(search)) ||
-        (lead.phone && lead.phone.toLowerCase().includes(search)) ||
-        (lead.company && lead.company.toLowerCase().includes(search))
+        (lead.cellphone && lead.cellphone.toLowerCase().includes(search))
     );
   }
 
   if (filteredLeads.length === 0) {
     return (
-      <div className="text-center py-10">
-        <p className="text-gray-400">
-          No se encontraron leads que coincidan con los criterios.
-        </p>
-        <p className="text-gray-500 text-sm mt-1">
-          Prueba con otros filtros o crea nuevos leads.
-        </p>
+      <div className="text-center py-10 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6">
+        <div className="flex flex-col items-center gap-2">
+          <Package className="h-12 w-12 text-gray-400" />
+          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+            No hay leads en esta categoría
+          </h3>
+          <p className="text-gray-500 text-sm max-w-md">
+            Los filtros de pestañas solo aplican a los {pageSize} leads cargados
+            en esta página. Si buscas algo específico, prueba cambiar de página
+            o usar la búsqueda por texto.
+          </p>
+          <div className="text-xs text-muted-foreground mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded border-l-4 border-blue-500">
+            💡 Tip: Los filtros solo aplican a los leads visibles en la página
+            actual
+          </div>
+        </div>
       </div>
     );
   }
@@ -670,11 +739,17 @@ export function LeadsList({
         ))
       ) : filteredLeads.length === 0 ? (
         // Mostrar mensaje cuando no hay leads
-        <div className="text-center py-10">
-          <h3 className="text-lg font-medium">No hay leads disponibles</h3>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">
-            No se encontraron leads con los criterios actuales.
-          </p>
+        <div className="text-center py-10 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6">
+          <div className="flex flex-col items-center gap-2">
+            <Package className="h-12 w-12 text-gray-400" />
+            <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+              No hay leads disponibles
+            </h3>
+            <p className="text-gray-500 text-sm max-w-md">
+              No se encontraron leads con los criterios actuales en esta página.
+              Prueba navegar a otra página o ajustar los filtros.
+            </p>
+          </div>
         </div>
       ) : (
         // Mostrar lista de leads

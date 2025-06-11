@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -16,8 +16,9 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
-import { hasPermission, getScope } from "@/lib/utils/permissions";
+import { getScope } from "@/lib/utils/permissions";
 import { useToast } from "@/components/ui/use-toast";
+import { useQuery } from "@tanstack/react-query";
 import type { User } from "@/types/user";
 
 interface ReassignLeadDialogProps {
@@ -40,8 +41,6 @@ export function ReassignLeadDialog({
   isBulkReassign = false,
 }: ReassignLeadDialogProps) {
   const { toast } = useToast();
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(false);
   const [selecting, setSelecting] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [search, setSearch] = useState("");
@@ -50,62 +49,47 @@ export function ReassignLeadDialog({
   // Obtener el scope de permisos del usuario actual
   const userScope = getScope(currentUser, "leads", "edit");
 
-  // Cargar usuarios activos con permiso de editar leads según el scope
-  useEffect(() => {
-    if (!open) return;
-    setLoading(true);
-
-    // Construir los parámetros de la consulta según el scope
+  // Construir el parámetro de consulta según el scope
+  const getUsersQueryParams = () => {
     const params = new URLSearchParams();
-    params.append("hasPermission", "leads.edit");
+    params.append("active", "true");
 
-    // Filtrar por país si el scope es "team"
-    if (userScope === "team" && currentUser.countryId) {
+    if (userScope === "team" && currentUser?.countryId) {
+      // Para scope "team", filtrar por país
       params.append("countryId", currentUser.countryId);
+    } else if (userScope === "self" && currentUser?.countryId) {
+      // Para scope "self", filtrar por país y usuarios self
+      params.append("countryId", currentUser.countryId);
+      params.append("scope", "self");
     }
 
-    // Agregar scope como parámetro
-    params.append("scope", userScope || "self");
+    return params.toString() ? `?${params.toString()}` : "";
+  };
 
-    fetch(`/api/users?${params.toString()}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.users) return setUsers([]);
-        // Filtrar usuarios según las reglas de scope
-        const filtered = data.users.filter((u: User) => {
+  // Consulta para obtener los usuarios
+  const { data: usersData, isLoading: loading } = useQuery({
+    queryKey: ["users", userScope, currentUser?.countryId],
+    queryFn: async () => {
+      const response = await fetch(`/api/users/all${getUsersQueryParams()}`);
+      if (!response.ok) throw new Error("Error al cargar usuarios");
+      return response.json();
+    },
+    enabled: open, // Solo ejecutar cuando el diálogo esté abierto
+  });
+
+  // Filtrar usuarios según el criterio de búsqueda y excluir el usuario actual y el asignado
+  const filteredUsers = usersData?.users
+    ? usersData.users.filter(
+        (u: User) =>
           // No mostrar el usuario actual
-          if (u.id === currentUser.id) return false;
-
+          u.id !== currentUser.id &&
           // No mostrar el usuario actualmente asignado
-          if (u.id === assignedToId) return false;
-
-          // Verificar que el usuario esté activo
-          if (!u.isActive) return false;
-
-          // Verificar permisos según el scope
-          const userPermScope = getScope(u, "leads", "edit");
-
-          switch (userScope) {
-            case "all":
-              return true; // Puede ver todos
-            case "team":
-              // Solo usuarios del mismo país con scope self o team
-              return (
-                u.countryId === currentUser.countryId &&
-                (userPermScope === "self" || userPermScope === "team")
-              );
-            case "self":
-              // Solo usuarios con scope self
-              return userPermScope === "self";
-            default:
-              return false;
-          }
-        });
-        setUsers(filtered);
-      })
-      .catch(() => setUsers([]))
-      .finally(() => setLoading(false));
-  }, [open, assignedToId, currentUser, userScope]);
+          u.id !== assignedToId &&
+          // Filtrar por texto de búsqueda
+          (u.name?.toLowerCase().includes(search.toLowerCase()) ||
+            u.email?.toLowerCase().includes(search.toLowerCase()))
+      )
+    : [];
 
   const handleReassign = async () => {
     if (!selectedUserId) return;
@@ -156,12 +140,6 @@ export function ReassignLeadDialog({
     }
   };
 
-  const filteredUsers = users.filter(
-    (u) =>
-      u.name.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase())
-  );
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[400px]">
@@ -192,7 +170,7 @@ export function ReassignLeadDialog({
                 <SelectValue placeholder="Selecciona un usuario" />
               </SelectTrigger>
               <SelectContent className="max-h-60 overflow-y-auto">
-                {filteredUsers.map((u) => (
+                {filteredUsers.map((u: User) => (
                   <SelectItem key={u.id} value={u.id}>
                     {u.name}{" "}
                     <span className="text-xs text-gray-400">({u.email})</span>

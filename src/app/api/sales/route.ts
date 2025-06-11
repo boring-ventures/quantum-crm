@@ -10,7 +10,15 @@ const createSaleSchema = z.object({
   paymentMethod: z.enum(["CASH", "CARD", "TRANSFER", "CHECK", "FINANCING"], {
     errorMap: () => ({ message: "Método de pago inválido" }),
   }),
-  saleContractUrl: z.string().url("URL del contrato de venta inválida"),
+  saleContractUrl: z
+    .string()
+    .url("URL del contrato de venta inválida")
+    .optional(),
+  invoiceUrl: z.string().url("URL de la factura inválida").optional(),
+  paymentReceiptUrl: z
+    .string()
+    .url("URL del comprobante de pago inválida")
+    .optional(),
   additionalNotes: z.string().optional(),
   currency: z.enum(["BOB", "USD", "USDT"]).optional(),
 });
@@ -63,9 +71,12 @@ export async function POST(request: NextRequest) {
           amount: validatedData.amount,
           paymentMethod: validatedData.paymentMethod,
           saleContractUrl: validatedData.saleContractUrl,
+          invoiceUrl: validatedData.invoiceUrl,
+          paymentReceiptUrl: validatedData.paymentReceiptUrl,
           additionalNotes: validatedData.additionalNotes,
           currency: validatedData.currency || "BOB",
-          status: "COMPLETED",
+          saleStatus: "IN_PRODUCTION", // Estado inicial de la venta
+          approvalStatus: "PENDING", // Requiere aprobación
         },
       });
 

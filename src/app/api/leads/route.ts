@@ -65,6 +65,8 @@ export async function GET(request: NextRequest) {
         { firstName: { contains: search, mode: "insensitive" } },
         { lastName: { contains: search, mode: "insensitive" } },
         { email: { contains: search, mode: "insensitive" } },
+        { phone: { contains: search, mode: "insensitive" } },
+        { cellphone: { contains: search, mode: "insensitive" } },
       ];
     }
 
@@ -125,7 +127,11 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Error fetching leads:", error);
     return NextResponse.json(
-      { error: "Error al obtener los leads" },
+      {
+        success: false,
+        error:
+          error instanceof Error ? error.message : "Error al obtener los leads",
+      },
       { status: 500 }
     );
   }
@@ -254,6 +260,7 @@ export async function POST(request: NextRequest) {
             productId: validatedData.productId,
             assignedToId: validatedData.assignedToId,
             isArchived: validatedData.isArchived || false,
+            extraComments: validatedData.extraComments,
           },
           include: {
             status: true,

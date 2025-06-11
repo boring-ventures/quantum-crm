@@ -34,18 +34,23 @@ import type {
   UpdateLeadPayload,
   Product,
 } from "@/types/lead";
+import { Search } from "lucide-react";
 
 // Esquema de validación para el formulario
 const editLeadSchema = z.object({
-  firstName: z.string().min(1, "El nombre es requerido"),
-  lastName: z.string().min(1, "El apellido es requerido"),
-  email: z.string().email("Email inválido").optional().nullable(),
+  firstName: z.string().optional().nullable(),
+  lastName: z.string().optional().nullable(),
+  email: z
+    .string()
+    .optional()
+    .nullable()
+    .or(z.string().email("Email inválido")),
   phone: z.string().optional().nullable(),
-  cellphone: z.string().optional().nullable(),
+  cellphone: z.string().min(1, "El celular es requerido"),
   productId: z.string().optional().nullable(),
   statusId: z.string().min(1, "El estado es requerido"),
   sourceId: z.string().min(1, "La fuente es requerida"),
-  interest: z.string().optional().nullable(),
+  qualityScore: z.string().optional().nullable(),
   extraComments: z.string().optional().nullable(),
 });
 
@@ -64,11 +69,25 @@ export function EditLeadDialog({
 }: EditLeadDialogProps) {
   const { toast } = useToast();
   const [isPending, setIsPending] = useState(false);
+  const [currentStep, setCurrentStep] = useState<
+    "personal" | "contact" | "business"
+  >("personal");
+
+  // Búsqueda para dropdowns
+  const [searchProduct, setSearchProduct] = useState("");
+  const [searchSource, setSearchSource] = useState("");
+  const [searchStatus, setSearchStatus] = useState("");
+
+  const [sourceDropdownOpen, setSourceDropdownOpen] = useState(false);
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+  const [productDropdownOpen, setProductDropdownOpen] = useState(false);
 
   // Obtener datos necesarios para el formulario
   const { data: statuses, isLoading: isLoadingStatuses } = useLeadStatuses();
   const { data: sources, isLoading: isLoadingSources } = useLeadSources();
-  const { data: products, isLoading: isLoadingProducts } = useProducts();
+  const { data: products, isLoading: isLoadingProducts } = useProducts({
+    limit: 1000,
+  });
   const updateLeadMutation = useUpdateLeadMutation();
 
   // Configurar el formulario con react-hook-form
@@ -87,7 +106,7 @@ export function EditLeadDialog({
       phone: "",
       cellphone: "",
       productId: "",
-      interest: "",
+      qualityScore: "",
       statusId: "",
       sourceId: "",
       extraComments: "",
@@ -102,8 +121,19 @@ export function EditLeadDialog({
       setValue("email", lead.email || "");
       setValue("phone", lead.phone || "");
       setValue("cellphone", lead.cellphone || "");
-      setValue("productId", lead.product || "");
-      setValue("interest", lead.qualityScore?.toString() || "");
+
+      // Manejar correctamente el producto según su tipo
+      if (lead.product) {
+        if (typeof lead.product === "string") {
+          setValue("productId", lead.product);
+        } else if (typeof lead.product === "object" && "id" in lead.product) {
+          setValue("productId", (lead.product as any).id);
+        }
+      } else {
+        setValue("productId", "");
+      }
+
+      setValue("qualityScore", lead.qualityScore?.toString() || "");
       setValue("statusId", lead.statusId);
       setValue("sourceId", lead.sourceId);
       setValue("extraComments", lead.extraComments || "");
@@ -123,6 +153,41 @@ export function EditLeadDialog({
       product.id.trim() !== ""
   );
 
+  // Filtrar los dropdowns según la búsqueda
+  const filteredProducts = products?.filter(
+    (product: Product) =>
+      product &&
+      product.id &&
+      product.name?.toLowerCase().includes(searchProduct.toLowerCase())
+  );
+
+  const filteredSources = sources?.filter((source) =>
+    source.name?.toLowerCase().includes(searchSource.toLowerCase())
+  );
+
+  const filteredStatuses = statuses?.filter((status) =>
+    status.name?.toLowerCase().includes(searchStatus.toLowerCase())
+  );
+
+  // Para cada autocomplete, usar un estado para el texto de búsqueda y mostrar el nombre seleccionado cuando el dropdown está cerrado
+  // Fuente
+  const selectedSource = sources?.find((s) => s.id === watchedSourceId);
+  const sourceInputValue = sourceDropdownOpen
+    ? searchSource
+    : selectedSource?.name || "";
+
+  // Estado
+  const selectedStatus = statuses?.find((s) => s.id === watchedStatusId);
+  const statusInputValue = statusDropdownOpen
+    ? searchStatus
+    : selectedStatus?.name || "";
+
+  // Producto
+  const selectedProduct = products?.find((p) => p.id === watchedProductId);
+  const productInputValue = productDropdownOpen
+    ? searchProduct
+    : selectedProduct?.name || "";
+
   // Manejar el envío del formulario
   const onSubmit = async (data: FormData) => {
     if (!lead) return;
@@ -132,8 +197,17 @@ export function EditLeadDialog({
     try {
       // Limpiar valores "none" por vacíos antes de enviar
       const cleanedData = {
-        ...data,
-        productId: data.productId === "none" ? null : data.productId || null,
+        firstName: data.firstName || "",
+        lastName: data.lastName || "",
+        email: data.email || null,
+        phone: data.phone || null,
+        cellphone: data.cellphone,
+        productId:
+          data.productId === "none" || !data.productId ? null : data.productId,
+        statusId: data.statusId,
+        sourceId: data.sourceId,
+        qualityScore: data.qualityScore ? parseInt(data.qualityScore) : null,
+        extraComments: data.extraComments || null,
       };
 
       await updateLeadMutation.mutateAsync({
@@ -161,249 +235,471 @@ export function EditLeadDialog({
     }
   };
 
+  // Manejar la navegación entre pasos
+  const handleNextStep = () => {
+    if (currentStep === "personal") setCurrentStep("contact");
+    else if (currentStep === "contact") setCurrentStep("business");
+  };
+
+  // Manejar la navegación hacia atrás
+  const handlePrevStep = () => {
+    if (currentStep === "business") setCurrentStep("contact");
+    else if (currentStep === "contact") setCurrentStep("personal");
+  };
+
   // Si no hay lead, no mostrar nada
   if (!lead) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] bg-gray-900 border-gray-800 max-h-[90vh] flex flex-col [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <DialogContent className="sm:max-w-[600px] bg-background border-border dark:bg-gray-900 dark:border-gray-800 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold text-gray-100">
+          <DialogTitle className="text-xl font-semibold text-foreground dark:text-gray-100">
             Editar Lead
           </DialogTitle>
         </DialogHeader>
 
-        <form
-          onSubmit={handleSubmit(onSubmit)}
-          className="flex-1 overflow-y-auto space-y-4 mt-4 px-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
-        >
-          {/* Resto del contenido del formulario sin cambios */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="firstName">
-                Nombre <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="firstName"
-                placeholder="Nombre"
-                className="bg-gray-800 border-gray-700"
-                {...register("firstName")}
-              />
-              {errors.firstName && (
-                <p className="text-red-500 text-xs">
-                  {errors.firstName.message}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="lastName">
-                Apellido <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="lastName"
-                placeholder="Apellido"
-                className="bg-gray-800 border-gray-700"
-                {...register("lastName")}
-              />
-              {errors.lastName && (
-                <p className="text-red-500 text-xs">
-                  {errors.lastName.message}
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="email@ejemplo.com"
-                className="bg-gray-800 border-gray-700"
-                {...register("email")}
-              />
-              {errors.email && (
-                <p className="text-red-500 text-xs">{errors.email.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="phone">Teléfono fijo</Label>
-              <Input
-                id="phone"
-                placeholder="+591 12345678"
-                className="bg-gray-800 border-gray-700"
-                {...register("phone")}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="cellphone">Teléfono móvil</Label>
-            <Input
-              id="cellphone"
-              placeholder="+591 71234567"
-              className="bg-gray-800 border-gray-700"
-              {...register("cellphone")}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="status">
-              Estado <span className="text-red-500">*</span>
-            </Label>
-            <Select
-              value={watchedStatusId}
-              onValueChange={(value) => setValue("statusId", value)}
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-4">
+          <div className="flex w-full border-b border-border dark:border-gray-800">
+            <div
+              className={`py-2 px-4 cursor-pointer font-medium ${
+                currentStep === "personal"
+                  ? "border-b-2 border-primary text-primary"
+                  : "text-muted-foreground"
+              }`}
+              onClick={() => setCurrentStep("personal")}
             >
-              <SelectTrigger className="bg-gray-800 border-gray-700">
-                <SelectValue placeholder="Seleccionar estado">
-                  {watchedStatusId && statuses && (
-                    <div className="flex items-center">
-                      <div
-                        className="w-2 h-2 rounded-full mr-2"
-                        style={{
-                          backgroundColor: statuses.find(
-                            (s) => s.id === watchedStatusId
-                          )?.color,
-                        }}
-                      />
-                      {statuses.find((s) => s.id === watchedStatusId)?.name}
+              Información Personal
+            </div>
+            <div
+              className={`py-2 px-4 cursor-pointer font-medium ${
+                currentStep === "contact"
+                  ? "border-b-2 border-primary text-primary"
+                  : "text-muted-foreground"
+              }`}
+              onClick={() => setCurrentStep("contact")}
+            >
+              Contacto
+            </div>
+            <div
+              className={`py-2 px-4 cursor-pointer font-medium ${
+                currentStep === "business"
+                  ? "border-b-2 border-primary text-primary"
+                  : "text-muted-foreground"
+              }`}
+              onClick={() => setCurrentStep("business")}
+            >
+              Negocio
+            </div>
+          </div>
+
+          {/* Paso 1: Información Personal */}
+          {currentStep === "personal" && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">Nombre</Label>
+                  <Input
+                    id="firstName"
+                    placeholder="Nombre"
+                    className="bg-input dark:bg-gray-800 dark:border-gray-700"
+                    {...register("firstName")}
+                    disabled={isPending}
+                  />
+                  {errors.firstName && (
+                    <p className="text-red-500 text-xs">
+                      {errors.firstName.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Apellido</Label>
+                  <Input
+                    id="lastName"
+                    placeholder="Apellido"
+                    className="bg-input dark:bg-gray-800 dark:border-gray-700"
+                    {...register("lastName")}
+                    disabled={isPending}
+                  />
+                  {errors.lastName && (
+                    <p className="text-red-500 text-xs">
+                      {errors.lastName.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Teléfono</Label>
+                  <Input
+                    id="phone"
+                    placeholder="+591 12345678"
+                    className="bg-input dark:bg-gray-800 dark:border-gray-700"
+                    {...register("phone")}
+                    disabled={isPending}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="cellphone">
+                    Celular <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="cellphone"
+                    placeholder="+591 71234567"
+                    className="bg-input dark:bg-gray-800 dark:border-gray-700"
+                    {...register("cellphone")}
+                    disabled={isPending}
+                  />
+                  {errors.cellphone && (
+                    <p className="text-red-500 text-xs">
+                      {errors.cellphone.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="ejemplo@correo.com"
+                  className="bg-input dark:bg-gray-800 dark:border-gray-700"
+                  {...register("email")}
+                  disabled={isPending}
+                />
+                {errors.email && (
+                  <p className="text-red-500 text-xs">{errors.email.message}</p>
+                )}
+              </div>
+
+              <DialogFooter className="pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  className="bg-transparent dark:bg-gray-800 dark:border-gray-700"
+                  disabled={isPending}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleNextStep}
+                  className="bg-blue-600 hover:bg-blue-700"
+                  disabled={isPending}
+                >
+                  Siguiente
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+
+          {/* Paso 2: Contacto */}
+          {currentStep === "contact" && (
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="sourceId">
+                  Fuente <span className="text-red-500">*</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    placeholder="Buscar fuente..."
+                    value={sourceInputValue}
+                    onChange={(e) => {
+                      setSearchSource(e.target.value);
+                      setSourceDropdownOpen(true);
+                      if (e.target.value === "") setValue("sourceId", "");
+                    }}
+                    className="bg-input dark:bg-gray-800 dark:border-gray-700 mb-2 pl-8"
+                    aria-label="Buscar fuente"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        if (searchSource && filteredSources?.length === 1) {
+                          setValue("sourceId", filteredSources[0].id);
+                          setSearchSource("");
+                          setSourceDropdownOpen(false);
+                          e.preventDefault();
+                        } else if (!searchSource) {
+                          setSourceDropdownOpen(true);
+                        }
+                      }
+                      if (e.key === "ArrowDown") setSourceDropdownOpen(true);
+                    }}
+                    onFocus={() => setSourceDropdownOpen(true)}
+                    autoComplete="off"
+                    disabled={isPending}
+                  />
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  {sourceDropdownOpen && (
+                    <div className="absolute z-20 w-full bg-white dark:bg-gray-800 border rounded shadow max-h-96 overflow-auto">
+                      {isLoadingSources ? (
+                        <div className="px-3 py-2 text-muted-foreground text-sm">
+                          Cargando fuentes...
+                        </div>
+                      ) : (filteredSources || []).length === 0 ? (
+                        <div className="px-3 py-2 text-muted-foreground text-sm">
+                          No hay coincidencias
+                        </div>
+                      ) : (
+                        (filteredSources || []).map((source) => (
+                          <div
+                            key={source.id}
+                            className="cursor-pointer px-3 py-2 hover:bg-muted dark:hover:bg-gray-700"
+                            onClick={() => {
+                              setValue("sourceId", source.id);
+                              setSearchSource("");
+                              setSourceDropdownOpen(false);
+                            }}
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                setValue("sourceId", source.id);
+                                setSearchSource("");
+                                setSourceDropdownOpen(false);
+                              }
+                            }}
+                          >
+                            {source.name}
+                          </div>
+                        ))
+                      )}
                     </div>
                   )}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-700">
-                {isLoadingStatuses ? (
-                  <SelectItem value="loading" disabled>
-                    Cargando...
-                  </SelectItem>
-                ) : (
-                  statuses?.map((status) => (
-                    <SelectItem key={status.id} value={status.id}>
-                      <div className="flex items-center">
-                        <div
-                          className="w-2 h-2 rounded-full mr-2"
-                          style={{ backgroundColor: status.color }}
-                        />
-                        {status.name}
-                      </div>
-                    </SelectItem>
-                  ))
+                </div>
+                {errors.sourceId && (
+                  <p className="text-red-500 text-xs">
+                    {errors.sourceId.message}
+                  </p>
                 )}
-              </SelectContent>
-            </Select>
-            {errors.statusId && (
-              <p className="text-red-500 text-xs">{errors.statusId.message}</p>
-            )}
-          </div>
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="source">
-              Fuente <span className="text-red-500">*</span>
-            </Label>
-            <Select
-              value={watchedSourceId}
-              onValueChange={(value) => setValue("sourceId", value)}
-            >
-              <SelectTrigger className="bg-gray-800 border-gray-700">
-                <SelectValue placeholder="Seleccionar fuente" />
-              </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-700">
-                {isLoadingSources ? (
-                  <SelectItem value="loading" disabled>
-                    Cargando...
-                  </SelectItem>
-                ) : (
-                  sources?.map((source) => (
-                    <SelectItem key={source.id} value={source.id}>
-                      {source.name}
-                    </SelectItem>
-                  ))
+              <div className="space-y-2">
+                <Label htmlFor="status">
+                  Estado <span className="text-red-500">*</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    placeholder="Buscar estado..."
+                    value={statusInputValue}
+                    onChange={(e) => {
+                      setSearchStatus(e.target.value);
+                      setStatusDropdownOpen(true);
+                      if (e.target.value === "") setValue("statusId", "");
+                    }}
+                    className="bg-input dark:bg-gray-800 dark:border-gray-700 mb-2 pl-8"
+                    aria-label="Buscar estado"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        if (searchStatus && filteredStatuses?.length === 1) {
+                          setValue("statusId", filteredStatuses[0].id);
+                          setSearchStatus("");
+                          setStatusDropdownOpen(false);
+                          e.preventDefault();
+                        } else if (!searchStatus) {
+                          setStatusDropdownOpen(true);
+                        }
+                      }
+                      if (e.key === "ArrowDown") setStatusDropdownOpen(true);
+                    }}
+                    onFocus={() => setStatusDropdownOpen(true)}
+                    autoComplete="off"
+                    disabled={isPending}
+                  />
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  {statusDropdownOpen && (
+                    <div className="absolute z-20 w-full bg-white dark:bg-gray-800 border rounded shadow max-h-96 overflow-auto">
+                      {isLoadingStatuses ? (
+                        <div className="px-3 py-2 text-muted-foreground text-sm">
+                          Cargando estados...
+                        </div>
+                      ) : (filteredStatuses || []).length === 0 ? (
+                        <div className="px-3 py-2 text-muted-foreground text-sm">
+                          No hay coincidencias
+                        </div>
+                      ) : (
+                        (filteredStatuses || []).map((status) => (
+                          <div
+                            key={status.id}
+                            className="cursor-pointer px-3 py-2 hover:bg-muted dark:hover:bg-gray-700 flex items-center"
+                            onClick={() => {
+                              setValue("statusId", status.id);
+                              setSearchStatus("");
+                              setStatusDropdownOpen(false);
+                            }}
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                setValue("statusId", status.id);
+                                setSearchStatus("");
+                                setStatusDropdownOpen(false);
+                              }
+                            }}
+                          >
+                            <div
+                              className="w-2 h-2 rounded-full mr-2"
+                              style={{ backgroundColor: status.color }}
+                            />
+                            {status.name}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+                {errors.statusId && (
+                  <p className="text-red-500 text-xs">
+                    {errors.statusId.message}
+                  </p>
                 )}
-              </SelectContent>
-            </Select>
-            {errors.sourceId && (
-              <p className="text-red-500 text-xs">{errors.sourceId.message}</p>
-            )}
-          </div>
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="productId">Producto</Label>
-            <Select
-              value={watchedProductId || "none"}
-              onValueChange={(value) =>
-                setValue("productId", value === "none" ? "" : value)
-              }
-            >
-              <SelectTrigger className="bg-gray-800 border-gray-700">
-                <SelectValue placeholder="Seleccionar producto" />
-              </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-700">
-                {isLoadingProducts ? (
-                  <SelectItem value="loading" disabled>
-                    Cargando...
-                  </SelectItem>
-                ) : (
-                  <>
-                    <SelectItem value="none">Sin producto</SelectItem>
-                    {validProducts?.map((product: Product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.name}
-                      </SelectItem>
-                    ))}
-                  </>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
+              <DialogFooter className="pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handlePrevStep}
+                  className="bg-transparent dark:bg-gray-800 dark:border-gray-700"
+                  disabled={isPending}
+                >
+                  Anterior
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleNextStep}
+                  className="bg-blue-600 hover:bg-blue-700"
+                  disabled={isPending}
+                >
+                  Siguiente
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
 
-          <div className="space-y-2">
-            <Label htmlFor="interest">Grado de interés</Label>
-            <Select
-              value={watch("interest") || ""}
-              onValueChange={(value) => setValue("interest", value)}
-            >
-              <SelectTrigger className="bg-gray-800 border-gray-700">
-                <SelectValue placeholder="Seleccionar grado de interés" />
-              </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-700">
-                <SelectItem value="1">Bajo</SelectItem>
-                <SelectItem value="2">Medio</SelectItem>
-                <SelectItem value="3">Alto</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Paso 3: Negocio */}
+          {currentStep === "business" && (
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="productId">Producto de interés</Label>
+                <div className="relative">
+                  <Input
+                    placeholder="Buscar producto..."
+                    value={productInputValue}
+                    onChange={(e) => {
+                      setSearchProduct(e.target.value);
+                      setProductDropdownOpen(true);
+                      if (e.target.value === "") setValue("productId", "");
+                    }}
+                    className="bg-input dark:bg-gray-800 dark:border-gray-700 mb-2 pl-8"
+                    aria-label="Buscar producto"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        if (searchProduct && filteredProducts?.length === 1) {
+                          setValue("productId", filteredProducts[0].id);
+                          setSearchProduct("");
+                          setProductDropdownOpen(false);
+                          e.preventDefault();
+                        } else if (!searchProduct) {
+                          setProductDropdownOpen(true);
+                        }
+                      }
+                      if (e.key === "ArrowDown") setProductDropdownOpen(true);
+                    }}
+                    onFocus={() => setProductDropdownOpen(true)}
+                    autoComplete="off"
+                    disabled={isPending}
+                  />
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  {productDropdownOpen && (
+                    <div className="absolute z-20 w-full bg-white dark:bg-gray-800 border rounded shadow max-h-96 overflow-auto">
+                      {isLoadingProducts ? (
+                        <div className="px-3 py-2 text-muted-foreground text-sm">
+                          Cargando productos...
+                        </div>
+                      ) : (filteredProducts || []).length === 0 ? (
+                        <div className="px-3 py-2 text-muted-foreground text-sm">
+                          No hay coincidencias
+                        </div>
+                      ) : (
+                        (filteredProducts || []).map((product) => (
+                          <div
+                            key={product.id}
+                            className="cursor-pointer px-3 py-2 hover:bg-muted dark:hover:bg-gray-700"
+                            onClick={() => {
+                              setValue("productId", product.id);
+                              setSearchProduct("");
+                              setProductDropdownOpen(false);
+                            }}
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                setValue("productId", product.id);
+                                setSearchProduct("");
+                                setProductDropdownOpen(false);
+                              }
+                            }}
+                          >
+                            {product.name}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="extraComments">Comentarios adicionales</Label>
-            <Textarea
-              id="extraComments"
-              placeholder="Comentarios adicionales sobre el lead..."
-              className="bg-gray-800 border-gray-700 h-24"
-              {...register("extraComments")}
-            />
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="qualityScore">Grado de interés</Label>
+                <Select
+                  value={watch("qualityScore") || ""}
+                  onValueChange={(value) => setValue("qualityScore", value)}
+                  disabled={isPending}
+                >
+                  <SelectTrigger className="bg-input dark:bg-gray-800 dark:border-gray-700">
+                    <SelectValue placeholder="Seleccionar grado de interés" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background dark:bg-gray-800 dark:border-gray-700">
+                    <SelectItem value="3">Alto</SelectItem>
+                    <SelectItem value="2">Medio</SelectItem>
+                    <SelectItem value="1">Bajo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <DialogFooter className="mt-6 sticky bottom-0 bg-gray-900 pt-4 border-t border-gray-800">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="bg-gray-800 border-gray-700"
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              className="bg-blue-600 hover:bg-blue-700"
-              disabled={isPending}
-            >
-              {isPending ? "Guardando..." : "Guardar Cambios"}
-            </Button>
-          </DialogFooter>
+              <div className="space-y-2">
+                <Label htmlFor="extraComments">Comentarios</Label>
+                <Textarea
+                  id="extraComments"
+                  placeholder="Agregar comentarios o notas importantes..."
+                  className="bg-input dark:bg-gray-800 dark:border-gray-700 min-h-[100px]"
+                  {...register("extraComments")}
+                  disabled={isPending}
+                />
+              </div>
+
+              <DialogFooter className="pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handlePrevStep}
+                  className="bg-transparent dark:bg-gray-800 dark:border-gray-700"
+                  disabled={isPending}
+                >
+                  Anterior
+                </Button>
+                <Button
+                  type="submit"
+                  className="bg-blue-600 hover:bg-blue-700"
+                  disabled={isPending}
+                >
+                  {isPending ? "Guardando..." : "Guardar Cambios"}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
         </form>
       </DialogContent>
     </Dialog>
