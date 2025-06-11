@@ -122,8 +122,9 @@ export function SaleDialog({
     }
   };
 
-  // Validar el formulario - solo saldo y método de pago son obligatorios
-  const isFormValid = parseFloat(saldo) > 0 && paymentMethod;
+  // Validar el formulario - solo saldo (>=0) y método de pago son obligatorios
+  const isFormValid =
+    parseFloat(saldo) >= 0 && !isNaN(parseFloat(saldo)) && paymentMethod;
 
   // Manejar envío del formulario
   const handleSubmit = async () => {
