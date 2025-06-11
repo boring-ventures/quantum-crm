@@ -2,7 +2,7 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 const STORAGE_BUCKET =
   process.env.NEXT_PUBLIC_SUPABASE_DOCUMENTS_BUCKET || "documents";
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_FILE_SIZE = 6 * 1024 * 1024; // 6MB
 const ACCEPTED_FILE_TYPES = [
   "application/pdf",
   "application/msword",
@@ -25,7 +25,7 @@ export async function uploadDocument(
 
   if (file.size > MAX_FILE_SIZE) {
     throw new Error(
-      "Tamaño de archivo demasiado grande. Por favor, sube un documento menor a 5MB."
+      "Tamaño de archivo demasiado grande. Por favor, sube un documento menor a 6MB."
     );
   }
 
