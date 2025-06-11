@@ -17,8 +17,11 @@ export const metadata: Metadata = {
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: { reason?: string };
+  searchParams: Promise<{ reason?: string }>;
 }) {
+  // Await searchParams según Next.js 15
+  const params = await searchParams;
+
   const supabase = createServerComponentClient({ cookies });
   const {
     data: { session },
@@ -29,7 +32,7 @@ export default async function SignInPage({
   }
 
   // Obtener el mensaje según el motivo de redirección
-  const reason = searchParams.reason;
+  const reason = params.reason;
   let alertMessage: { title: string; description: string } | null = null;
 
   if (reason === "deleted") {

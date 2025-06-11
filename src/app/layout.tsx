@@ -5,6 +5,7 @@ import { QueryProvider } from "@/lib/providers/QueryProvider";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/providers/auth-provider";
 import { ThemeProvider } from "@/context/theme-context";
+import { CacheDebugInfo } from "@/components/debug/cache-debug";
 
 const APP_NAME = "Quantum CRM";
 const APP_DESCRIPTION =
@@ -73,6 +74,8 @@ export default function RootLayout({
             <QueryProvider>
               {children}
               <Toaster />
+              {/* Debug component for development - shows cache optimization status */}
+              <CacheDebugInfo />
             </QueryProvider>
           </AuthProvider>
         </ThemeProvider>
