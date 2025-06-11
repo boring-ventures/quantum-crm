@@ -58,9 +58,8 @@ export function ReservationDialog({
   const { data: existingReservation, isLoading: reservationLoading } =
     useLeadReservation(leadId);
   const { data: existingQuotation } = useLeadQuotation(leadId);
-  const { data: quotationProducts } = useQuotationProducts(
-    existingQuotation?.id || ""
-  );
+  const { data: quotationProducts, isLoading: quotationProductsLoading } =
+    useQuotationProducts(existingQuotation?.id || "");
   const createReservationMutation = useCreateReservationMutation();
 
   // Estado para datos de reserva
@@ -247,7 +246,11 @@ export function ReservationDialog({
 
         <div className="space-y-8">
           {/* Tabla de productos de la cotización */}
-          {quotationProducts && quotationProducts.length > 0 ? (
+          {quotationProductsLoading ? (
+            <div className="text-center text-sm text-muted-foreground py-4">
+              Cargando productos...
+            </div>
+          ) : quotationProducts && quotationProducts.length > 0 ? (
             <QuotationProductsTable
               products={quotationProducts.map((product) => ({
                 ...product,
