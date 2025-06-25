@@ -51,7 +51,7 @@ const METRIC_CARDS_CONFIG: Omit<MetricCardData, "value">[] = [
     id: "quotations",
     title: "Cotizaciones",
     icon: FileText,
-    href: "/quotations",
+    href: "/sales?tab=cotizaciones",
     permissionKey: "sales",
     description: "Cotizaciones activas y enviadas.",
   },
@@ -59,7 +59,7 @@ const METRIC_CARDS_CONFIG: Omit<MetricCardData, "value">[] = [
     id: "sales",
     title: "Ventas",
     icon: DollarSign,
-    href: "/sales",
+    href: "/sales?tab=ventas",
     permissionKey: "sales",
     description: "Ventas concretadas en el mes actual.",
   },
@@ -67,7 +67,7 @@ const METRIC_CARDS_CONFIG: Omit<MetricCardData, "value">[] = [
     id: "reservations",
     title: "Reservas",
     icon: CalendarCheck,
-    href: "/reservations",
+    href: "/sales?tab=reservas",
     permissionKey: "sales", // Ajustar si es necesario
     description: "Reservas confirmadas y pendientes.", // Placeholder, ajustar
   },
