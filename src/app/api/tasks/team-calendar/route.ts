@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { cookies } from "next/headers";
+import { auth } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
   try {
     // Verificar autenticación
-    const cookieStore = await cookies();
-    const token = cookieStore.get("auth-token");
-
-    if (!token) {
+    const session = await auth();
+    if (!session) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
