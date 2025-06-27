@@ -152,6 +152,7 @@ export function SaleDialog({
   const isFormValid =
     parseFloat(saldo) > 0 && paymentMethod && invoice && paymentReceipt;
 
+
   // Manejar envío del formulario
   const handleSubmit = async () => {
     if (!isFormValid) return;
@@ -249,10 +250,10 @@ export function SaleDialog({
       // 5. Cerrar el diálogo
       onClose();
     } catch (error) {
-      console.error("Error al crear venta:", error);
+      console.error("Error al crear la venta:", error);
 
       toast({
-        title: "Error",
+        title: "Error al crear la venta",
         description:
           error instanceof Error ? error.message : "Error al crear la venta",
         variant: "destructive",

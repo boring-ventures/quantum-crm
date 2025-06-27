@@ -6,7 +6,7 @@ import { z } from "zod";
 const createSaleSchema = z.object({
   leadId: z.string().uuid("ID de lead inválido"),
   reservationId: z.string().uuid("ID de reserva inválido").optional(),
-  amount: z.number().positive("El monto de venta debe ser mayor a cero"),
+  amount: z.number().min(0, "El monto de venta debe ser mayor o igual a cero"),
   paymentMethod: z.enum(["CASH", "CARD", "TRANSFER", "CHECK", "FINANCING"], {
     errorMap: () => ({ message: "Método de pago inválido" }),
   }),
