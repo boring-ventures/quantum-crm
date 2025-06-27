@@ -3,7 +3,6 @@ import { Suspense } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
-  Construction,
   TrendingUp,
   DollarSign,
   Users,
@@ -125,9 +124,6 @@ async function MetricContent({ metric }: { metric: string }) {
               <h1 className="text-3xl font-bold tracking-tight">
                 {metricConfig.title}
               </h1>
-              <Badge variant="secondary" className="text-xs">
-                Fase 1
-              </Badge>
             </div>
             <p className="text-muted-foreground text-lg">
               {metricConfig.description}
@@ -136,7 +132,7 @@ async function MetricContent({ metric }: { metric: string }) {
         </div>
       </div>
 
-      {/* Placeholder Content */}
+      {/* Metric Content */}
       <Card className="relative overflow-hidden">
         <div
           className={cn(
@@ -149,12 +145,11 @@ async function MetricContent({ metric }: { metric: string }) {
         <div className="relative z-10">
           <CardHeader className="text-center py-12">
             <div className="mx-auto mb-4 p-3 rounded-full bg-muted">
-              <Construction className="h-8 w-8 text-muted-foreground" />
+              <IconComponent className="h-8 w-8 text-muted-foreground" />
             </div>
-            <CardTitle className="text-2xl">Reportes en Desarrollo</CardTitle>
+            <CardTitle className="text-2xl">{metricConfig.title}</CardTitle>
             <CardDescription className="text-base max-w-md mx-auto">
-              Esta sección estará disponible en la Fase 2. Los gráficos y
-              análisis detallados se implementarán próximamente.
+              {metricConfig.description}
             </CardDescription>
           </CardHeader>
 
@@ -168,7 +163,7 @@ async function MetricContent({ metric }: { metric: string }) {
         </div>
       </Card>
 
-      {/* Features Preview */}
+      {/* Features Overview */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader>
@@ -183,7 +178,7 @@ async function MetricContent({ metric }: { metric: string }) {
           <CardHeader>
             <CardTitle className="text-lg">Exportar Datos</CardTitle>
             <CardDescription>
-              Descarga reportes en PDF, Excel y otros formatos
+              Descarga reportes en Excel y otros formatos
             </CardDescription>
           </CardHeader>
         </Card>
