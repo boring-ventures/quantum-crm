@@ -311,7 +311,7 @@ export const config = {
     "/dashboard/:path*",
     "/leads/:path*",
     "/sales/:path*",
-    "/reportes/:path*",
+    "/reports/:path*",
     "/admin/:path*",
     "/users/:path*",
     "/tasks/:path*",

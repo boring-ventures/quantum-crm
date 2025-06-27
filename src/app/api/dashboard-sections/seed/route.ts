@@ -32,7 +32,7 @@ const initialSections = [
     name: "Reportes",
     description: "Informes y estadísticas",
     icon: "BarChart3",
-    url: "/reportes",
+    url: "/reports",
     displayOrder: 3,
   },
   {
