@@ -44,6 +44,7 @@ interface TaskListItemProps {
   onUpdate: () => void;
   isSeller?: boolean;
   currentUser?: any;
+  handleOpenNewTaskDialog: (open: boolean) => void;
 }
 
 function TaskListItem({
@@ -51,6 +52,7 @@ function TaskListItem({
   onUpdate,
   isSeller = false,
   currentUser,
+  handleOpenNewTaskDialog,
 }: TaskListItemProps) {
   const { toast } = useToast();
   const updateTaskStatusMutation = useUpdateTaskStatusMutation();
@@ -79,8 +81,7 @@ function TaskListItem({
 
       onUpdate();
 
-      // Abrir automáticamente el diálogo para crear nueva tarea
-      setOpenNewTaskDialog(true);
+      handleOpenNewTaskDialog(true);
     } catch (error) {
       console.error("Error al actualizar tarea:", error);
       toast({
@@ -374,6 +375,7 @@ export function TaskList({ leadId, currentUser }: TaskListProps) {
                       onUpdate={refetch}
                       isSeller={canUpdateTasks}
                       currentUser={currentUser}
+                      handleOpenNewTaskDialog={() => setIsDialogOpen(true)}
                     />
                   ))}
                 </div>

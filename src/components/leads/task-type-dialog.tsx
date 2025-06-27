@@ -199,8 +199,8 @@ export function TaskTypeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[600px] h-[80vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="text-xl">
             {step === 1
               ? "Asistente Nueva Tarea"
@@ -213,105 +213,109 @@ export function TaskTypeDialog({
           </p>
         </DialogHeader>
 
-        {step === 1 ? (
-          <div className="grid grid-cols-2 gap-4 py-4">
-            {taskTypes.map((taskType) => (
-              <div
-                key={taskType.id}
-                className={`
-                  p-4 border rounded-md cursor-pointer transition-all 
-                  hover:border-blue-600 hover:shadow-sm
-                  ${selectedTaskType === taskType.id ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20" : "border-gray-200 dark:border-gray-700"}
-                `}
-                onClick={() => handleTaskTypeSelect(taskType)}
-              >
-                <div className="flex items-center gap-3">
-                  {taskType.icon}
-                  <div>
-                    <p className="font-medium">{taskType.title}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {taskType.description}
-                    </p>
+        <div className="flex-1 overflow-y-auto px-1">
+          {step === 1 ? (
+            <div className="grid grid-cols-2 gap-4 py-4">
+              {taskTypes.map((taskType) => (
+                <div
+                  key={taskType.id}
+                  className={`
+                    p-4 border rounded-md cursor-pointer transition-all 
+                    hover:border-blue-600 hover:shadow-sm
+                    ${selectedTaskType === taskType.id ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20" : "border-gray-200 dark:border-gray-700"}
+                  `}
+                  onClick={() => handleTaskTypeSelect(taskType)}
+                >
+                  <div className="flex items-center gap-3">
+                    {taskType.icon}
+                    <div>
+                      <p className="font-medium">{taskType.title}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {taskType.description}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="date">Fecha</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !date && "text-muted-foreground"
+                        )}
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {date ? (
+                          format(date, "PPP", { locale: es })
+                        ) : (
+                          <span>Seleccionar fecha</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      className="w-auto p-0"
+                      onOpenAutoFocus={(e) => e.preventDefault()}
+                      onCloseAutoFocus={(e) => e.preventDefault()}
+                    >
+                      <div style={{ pointerEvents: "auto" }}>
+                        <CalendarComponent
+                          mode="single"
+                          selected={date}
+                          onSelect={setDate}
+                          initialFocus
+                          style={{ pointerEvents: "auto" }}
+                        />
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="time">Hora</Label>
+                  <div className="flex items-center">
+                    <Clock className="mr-2 h-4 w-4 text-gray-500" />
+                    <Input
+                      id="time"
+                      type="time"
+                      value={time}
+                      onChange={(e) => setTime(e.target.value)}
+                      className="bg-gray-50 dark:bg-gray-800"
+                    />
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="date">Fecha</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !date && "text-muted-foreground"
-                      )}
-                    >
-                      <Calendar className="mr-2 h-4 w-4" />
-                      {date ? (
-                        format(date, "PPP", { locale: es })
-                      ) : (
-                        <span>Seleccionar fecha</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    className="w-auto p-0"
-                    onOpenAutoFocus={(e) => e.preventDefault()}
-                    onCloseAutoFocus={(e) => e.preventDefault()}
-                  >
-                    <div style={{ pointerEvents: "auto" }}>
-                      <CalendarComponent
-                        mode="single"
-                        selected={date}
-                        onSelect={setDate}
-                        initialFocus
-                        style={{ pointerEvents: "auto" }}
-                      />
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                <Label htmlFor="description">
+                  Notas adicionales (opcional)
+                </Label>
+                <Textarea
+                  id="description"
+                  placeholder="Agrega detalles o información adicional sobre esta tarea..."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="h-32 bg-gray-50 dark:bg-gray-800"
+                />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="time">Hora</Label>
-                <div className="flex items-center">
-                  <Clock className="mr-2 h-4 w-4 text-gray-500" />
-                  <Input
-                    id="time"
-                    type="time"
-                    value={time}
-                    onChange={(e) => setTime(e.target.value)}
-                    className="bg-gray-50 dark:bg-gray-800"
-                  />
+
+              {/* Mostrar calendario del equipo para Test Drive y visitas */}
+              {(selectedTaskType === "test-drive" ||
+                selectedTaskType === "client-visit") && (
+                <div className="mt-6">
+                  <TeamCalendar selectedDate={date} />
                 </div>
-              </div>
+              )}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">Notas adicionales (opcional)</Label>
-              <Textarea
-                id="description"
-                placeholder="Agrega detalles o información adicional sobre esta tarea..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="h-32 bg-gray-50 dark:bg-gray-800"
-              />
-            </div>
+          )}
+        </div>
 
-            {/* Mostrar calendario del equipo para Test Drive y visitas */}
-            {(selectedTaskType === "test-drive" ||
-              selectedTaskType === "client-visit") && (
-              <div className="mt-6">
-                <TeamCalendar selectedDate={date} />
-              </div>
-            )}
-          </div>
-        )}
-
-        <DialogFooter>
+        <DialogFooter className="flex-shrink-0">
           {step === 1 ? (
             <>
               <Button variant="outline" onClick={() => onOpenChange(false)}>
