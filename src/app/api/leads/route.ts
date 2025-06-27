@@ -38,14 +38,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    // Verificar permiso de visualización de leads
-    if (!hasPermission(currentUser, "leads", "view")) {
-      return NextResponse.json(
-        { error: "No tienes permiso para ver leads" },
-        { status: 403 }
-      );
-    }
-
     // Obtener parámetros de consulta
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
@@ -55,6 +47,8 @@ export async function GET(request: NextRequest) {
     const sourceId = searchParams.get("source");
     const assignedTo = searchParams.get("assignedTo");
     const assignedToId = searchParams.get("assignedToId");
+
+    console.log("assignedToId", assignedToId);
 
     // Construir condiciones de búsqueda base
     const where: any = {};
@@ -76,6 +70,8 @@ export async function GET(request: NextRequest) {
     if (assignedTo) where.assignedTo = assignedTo;
     if (assignedToId) where.assignedToId = assignedToId;
 
+    console.log("where", where);
+
     // Aplicar restricciones basadas en el scope de permisos
     const viewScope = getScope(currentUser, "leads", "view");
 
@@ -89,9 +85,7 @@ export async function GET(request: NextRequest) {
         countryId: currentUser.countryId,
       };
     }
-    // Si viewScope es "all", no aplicamos filtros adicionales
 
-    // Consultar leads con paginación
     const [leads, total] = await Promise.all([
       prisma.lead.findMany({
         where,
@@ -124,13 +118,11 @@ export async function GET(request: NextRequest) {
       pageSize,
       totalPages: Math.ceil(total / pageSize),
     });
-  } catch (error) {
-    console.error("Error fetching leads:", error);
+  } catch (e) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Error al obtener los leads",
+        error: e instanceof Error ? e.message : "Error al obtener los leads",
       },
       { status: 500 }
     );

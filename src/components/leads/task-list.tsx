@@ -59,6 +59,8 @@ function TaskListItem({
   const [isUpdating, setIsUpdating] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
 
+  const [openNewTaskDialog, setOpenNewTaskDialog] = useState(false);
+
   const handleComplete = async () => {
     if (!isSeller) return;
 
@@ -76,6 +78,9 @@ function TaskListItem({
       });
 
       onUpdate();
+
+      // Abrir automáticamente el diálogo para crear nueva tarea
+      setOpenNewTaskDialog(true);
     } catch (error) {
       console.error("Error al actualizar tarea:", error);
       toast({
@@ -240,6 +245,13 @@ function TaskListItem({
         onDelete={onUpdate}
         onUpdate={onUpdate}
         currentUser={currentUser}
+      />
+
+      {/* Diálogo para crear nueva tarea después de completar la actual */}
+      <TaskTypeDialog
+        open={openNewTaskDialog}
+        onOpenChange={setOpenNewTaskDialog}
+        leadId={task.leadId}
       />
     </>
   );

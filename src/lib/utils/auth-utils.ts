@@ -11,7 +11,8 @@ import prisma from "@/lib/prisma";
  */
 export async function getCurrentUser(): Promise<User | null> {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     // Usar getUser en lugar de getSession para reducir solicitudes de token
     const {
