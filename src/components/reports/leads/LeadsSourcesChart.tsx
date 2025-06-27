@@ -218,8 +218,8 @@ function SourcesList({
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
+    <div className="h-full flex flex-col space-y-3">
+      <div className="flex items-center justify-between flex-shrink-0">
         <h4 className="font-medium text-sm">
           Fuentes Principales
           <span className="text-muted-foreground ml-1">
@@ -241,11 +241,11 @@ function SourcesList({
         )}
       </div>
 
-      <div className="space-y-2 max-h-60 overflow-y-auto">
+      <div className="space-y-1.5 max-h-[280px] overflow-y-auto flex-1">
         {displaySources.map((source) => (
           <div
             key={source.sourceId}
-            className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${
+            className={`flex items-center gap-2.5 p-1.5 rounded cursor-pointer transition-colors ${
               selectedSources.includes(source.sourceId)
                 ? "bg-muted"
                 : "hover:bg-muted/50"
@@ -276,7 +276,7 @@ function SourcesList({
           variant="ghost"
           size="sm"
           onClick={onToggleShowAll}
-          className="w-full"
+          className="w-full flex-shrink-0"
         >
           {showAll ? (
             <>
@@ -293,7 +293,7 @@ function SourcesList({
       )}
 
       {selectedSources.length > 0 && (
-        <div className="pt-2 border-t">
+        <div className="pt-2 border-t flex-shrink-0">
           <Badge variant="secondary" className="text-xs">
             {selectedSources.length} fuente
             {selectedSources.length !== 1 ? "s" : ""} seleccionada
@@ -408,8 +408,8 @@ export function LeadsSourcesChart({
   }
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="h-fit">
+      <CardHeader className="flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Target className="h-5 w-5 text-purple-600" />
@@ -444,47 +444,39 @@ export function LeadsSourcesChart({
           </div>
         )}
       </CardHeader>
-      <CardContent>
-        <div className="flex flex-col lg:flex-row gap-6">
+      <CardContent className="flex-1">
+        <div className="flex flex-col lg:flex-row gap-6 h-[400px]">
           {/* Pie Chart */}
-          <div className="flex-1">
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={chartData}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  innerRadius={40}
-                  dataKey="count"
-                  animationBegin={0}
-                  animationDuration={800}
-                  stroke={axisColors.background}
-                  strokeWidth={2}
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${entry.sourceId}-${index}`}
-                      fill={entry.displayColor}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-                <Legend
-                  wrapperStyle={{
-                    fontSize: "12px",
-                    color: axisColors.text,
-                    marginTop: "10px",
-                  }}
-                  formatter={(value: string, entry: any) => (
-                    <span style={{ color: axisColors.text }}>{value}</span>
-                  )}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+          <div className="flex-1 flex flex-col">
+            <div className="flex-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={chartData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={110}
+                    innerRadius={45}
+                    dataKey="count"
+                    animationBegin={0}
+                    animationDuration={800}
+                    stroke={axisColors.background}
+                    strokeWidth={2}
+                  >
+                    {chartData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${entry.sourceId}-${index}`}
+                        fill={entry.displayColor}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
 
             {/* Chart info */}
-            <div className="text-center mt-2">
+            <div className="text-center mt-2 flex-shrink-0">
               <p className="text-xs text-muted-foreground">
                 {showSimplifiedChart && data.sources.length > 8
                   ? `Mostrando top 7 fuentes + ${data.sources.length - 7} agrupadas en "Otros"`
@@ -494,7 +486,7 @@ export function LeadsSourcesChart({
           </div>
 
           {/* Sources List */}
-          <div className="lg:w-1/3">
+          <div className="lg:w-1/3 flex-shrink-0">
             <SourcesList
               sources={data.sources}
               sourceColors={sourceColors}
