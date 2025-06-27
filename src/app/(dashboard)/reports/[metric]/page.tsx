@@ -22,6 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getMetricByRoute, getValidMetricIds } from "@/lib/reports/config";
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
+import { LeadsAnalyticsDashboard } from "@/components/reports/leads/LeadsAnalyticsDashboard";
 
 // Icon mapping for client-side rendering
 const iconMap: Record<string, LucideIcon> = {
@@ -69,6 +70,11 @@ async function MetricContent({ metric }: { metric: string }) {
   const IconComponent = iconMap[metricConfig.iconName];
   if (!IconComponent) {
     notFound();
+  }
+
+  // Special handling for leads-analytics - Phase 2 implementation
+  if (metric === "leads-analytics") {
+    return <LeadsAnalyticsDashboard config={metricConfig} />;
   }
 
   return (
