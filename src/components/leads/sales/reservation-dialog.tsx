@@ -35,6 +35,7 @@ import {
   useLeadReservation,
   useLeadQuotation,
   useQuotationProducts,
+  useCreateDocumentMutation,
 } from "@/lib/hooks";
 import { uploadDocument } from "@/lib/supabase/upload-document";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -62,6 +63,7 @@ export function ReservationDialog({
     existingQuotation?.id || ""
   );
   const createReservationMutation = useCreateReservationMutation();
+  const createDocumentMutation = useCreateDocumentMutation();
 
   // Estado para datos de reserva
   const [reservationAmount, setReservationAmount] = useState("");
@@ -200,6 +202,15 @@ export function ReservationDialog({
           "reservation-form"
         );
         reservationFormUrl = formDocUpload.url;
+
+        // Crear el registro del documento en la base de datos
+        await createDocumentMutation.mutateAsync({
+          leadId,
+          name: formDocument.name,
+          type: formDocument.type,
+          size: formDocument.size,
+          url: formDocUpload.url,
+        });
       }
 
       if (depositDocument) {
@@ -209,6 +220,15 @@ export function ReservationDialog({
           "deposit-receipt"
         );
         depositReceiptUrl = depositDocUpload.url;
+
+        // Crear el registro del documento en la base de datos
+        await createDocumentMutation.mutateAsync({
+          leadId,
+          name: depositDocument.name,
+          type: depositDocument.type,
+          size: depositDocument.size,
+          url: depositDocUpload.url,
+        });
       }
 
       if (contractDocument) {
@@ -218,6 +238,15 @@ export function ReservationDialog({
           "reservation-contract"
         );
         reservationContractUrl = contractDocUpload.url;
+
+        // Crear el registro del documento en la base de datos
+        await createDocumentMutation.mutateAsync({
+          leadId,
+          name: contractDocument.name,
+          type: contractDocument.type,
+          size: contractDocument.size,
+          url: contractDocUpload.url,
+        });
       }
 
       // 2. Crear la reserva
