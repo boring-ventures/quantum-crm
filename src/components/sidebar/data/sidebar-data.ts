@@ -52,7 +52,7 @@ export const sidebarDataStatic: SidebarData = {
         },
         {
           title: "Reportes",
-          url: "/reportes",
+          url: "/reports",
           icon: BarChart3,
           key: "reports",
         },
