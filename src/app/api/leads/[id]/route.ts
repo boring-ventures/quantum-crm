@@ -53,6 +53,32 @@ export async function GET(
     // Obtener el ID del lead desde los parámetros de ruta
     const { id } = await params;
 
+    // Verificar si es una verificación de scope del middleware
+    const { searchParams } = new URL(req.url);
+    const scopeCheck = searchParams.get("scopeCheck");
+
+    if (scopeCheck === "true") {
+      // Para scope check, solo verificar que el lead existe y el usuario puede acceder
+      console.log(`[SCOPE CHECK] Verificando lead: ${id}`);
+      const leadExists = await prisma.lead.count({
+        where: { id },
+      });
+
+      console.log(`[SCOPE CHECK] Lead count: ${leadExists}`);
+
+      if (leadExists === 0) {
+        console.log(`[SCOPE CHECK] Lead no encontrado: ${id}`);
+        return NextResponse.json(
+          { error: "Lead no encontrado" },
+          { status: 404 }
+        );
+      }
+
+      console.log(`[SCOPE CHECK] Lead existe, retornando success`);
+      // Retornar success para el scope check
+      return NextResponse.json({ success: true });
+    }
+
     // Obtener el lead con sus relaciones
     const lead = await prisma.lead.findUnique({
       where: { id },

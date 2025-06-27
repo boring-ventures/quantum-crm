@@ -5,8 +5,8 @@ import { cookies } from "next/headers";
 import { NextAuthOptions } from "next-auth";
 
 // Crear cliente de Supabase para componentes del servidor
-const getSupabase = async () => {
-  // Asegurar que las cookies se obtengan de forma asíncrona
+const getSupabase = () => {
+  // Obtener las cookies directamente
   const cookieStore = cookies();
   return createServerComponentClient({ cookies: () => cookieStore });
 };
@@ -51,7 +51,7 @@ export async function auth(): Promise<Session | null> {
 // Implementación real de la autenticación
 async function _authImplementation(): Promise<Session | null> {
   try {
-    const supabase = await getSupabase();
+    const supabase = getSupabase();
 
     // Obtener usuario actual en lugar de sesión
     const {
@@ -176,7 +176,7 @@ async function _authImplementation(): Promise<Session | null> {
     console.error("Error al autenticar:", error);
     // Limpiar sesión en caso de cualquier error no controlado
     try {
-      const supabase = await getSupabase();
+      const supabase = getSupabase();
       await supabase.auth.signOut();
     } catch (signOutError) {
       console.error("Error al cerrar sesión:", signOutError);

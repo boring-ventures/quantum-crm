@@ -128,6 +128,7 @@ export interface Document {
   size: number;
   url: string;
   leadId: string;
+  source?: "document" | "quotation" | "reservation" | "sale";
 }
 
 // Interfaces para respuestas API con relaciones
