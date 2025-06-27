@@ -110,6 +110,15 @@ export function ReservationDialog({
   const handleFormDocUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.type !== "application/pdf") {
+        toast({
+          title: "Error de formato",
+          description:
+            "Solo se permiten archivos PDF para el formulario de reserva",
+          variant: "destructive",
+        });
+        return;
+      }
       setFormDocument(file);
       setFormDocumentName(file.name);
     }
@@ -118,6 +127,15 @@ export function ReservationDialog({
   const handleDepositDocUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.type !== "application/pdf") {
+        toast({
+          title: "Error de formato",
+          description:
+            "Solo se permiten archivos PDF para el comprobante de depósito",
+          variant: "destructive",
+        });
+        return;
+      }
       setDepositDocument(file);
       setDepositDocumentName(file.name);
     }
@@ -126,6 +144,15 @@ export function ReservationDialog({
   const handleContractDocUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.type !== "application/pdf") {
+        toast({
+          title: "Error de formato",
+          description:
+            "Solo se permiten archivos PDF para el contrato de reserva",
+          variant: "destructive",
+        });
+        return;
+      }
       setContractDocument(file);
       setContractDocumentName(file.name);
     }
@@ -402,7 +429,7 @@ export function ReservationDialog({
                       onChange={handleFormDocUpload}
                       className="hidden"
                       id="formDoc"
-                      accept=".pdf,.doc,.docx"
+                      accept=".pdf"
                     />
                     <Label
                       htmlFor="formDoc"
@@ -428,7 +455,7 @@ export function ReservationDialog({
                       onChange={handleDepositDocUpload}
                       className="hidden"
                       id="depositDoc"
-                      accept=".pdf,.jpg,.jpeg,.png"
+                      accept=".pdf"
                     />
                     <Label
                       htmlFor="depositDoc"
@@ -451,7 +478,7 @@ export function ReservationDialog({
                       onChange={handleContractDocUpload}
                       className="hidden"
                       id="contractDoc"
-                      accept=".pdf,.doc,.docx"
+                      accept=".pdf"
                     />
                     <Label
                       htmlFor="contractDoc"

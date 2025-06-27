@@ -97,6 +97,15 @@ export function SaleDialog({
   const handleContractUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.type !== "application/pdf") {
+        toast({
+          title: "Error de formato",
+          description:
+            "Solo se permiten archivos PDF para el contrato de venta",
+          variant: "destructive",
+        });
+        return;
+      }
       setSaleContract(file);
       setSaleContractName(file.name);
     }
@@ -106,6 +115,14 @@ export function SaleDialog({
   const handleInvoiceUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.type !== "application/pdf") {
+        toast({
+          title: "Error de formato",
+          description: "Solo se permiten archivos PDF para la factura",
+          variant: "destructive",
+        });
+        return;
+      }
       setInvoice(file);
       setInvoiceName(file.name);
     }
@@ -117,13 +134,23 @@ export function SaleDialog({
   ) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.type !== "application/pdf") {
+        toast({
+          title: "Error de formato",
+          description:
+            "Solo se permiten archivos PDF para el comprobante de pago",
+          variant: "destructive",
+        });
+        return;
+      }
       setPaymentReceipt(file);
       setPaymentReceiptName(file.name);
     }
   };
 
   // Validar el formulario - solo saldo y método de pago son obligatorios
-  const isFormValid = parseFloat(saldo) > 0 && paymentMethod;
+  const isFormValid =
+    parseFloat(saldo) > 0 && paymentMethod && invoice && paymentReceipt;
 
   // Manejar envío del formulario
   const handleSubmit = async () => {
@@ -308,7 +335,71 @@ export function SaleDialog({
                 </Select>
               </div>
 
-              {/* Contrato de venta */}
+              {/* Factura - ahora obligatorio */}
+              <div>
+                <Label className="block mb-2">
+                  Factura <span className="text-red-500">*</span>
+                </Label>
+                <div className="flex items-center gap-2">
+                  <div className="border rounded-md p-3 flex-1 text-sm text-gray-500 dark:text-gray-400">
+                    {invoiceName}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="shrink-0"
+                    onClick={() =>
+                      document.getElementById("invoice-upload")?.click()
+                    }
+                    disabled={isUploading}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Subir
+                  </Button>
+                  <input
+                    id="invoice-upload"
+                    type="file"
+                    className="hidden"
+                    accept=".pdf"
+                    onChange={handleInvoiceUpload}
+                    disabled={isUploading}
+                  />
+                </div>
+              </div>
+
+              {/* Comprobante de pago - ahora obligatorio */}
+              <div>
+                <Label className="block mb-2">
+                  Comprobante de pago <span className="text-red-500">*</span>
+                </Label>
+                <div className="flex items-center gap-2">
+                  <div className="border rounded-md p-3 flex-1 text-sm text-gray-500 dark:text-gray-400">
+                    {paymentReceiptName}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="shrink-0"
+                    onClick={() =>
+                      document.getElementById("payment-receipt-upload")?.click()
+                    }
+                    disabled={isUploading}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Subir
+                  </Button>
+                  <input
+                    id="payment-receipt-upload"
+                    type="file"
+                    className="hidden"
+                    accept=".pdf"
+                    onChange={handlePaymentReceiptUpload}
+                    disabled={isUploading}
+                  />
+                </div>
+              </div>
+
+              {/* Contrato de venta - opcional */}
               <div>
                 <Label className="block mb-2">
                   Contrato de venta{" "}
@@ -334,73 +425,8 @@ export function SaleDialog({
                     id="contract-upload"
                     type="file"
                     className="hidden"
-                    accept=".pdf,.doc,.docx"
+                    accept=".pdf"
                     onChange={handleContractUpload}
-                    disabled={isUploading}
-                  />
-                </div>
-              </div>
-
-              {/* Factura */}
-              <div>
-                <Label className="block mb-2">
-                  Factura <span className="text-gray-500">(opcional)</span>
-                </Label>
-                <div className="flex items-center gap-2">
-                  <div className="border rounded-md p-3 flex-1 text-sm text-gray-500 dark:text-gray-400">
-                    {invoiceName}
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="shrink-0"
-                    onClick={() =>
-                      document.getElementById("invoice-upload")?.click()
-                    }
-                    disabled={isUploading}
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Subir
-                  </Button>
-                  <input
-                    id="invoice-upload"
-                    type="file"
-                    className="hidden"
-                    accept=".pdf,.doc,.docx"
-                    onChange={handleInvoiceUpload}
-                    disabled={isUploading}
-                  />
-                </div>
-              </div>
-
-              {/* Comprobante de pago */}
-              <div>
-                <Label className="block mb-2">
-                  Comprobante de pago{" "}
-                  <span className="text-gray-500">(opcional)</span>
-                </Label>
-                <div className="flex items-center gap-2">
-                  <div className="border rounded-md p-3 flex-1 text-sm text-gray-500 dark:text-gray-400">
-                    {paymentReceiptName}
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="shrink-0"
-                    onClick={() =>
-                      document.getElementById("payment-receipt-upload")?.click()
-                    }
-                    disabled={isUploading}
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Subir
-                  </Button>
-                  <input
-                    id="payment-receipt-upload"
-                    type="file"
-                    className="hidden"
-                    accept=".pdf,.doc,.docx"
-                    onChange={handlePaymentReceiptUpload}
                     disabled={isUploading}
                   />
                 </div>
