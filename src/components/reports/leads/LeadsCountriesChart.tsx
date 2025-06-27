@@ -13,7 +13,9 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { useMemo } from "react";
 import { Globe, Users, TrendingUp } from "lucide-react";
+import { useChartColors } from "@/lib/utils/chart-colors";
 
 interface LeadsCountriesChartProps {
   filters: {
@@ -69,40 +71,69 @@ async function fetchCountriesData(filters: any): Promise<CountriesData> {
 }
 
 function CustomTooltip({ active, payload, label }: any) {
+  const { getChartAxisColors } = useChartColors();
+  const axisColors = getChartAxisColors();
+
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
-      <div className="bg-background border rounded-lg shadow-lg p-3 min-w-[250px]">
+      <div
+        className="border rounded-lg shadow-lg p-3 min-w-[250px]"
+        style={{ backgroundColor: axisColors.background }}
+      >
         <div className="flex items-center gap-2 mb-2">
           <Globe className="h-4 w-4 text-blue-600" />
-          <p className="font-medium">{data.name}</p>
+          <p className="font-medium" style={{ color: axisColors.text }}>
+            {data.name}
+          </p>
           <Badge variant="outline" className="text-xs">
             {data.code}
           </Badge>
         </div>
         <div className="space-y-1 text-sm">
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Total Leads:</span>
-            <span className="font-medium">{data.totalLeads}</span>
+            <span style={{ color: axisColors.text }} className="opacity-70">
+              Total Leads:
+            </span>
+            <span className="font-medium" style={{ color: axisColors.text }}>
+              {data.totalLeads}
+            </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Leads Calificados:</span>
-            <span className="font-medium">{data.qualifiedLeads}</span>
+            <span style={{ color: axisColors.text }} className="opacity-70">
+              Leads Calificados:
+            </span>
+            <span className="font-medium" style={{ color: axisColors.text }}>
+              {data.qualifiedLeads}
+            </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Tasa Conversión:</span>
-            <span className="font-medium">{data.conversionRate}%</span>
+            <span style={{ color: axisColors.text }} className="opacity-70">
+              Tasa Conversión:
+            </span>
+            <span className="font-medium" style={{ color: axisColors.text }}>
+              {data.conversionRate}%
+            </span>
           </div>
-          <div className="border-t pt-1">
+          <div
+            className="border-t pt-1"
+            style={{ borderColor: axisColors.grid }}
+          >
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Vendedores:</span>
-              <span className="font-medium">{data.userCount}</span>
+              <span style={{ color: axisColors.text }} className="opacity-70">
+                Vendedores:
+              </span>
+              <span className="font-medium" style={{ color: axisColors.text }}>
+                {data.userCount}
+              </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">
+              <span style={{ color: axisColors.text }} className="opacity-70">
                 Promedio por vendedor:
               </span>
-              <span className="font-medium">{data.avgLeadsPerUser}</span>
+              <span className="font-medium" style={{ color: axisColors.text }}>
+                {data.avgLeadsPerUser}
+              </span>
             </div>
           </div>
         </div>
@@ -164,6 +195,11 @@ function SummaryStats({ summary }: { summary: CountriesData["summary"] }) {
 }
 
 export function LeadsCountriesChart({ filters }: LeadsCountriesChartProps) {
+  const { getColor, getChartAxisColors } = useChartColors();
+
+  const axisColors = useMemo(() => getChartAxisColors(), [getChartAxisColors]);
+  const barColor = useMemo(() => getColor("blue"), [getColor]);
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["leads-countries", filters],
     queryFn: () => fetchCountriesData(filters),
@@ -219,25 +255,35 @@ export function LeadsCountriesChart({ filters }: LeadsCountriesChartProps) {
             layout="horizontal"
             margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
           >
-            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke={axisColors.grid}
+              opacity={0.3}
+            />
             <XAxis
               type="number"
-              className="text-muted-foreground text-xs"
+              tick={{ fill: axisColors.text, fontSize: 12 }}
               tickMargin={8}
+              axisLine={{ stroke: axisColors.grid }}
+              tickLine={{ stroke: axisColors.grid }}
             />
             <YAxis
               type="category"
               dataKey="name"
-              className="text-muted-foreground text-xs"
+              tick={{ fill: axisColors.text, fontSize: 12 }}
               tickMargin={8}
               width={100}
+              axisLine={{ stroke: axisColors.grid }}
+              tickLine={{ stroke: axisColors.grid }}
             />
             <Tooltip content={<CustomTooltip />} />
             <Bar
               dataKey="totalLeads"
-              fill="hsl(var(--blue-500))"
+              fill={barColor}
               radius={[0, 4, 4, 0]}
               name="Total Leads"
+              stroke={axisColors.background}
+              strokeWidth={1}
             />
           </BarChart>
         </ResponsiveContainer>

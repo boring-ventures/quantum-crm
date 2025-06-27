@@ -19,9 +19,11 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Cell,
 } from "recharts";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Package, Layers, Award } from "lucide-react";
+import { useChartColors } from "@/lib/utils/chart-colors";
 
 interface LeadsProductsChartProps {
   filters: {
@@ -83,51 +85,88 @@ async function fetchProductsData(
 }
 
 function CustomTooltip({ active, payload, label }: any) {
+  const { getChartAxisColors } = useChartColors();
+  const axisColors = getChartAxisColors();
+
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
-      <div className="bg-background border rounded-lg shadow-lg p-3 min-w-[250px]">
+      <div
+        className="border rounded-lg shadow-lg p-3 min-w-[250px]"
+        style={{ backgroundColor: axisColors.background }}
+      >
         <div className="flex items-center gap-2 mb-2">
           <Package className="h-4 w-4 text-orange-600" />
-          <p className="font-medium">{data.name}</p>
+          <p className="font-medium" style={{ color: axisColors.text }}>
+            {data.name}
+          </p>
         </div>
         <div className="space-y-1 text-sm">
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Total Leads:</span>
-            <span className="font-medium">{data.totalLeads}</span>
+            <span style={{ color: axisColors.text }} className="opacity-70">
+              Total Leads:
+            </span>
+            <span className="font-medium" style={{ color: axisColors.text }}>
+              {data.totalLeads}
+            </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Leads Calificados:</span>
-            <span className="font-medium">{data.qualifiedLeads}</span>
+            <span style={{ color: axisColors.text }} className="opacity-70">
+              Leads Calificados:
+            </span>
+            <span className="font-medium" style={{ color: axisColors.text }}>
+              {data.qualifiedLeads}
+            </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Tasa Conversión:</span>
-            <span className="font-medium">{data.conversionRate}%</span>
+            <span style={{ color: axisColors.text }} className="opacity-70">
+              Tasa Conversión:
+            </span>
+            <span className="font-medium" style={{ color: axisColors.text }}>
+              {data.conversionRate}%
+            </span>
           </div>
           {data.businessType && (
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Tipo de Negocio:</span>
-              <span className="font-medium">{data.businessType}</span>
+              <span style={{ color: axisColors.text }} className="opacity-70">
+                Tipo de Negocio:
+              </span>
+              <span className="font-medium" style={{ color: axisColors.text }}>
+                {data.businessType}
+              </span>
             </div>
           )}
           {data.brand && (
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Marca:</span>
-              <span className="font-medium">{data.brand}</span>
+              <span style={{ color: axisColors.text }} className="opacity-70">
+                Marca:
+              </span>
+              <span className="font-medium" style={{ color: axisColors.text }}>
+                {data.brand}
+              </span>
             </div>
           )}
           {data.avgPrice && (
-            <div className="flex justify-between border-t pt-1">
-              <span className="text-muted-foreground">Precio Promedio:</span>
-              <span className="font-medium">
+            <div
+              className="flex justify-between border-t pt-1"
+              style={{ borderColor: axisColors.grid }}
+            >
+              <span style={{ color: axisColors.text }} className="opacity-70">
+                Precio Promedio:
+              </span>
+              <span className="font-medium" style={{ color: axisColors.text }}>
                 ${data.avgPrice.toLocaleString()}
               </span>
             </div>
           )}
           {data.productCount && (
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Productos:</span>
-              <span className="font-medium">{data.productCount}</span>
+              <span style={{ color: axisColors.text }} className="opacity-70">
+                Productos:
+              </span>
+              <span className="font-medium" style={{ color: axisColors.text }}>
+                {data.productCount}
+              </span>
             </div>
           )}
         </div>
@@ -211,6 +250,8 @@ export function LeadsProductsChart({ filters }: LeadsProductsChartProps) {
     "product"
   );
 
+  const { getRotatingColors, getChartAxisColors } = useChartColors();
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["leads-products", filters, groupBy],
     queryFn: () => fetchProductsData(filters, groupBy),
@@ -222,6 +263,24 @@ export function LeadsProductsChart({ filters }: LeadsProductsChartProps) {
       setGroupBy(value);
     }
   };
+
+  // Generate colors for products
+  const chartColors = useMemo(() => {
+    if (!data?.products) return [];
+    return getRotatingColors(data.products.length);
+  }, [data?.products, getRotatingColors]);
+
+  // Combine data with colors for rendering
+  const chartData = useMemo(() => {
+    if (!data?.products) return [];
+
+    return data.products.map((product, index) => ({
+      ...product,
+      displayColor: chartColors[index] || "#8884d8",
+    }));
+  }, [data?.products, chartColors]);
+
+  const axisColors = useMemo(() => getChartAxisColors(), [getChartAxisColors]);
 
   if (isLoading) {
     return <ProductsChartSkeleton />;
@@ -298,27 +357,46 @@ export function LeadsProductsChart({ filters }: LeadsProductsChartProps) {
       <CardContent>
         <ResponsiveContainer width="100%" height={400}>
           <BarChart
-            data={data.products}
+            data={chartData}
             margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
           >
-            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke={axisColors.grid}
+              opacity={0.3}
+            />
             <XAxis
               dataKey="name"
-              className="text-muted-foreground text-xs"
+              tick={{ fill: axisColors.text, fontSize: 12 }}
               tickMargin={8}
               angle={-45}
               textAnchor="end"
               height={80}
               interval={0}
+              axisLine={{ stroke: axisColors.grid }}
+              tickLine={{ stroke: axisColors.grid }}
             />
-            <YAxis className="text-muted-foreground text-xs" tickMargin={8} />
+            <YAxis
+              tick={{ fill: axisColors.text, fontSize: 12 }}
+              tickMargin={8}
+              axisLine={{ stroke: axisColors.grid }}
+              tickLine={{ stroke: axisColors.grid }}
+            />
             <Tooltip content={<CustomTooltip />} />
             <Bar
               dataKey="totalLeads"
-              fill="hsl(var(--orange-500))"
               radius={[4, 4, 0, 0]}
               name="Total Leads"
-            />
+              stroke={axisColors.background}
+              strokeWidth={1}
+            >
+              {chartData.map((entry, index) => (
+                <Cell
+                  key={`cell-${entry.id || entry.name}-${index}`}
+                  fill={entry.displayColor}
+                />
+              ))}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
 

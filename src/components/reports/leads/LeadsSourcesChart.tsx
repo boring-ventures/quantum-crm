@@ -12,9 +12,10 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Filter, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useChartColors, useSourceColors } from "@/lib/utils/chart-colors";
 
 interface LeadsSourcesChartProps {
   filters: {
@@ -34,7 +35,7 @@ interface SourcesData {
     category: string;
     count: number;
     percentage: number;
-    color: string;
+    color?: string;
     costPerSource?: number | null;
   }>;
   categories: Array<{
@@ -71,34 +72,61 @@ async function fetchSourcesData(filters: any): Promise<SourcesData> {
 }
 
 function CustomTooltip({ active, payload }: any) {
+  const { getChartAxisColors } = useChartColors();
+  const axisColors = getChartAxisColors();
+
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
-      <div className="bg-background border rounded-lg shadow-lg p-3 min-w-[200px]">
+      <div
+        className="border rounded-lg shadow-lg p-3 min-w-[200px]"
+        style={{ backgroundColor: axisColors.background }}
+      >
         <div className="flex items-center gap-2 mb-2">
           <div
             className="w-3 h-3 rounded-full"
-            style={{ backgroundColor: data.color }}
+            style={{ backgroundColor: data.displayColor }}
           />
-          <p className="font-medium">{data.name}</p>
+          <p className="font-medium" style={{ color: axisColors.text }}>
+            {data.name}
+          </p>
         </div>
         <div className="space-y-1 text-sm">
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Leads:</span>
-            <span className="font-medium">{data.count}</span>
+            <span style={{ color: axisColors.text }} className="opacity-70">
+              Leads:
+            </span>
+            <span className="font-medium" style={{ color: axisColors.text }}>
+              {data.count}
+            </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Porcentaje:</span>
-            <span className="font-medium">{data.percentage}%</span>
+            <span style={{ color: axisColors.text }} className="opacity-70">
+              Porcentaje:
+            </span>
+            <span className="font-medium" style={{ color: axisColors.text }}>
+              {data.percentage}%
+            </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Categoría:</span>
-            <span className="font-medium">{data.category}</span>
+            <span style={{ color: axisColors.text }} className="opacity-70">
+              Categoría:
+            </span>
+            <span className="font-medium" style={{ color: axisColors.text }}>
+              {data.category}
+            </span>
           </div>
           {data.costPerSource && (
-            <div className="flex justify-between border-t pt-1">
-              <span className="text-muted-foreground">Costo:</span>
-              <span className="font-medium">${data.costPerSource}</span>
+            <div
+              className="flex justify-between border-t pt-1"
+              style={{ borderColor: axisColors.grid }}
+            >
+              <span style={{ color: axisColors.text }} className="opacity-70">
+                Costo:
+              </span>
+              <span className="font-medium" style={{ color: axisColors.text }}>
+                ${data.costPerSource}
+              </span>
             </div>
           )}
         </div>
@@ -141,9 +169,11 @@ function SourcesChartSkeleton() {
 
 function SourcesList({
   sources,
+  sourceColors,
   onSourceFilter,
 }: {
   sources: SourcesData["sources"];
+  sourceColors: Map<string, string>;
   onSourceFilter?: (sourceIds: string[]) => void;
 }) {
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
@@ -191,7 +221,7 @@ function SourcesList({
           >
             <div
               className="w-3 h-3 rounded-full flex-shrink-0"
-              style={{ backgroundColor: source.color }}
+              style={{ backgroundColor: sourceColors.get(source.sourceId) }}
             />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{source.name}</p>
@@ -224,11 +254,30 @@ export function LeadsSourcesChart({
   filters,
   onSourceFilter,
 }: LeadsSourcesChartProps) {
+  const { getChartAxisColors } = useChartColors();
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["leads-sources", filters],
     queryFn: () => fetchSourcesData(filters),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
+
+  // Generate consistent colors for sources
+  const sourceColors = useSourceColors(
+    data?.sources?.map((s) => ({ sourceId: s.sourceId, name: s.name })) || []
+  );
+
+  // Add display colors to data for charts
+  const chartData = useMemo(() => {
+    if (!data?.sources) return [];
+
+    return data.sources.map((source) => ({
+      ...source,
+      displayColor: sourceColors.get(source.sourceId) || "#8884d8",
+    }));
+  }, [data?.sources, sourceColors]);
+
+  const axisColors = useMemo(() => getChartAxisColors(), [getChartAxisColors]);
 
   if (isLoading) {
     return <SourcesChartSkeleton />;
@@ -282,7 +331,7 @@ export function LeadsSourcesChart({
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={data.sources}
+                  data={chartData}
                   cx="50%"
                   cy="50%"
                   outerRadius={100}
@@ -290,12 +339,27 @@ export function LeadsSourcesChart({
                   dataKey="count"
                   animationBegin={0}
                   animationDuration={800}
+                  stroke={axisColors.background}
+                  strokeWidth={2}
                 >
-                  {data.sources.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  {chartData.map((entry, index) => (
+                    <Cell
+                      key={`cell-${entry.sourceId}-${index}`}
+                      fill={entry.displayColor}
+                    />
                   ))}
                 </Pie>
                 <Tooltip content={<CustomTooltip />} />
+                <Legend
+                  wrapperStyle={{
+                    fontSize: "12px",
+                    color: axisColors.text,
+                    marginTop: "10px",
+                  }}
+                  formatter={(value: string, entry: any) => (
+                    <span style={{ color: axisColors.text }}>{value}</span>
+                  )}
+                />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -304,6 +368,7 @@ export function LeadsSourcesChart({
           <div className="lg:w-1/3">
             <SourcesList
               sources={data.sources}
+              sourceColors={sourceColors}
               onSourceFilter={onSourceFilter}
             />
           </div>
