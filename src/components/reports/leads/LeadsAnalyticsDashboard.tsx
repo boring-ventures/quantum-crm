@@ -3,15 +3,18 @@
 import { useState, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Download, RefreshCw } from "lucide-react";
 import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
 import { LeadsAnalyticsOverview } from "./LeadsAnalyticsOverview";
 import { LeadsTimelineChart } from "./LeadsTimelineChart";
 import { LeadsSourcesChart } from "./LeadsSourcesChart";
 import { LeadsCountriesChart } from "./LeadsCountriesChart";
 import { LeadsProductsChart } from "./LeadsProductsChart";
 import { LeadsFilters } from "./LeadsFilters";
+import { exportAllLeadsAnalytics } from "@/lib/utils/export-utils";
 
 interface MetricConfig {
   id: string;
@@ -41,6 +44,10 @@ export function LeadsAnalyticsDashboard({
 }: LeadsAnalyticsDashboardProps) {
   const [filters, setFilters] = useState<FiltersData>({});
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const handleFiltersChange = useCallback((newFilters: FiltersData) => {
     setFilters(newFilters);
@@ -52,15 +59,101 @@ export function LeadsAnalyticsDashboard({
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
-    // Simulate refresh delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsRefreshing(false);
-  }, []);
 
-  const handleExport = useCallback(() => {
-    // TODO: Implement export functionality
-    console.log("Export functionality not yet implemented");
-  }, []);
+    try {
+      // Invalidate all related queries
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["leads-analytics-overview"],
+          exact: false,
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["leads-timeline"],
+          exact: false,
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["leads-sources"],
+          exact: false,
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["leads-countries"],
+          exact: false,
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["leads-products"],
+          exact: false,
+        }),
+      ]);
+
+      // Force refetch all queries
+      await Promise.all([
+        queryClient.refetchQueries({
+          queryKey: ["leads-analytics-overview"],
+          exact: false,
+        }),
+        queryClient.refetchQueries({
+          queryKey: ["leads-timeline"],
+          exact: false,
+        }),
+        queryClient.refetchQueries({
+          queryKey: ["leads-sources"],
+          exact: false,
+        }),
+        queryClient.refetchQueries({
+          queryKey: ["leads-countries"],
+          exact: false,
+        }),
+        queryClient.refetchQueries({
+          queryKey: ["leads-products"],
+          exact: false,
+        }),
+      ]);
+
+      toast({
+        title: "Datos actualizados",
+        description:
+          "Todos los gráficos han sido actualizados con los datos más recientes.",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error("Error refreshing data:", error);
+      toast({
+        title: "Error al actualizar",
+        description:
+          "Hubo un problema al actualizar los datos. Intenta de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [queryClient, toast]);
+
+  const handleExport = useCallback(async () => {
+    setIsExporting(true);
+
+    try {
+      await exportAllLeadsAnalytics(filters);
+
+      toast({
+        title: "Exportación completada",
+        description:
+          "El archivo Excel con todas las métricas ha sido descargado exitosamente.",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error("Error exporting data:", error);
+      toast({
+        title: "Error en exportación",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Error al exportar los datos.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  }, [filters, toast]);
 
   return (
     <div className="space-y-8">
@@ -103,7 +196,7 @@ export function LeadsAnalyticsDashboard({
                   variant="default"
                   className="text-xs bg-green-600 hover:bg-green-700"
                 >
-                  Fase 2 - Activo
+                  Activo
                 </Badge>
               </div>
               <p className="text-muted-foreground text-lg">
@@ -123,11 +216,16 @@ export function LeadsAnalyticsDashboard({
               <RefreshCw
                 className={cn("h-4 w-4 mr-2", isRefreshing && "animate-spin")}
               />
-              Actualizar
+              {isRefreshing ? "Actualizando..." : "Actualizar"}
             </Button>
-            <Button variant="outline" size="sm" onClick={handleExport}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExport}
+              disabled={isExporting}
+            >
               <Download className="h-4 w-4 mr-2" />
-              Exportar
+              {isExporting ? "Exportando..." : "Exportar"}
             </Button>
           </div>
         </div>
