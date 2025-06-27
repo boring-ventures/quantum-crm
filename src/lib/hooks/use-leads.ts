@@ -52,6 +52,9 @@ export const useLeadsQuery = (filters: LeadsFilter = {}) => {
       }
       return response.json();
     },
+    enabled: !(
+      filters.assignedToId === undefined && filters.countryId === undefined
+    ),
   });
 };
 

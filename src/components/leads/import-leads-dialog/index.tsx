@@ -15,6 +15,7 @@ import { useDropzone } from "react-dropzone";
 interface ImportLeadsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  preassignedUserId?: string | null;
 }
 
 interface ImportResults {
@@ -32,6 +33,7 @@ interface ImportResults {
 export function ImportLeadsDialog({
   open,
   onOpenChange,
+  preassignedUserId,
 }: ImportLeadsDialogProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -56,6 +58,11 @@ export function ImportLeadsDialog({
       try {
         const formData = new FormData();
         formData.append("file", file);
+
+        // Añadir el ID del usuario pre-asignado si existe
+        if (preassignedUserId) {
+          formData.append("assignedToId", preassignedUserId);
+        }
 
         const response = await fetch("/api/leads/import", {
           method: "POST",

@@ -129,6 +129,15 @@ export function QuotationDialog({
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.type !== "application/pdf") {
+        toast({
+          title: "Error de formato",
+          description:
+            "Solo se permiten archivos PDF para el documento de proforma",
+          variant: "destructive",
+        });
+        return;
+      }
       setProformaDoc(file);
       setProformaDocName(file.name);
     }
@@ -395,7 +404,7 @@ export function QuotationDialog({
                   id="proforma-upload"
                   type="file"
                   className="hidden"
-                  accept=".pdf,.doc,.docx"
+                  accept=".pdf"
                   onChange={handleFileUpload}
                   disabled={isUploading}
                 />

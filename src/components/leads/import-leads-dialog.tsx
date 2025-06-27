@@ -22,6 +22,7 @@ import {
 interface ImportLeadsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  preassignedUserId?: string | null;
 }
 
 interface ImportResult {
@@ -35,6 +36,7 @@ interface ImportResult {
 export function ImportLeadsDialog({
   open,
   onOpenChange,
+  preassignedUserId,
 }: ImportLeadsDialogProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -112,6 +114,11 @@ export function ImportLeadsDialog({
       const formData = new FormData();
       formData.append("file", selectedFile);
       formData.append("user", JSON.stringify(user));
+
+      // Si hay un ID de usuario pre-asignado, usarlo para la asignación de leads
+      if (preassignedUserId) {
+        formData.append("assignedToId", preassignedUserId);
+      }
       const res = await fetch("/api/leads/import", {
         method: "POST",
         body: formData,

@@ -45,7 +45,7 @@ import {
   useBusinessTypes,
 } from "./hooks/use-sales-data";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DateRange } from "react-day-picker";
@@ -79,6 +79,7 @@ import { useQuotations } from "./hooks/use-sales-data";
 
 export default function SalesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<
     "cotizaciones" | "reservas" | "ventas"
   >("cotizaciones");
@@ -196,12 +197,25 @@ export default function SalesPage() {
 
   // Usar useEffect para manejar el cambio de roles
   useEffect(() => {
-    // Si es vendedor, mostrar el contenido automáticamente
     if (isSeller) {
       setHasSelectedSeller(true);
       setShowSellerSelector(false);
     }
-  }, [isSeller]);
+
+    const tabParam = searchParams.get("tab");
+    if (tabParam) {
+      setActiveTab(tabParam as "cotizaciones" | "reservas" | "ventas");
+      // Si el usuario es un manager o seller, y hay un tab, directamente mostrar las ventas
+      if (isManagerRole || isSeller) {
+        setHasSelectedSeller(true);
+        setShowSellerSelector(false);
+        // Si es manager y no hay selectedSellerId, se asume "todos los vendedores"
+        if (isManagerRole && !selectedSellerId) {
+          setSelectedSellerId(null);
+        }
+      }
+    }
+  }, [isSeller, searchParams, isManagerRole, selectedSellerId]);
 
   const { data: categories, isLoading: categoriesLoading } =
     useProductCategories();

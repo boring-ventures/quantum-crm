@@ -27,17 +27,17 @@ export function TeamCalendar({ selectedDate }: TeamCalendarProps) {
   );
 
   const weekStart = currentWeek;
-  const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1 });
+  const weekEnd = addDays(endOfWeek(currentWeek, { weekStartsOn: 1 }), 7);
 
   const { data: teamTasks, isLoading } = useTeamTestDriveTasks(
     weekStart,
     weekEnd
   );
 
-  // Obtener los días de la semana
+  // Obtener los días de dos semanas
   const weekDays = useMemo(() => {
     const days = [];
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 14; i++) {
       days.push(addDays(weekStart, i));
     }
     return days;
@@ -107,12 +107,12 @@ export function TeamCalendar({ selectedDate }: TeamCalendarProps) {
           Calendario del Equipo - Test Drives y Visitas
         </CardTitle>
         <p className="text-sm text-gray-500">
-          Semana del {format(weekStart, "dd MMM", { locale: es })} al{" "}
+          Del {format(weekStart, "dd MMM", { locale: es })} al{" "}
           {format(weekEnd, "dd MMM yyyy", { locale: es })}
         </p>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-7 gap-2">
+        <div className="grid grid-cols-7 gap-2 mb-4">
           {weekDays.map((day) => {
             const dayTasks = getTasksForDay(day);
             const isSelected = selectedDate && isSameDay(day, selectedDate);

@@ -55,7 +55,7 @@ import {
 } from "@/components/ui/dialog";
 import { TaskTypeDialog } from "@/components/leads/task-type-dialog";
 import { useQueryClient } from "@tanstack/react-query";
-import { hasPermission } from "@/lib/utils/permissions";
+import { hasPermission, getScope } from "@/lib/utils/permissions";
 import { ReassignLeadDialog } from "@/components/leads/reassign-lead-dialog";
 import { QualifyLeadDialog } from "@/components/leads/qualify-lead-dialog";
 import { QualityScoreSelector } from "@/components/leads/quality-score-selector";
@@ -318,8 +318,14 @@ export function LeadDetailPage({
   const canViewLeads = hasPermission(currentUser, "leads", "view");
   const canEditLeads =
     hasPermission(currentUser, "leads", "edit") && !isLeadClosed;
+
+  // Para eliminar, verificar que tenga permisos, el lead no esté cerrado y NO tenga scope "self"
+  const leadsScope = getScope(currentUser, "leads", "delete");
   const canDeleteLeads =
-    hasPermission(currentUser, "leads", "delete") && !isLeadClosed;
+    hasPermission(currentUser, "leads", "delete") &&
+    !isLeadClosed &&
+    leadsScope !== "self";
+
   const canCreateSales =
     hasPermission(currentUser, "sales", "create") && !isLeadClosed;
   const canCreateTasks =
@@ -548,9 +554,18 @@ export function LeadDetailPage({
                   <span className="font-medium text-gray-900 dark:text-gray-100">
                     {doc.name}
                   </span>
-                  <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
-                    ({(doc.size / 1024).toFixed(1)} KB)
-                  </span>
+                  {doc.size > 0 && (
+                    <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                      ({(doc.size / 1024).toFixed(1)} KB)
+                    </span>
+                  )}
+                  {doc.source && doc.source !== "document" && (
+                    <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 rounded">
+                      {doc.source === "quotation" && "Cotización"}
+                      {doc.source === "reservation" && "Reserva"}
+                      {doc.source === "sale" && "Venta"}
+                    </span>
+                  )}
                 </div>
                 <a
                   href={doc.url}

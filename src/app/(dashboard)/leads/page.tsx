@@ -412,7 +412,9 @@ export default function LeadsPage() {
                 <>
                   <Button onClick={() => setNewLeadOpen(true)}>
                     <Plus className="mr-2 h-4 w-4" />
-                    Nuevo Lead
+                    {selectedSellerId
+                      ? "Nuevo Lead para este Vendedor"
+                      : "Nuevo Lead"}
                   </Button>
                   <Button
                     variant="outline"
@@ -817,10 +819,15 @@ export default function LeadsPage() {
             </CardContent>
           </Card>
 
-          <NewLeadDialog open={newLeadOpen} onOpenChange={setNewLeadOpen} />
+          <NewLeadDialog
+            open={newLeadOpen}
+            onOpenChange={setNewLeadOpen}
+            preassignedUserId={selectedSellerId || undefined}
+          />
           <ImportLeadsDialog
             open={importLeadsOpen}
             onOpenChange={setImportLeadsOpen}
+            preassignedUserId={selectedSellerId || undefined}
           />
           <BatchReassignDialog
             open={batchReassignOpen}

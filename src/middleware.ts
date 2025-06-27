@@ -41,7 +41,7 @@ function isPublicRoute(pathname: string): boolean {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  //console.log(`[MIDDLEWARE] Path: ${pathname}`);
+  console.log(`[MIDDLEWARE] Path: ${pathname}`);
 
   // Ignorar completamente todas las rutas de API excepto las que necesitamos para verificar permisos por país
   // Permitir rutas de aprobación/rechazo de ventas sin middleware
@@ -179,28 +179,54 @@ export async function middleware(request: NextRequest) {
 
     // Extraer la sección de la ruta
     const sectionKey = getSectionKeyFromPath(pathname);
-    //console.log(`[MIDDLEWARE] Extracted section key: ${sectionKey}`);
+    console.log(
+      `[MIDDLEWARE] Extracted section key: ${sectionKey} for path: ${pathname}`
+    );
 
     if (!sectionKey) {
-      //console.log(
-      //  `[MIDDLEWARE] No section key found for ${pathname}, denying access`
-      //);
+      console.log(
+        `[MIDDLEWARE] No section key found for ${pathname}, denying access`
+      );
       return NextResponse.redirect(new URL("/access-denied", request.url));
     }
 
+    // Mapeo especial para secciones de admin
+    let permissionKey = sectionKey;
+
+    // El getSectionKeyFromPath ya devuelve 'admin.products', 'admin.roles', etc.
+    // Pero necesitamos mapearlo a las claves reales en los permisos del usuario
+    if (sectionKey && sectionKey.startsWith("admin.")) {
+      const adminSection = sectionKey.split(".")[1]; // Extraer la parte después de 'admin.'
+      if (adminSection === "countries") permissionKey = "countries";
+      else if (adminSection === "leads") permissionKey = "leads-settings";
+      else if (adminSection === "products") permissionKey = "products";
+      else if (adminSection === "roles") permissionKey = "roles";
+      else if (adminSection === "users") permissionKey = "users";
+      console.log(
+        `[MIDDLEWARE] Admin route detected. Mapped from ${sectionKey} to ${permissionKey}`
+      );
+    }
+
     // Verificar permisos
+    // Debug: Ver los permisos del usuario para esta sección
+    console.log(`[MIDDLEWARE] Checking permission for key: ${permissionKey}`);
+    console.log(
+      `[MIDDLEWARE] User has these permissions:`,
+      JSON.stringify(permissions[permissionKey] || {}, null, 2)
+    );
+
     const userHasPermission = sharedHasPermission(
       permissions,
-      sectionKey,
+      permissionKey,
       "view"
     );
 
-    //console.log(
-    //  `[MIDDLEWARE] User has permission for ${sectionKey}: ${userHasPermission}`
-    //);
+    console.log(
+      `[MIDDLEWARE] User has permission for ${permissionKey}: ${userHasPermission}`
+    );
 
     if (!userHasPermission) {
-      //console.log(`[MIDDLEWARE] Access denied for ${pathname}, redirecting`);
+      console.log(`[MIDDLEWARE] Access denied for ${pathname}, redirecting`);
       return NextResponse.redirect(new URL("/access-denied", request.url));
     }
 
@@ -293,5 +319,6 @@ export const config = {
     "/api/leads/:path*",
     "/api/sales/:path*",
     "/api/users/:path*",
+    "/api/tasks/:path*",
   ],
 };
