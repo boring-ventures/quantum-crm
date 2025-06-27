@@ -13,7 +13,7 @@ import {
   Legend,
 } from "recharts";
 import { useState, useMemo } from "react";
-import { Filter, Target } from "lucide-react";
+import { Filter, Target, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useChartColors, useSourceColors } from "@/lib/utils/chart-colors";
 
@@ -108,26 +108,48 @@ function CustomTooltip({ active, payload }: any) {
               {data.percentage}%
             </span>
           </div>
-          <div className="flex justify-between">
-            <span style={{ color: axisColors.text }} className="opacity-70">
-              Categoría:
-            </span>
-            <span className="font-medium" style={{ color: axisColors.text }}>
-              {data.category}
-            </span>
-          </div>
-          {data.costPerSource && (
-            <div
-              className="flex justify-between border-t pt-1"
-              style={{ borderColor: axisColors.grid }}
-            >
+          {data.isOthers ? (
+            <div className="flex justify-between">
               <span style={{ color: axisColors.text }} className="opacity-70">
-                Costo:
+                Fuentes agrupadas:
               </span>
               <span className="font-medium" style={{ color: axisColors.text }}>
-                ${data.costPerSource}
+                {data.sourcesCount}
               </span>
             </div>
+          ) : (
+            <>
+              <div className="flex justify-between">
+                <span style={{ color: axisColors.text }} className="opacity-70">
+                  Categoría:
+                </span>
+                <span
+                  className="font-medium"
+                  style={{ color: axisColors.text }}
+                >
+                  {data.category}
+                </span>
+              </div>
+              {data.costPerSource && (
+                <div
+                  className="flex justify-between border-t pt-1"
+                  style={{ borderColor: axisColors.grid }}
+                >
+                  <span
+                    style={{ color: axisColors.text }}
+                    className="opacity-70"
+                  >
+                    Costo:
+                  </span>
+                  <span
+                    className="font-medium"
+                    style={{ color: axisColors.text }}
+                  >
+                    ${data.costPerSource}
+                  </span>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -171,12 +193,18 @@ function SourcesList({
   sources,
   sourceColors,
   onSourceFilter,
+  showAll,
+  onToggleShowAll,
 }: {
   sources: SourcesData["sources"];
   sourceColors: Map<string, string>;
   onSourceFilter?: (sourceIds: string[]) => void;
+  showAll: boolean;
+  onToggleShowAll: () => void;
 }) {
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
+
+  const displaySources = showAll ? sources : sources.slice(0, 8);
 
   const handleSourceClick = (sourceId: string) => {
     if (!onSourceFilter) return;
@@ -192,7 +220,12 @@ function SourcesList({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h4 className="font-medium text-sm">Fuentes Principales</h4>
+        <h4 className="font-medium text-sm">
+          Fuentes Principales
+          <span className="text-muted-foreground ml-1">
+            ({sources.length} total)
+          </span>
+        </h4>
         {selectedSources.length > 0 && (
           <Button
             variant="ghost"
@@ -209,7 +242,7 @@ function SourcesList({
       </div>
 
       <div className="space-y-2 max-h-60 overflow-y-auto">
-        {sources.slice(0, 8).map((source) => (
+        {displaySources.map((source) => (
           <div
             key={source.sourceId}
             className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${
@@ -237,6 +270,28 @@ function SourcesList({
         ))}
       </div>
 
+      {/* Toggle button for showing all sources */}
+      {sources.length > 8 && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onToggleShowAll}
+          className="w-full"
+        >
+          {showAll ? (
+            <>
+              <ChevronUp className="h-3 w-3 mr-1" />
+              Mostrar menos
+            </>
+          ) : (
+            <>
+              <ChevronDown className="h-3 w-3 mr-1" />
+              Ver todas ({sources.length - 8} más)
+            </>
+          )}
+        </Button>
+      )}
+
       {selectedSources.length > 0 && (
         <div className="pt-2 border-t">
           <Badge variant="secondary" className="text-xs">
@@ -255,6 +310,8 @@ export function LeadsSourcesChart({
   onSourceFilter,
 }: LeadsSourcesChartProps) {
   const { getChartAxisColors } = useChartColors();
+  const [showAllSources, setShowAllSources] = useState(false);
+  const [showSimplifiedChart, setShowSimplifiedChart] = useState(true);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["leads-sources", filters],
@@ -267,15 +324,55 @@ export function LeadsSourcesChart({
     data?.sources?.map((s) => ({ sourceId: s.sourceId, name: s.name })) || []
   );
 
-  // Add display colors to data for charts
+  // Process chart data with grouping logic
   const chartData = useMemo(() => {
     if (!data?.sources) return [];
 
-    return data.sources.map((source) => ({
-      ...source,
-      displayColor: sourceColors.get(source.sourceId) || "#8884d8",
-    }));
-  }, [data?.sources, sourceColors]);
+    const sortedSources = [...data.sources].sort((a, b) => b.count - a.count);
+
+    if (showSimplifiedChart && sortedSources.length > 8) {
+      // Take top 7 sources and group the rest into "Otros"
+      const topSources = sortedSources.slice(0, 7);
+      const otherSources = sortedSources.slice(7);
+
+      const othersTotal = otherSources.reduce(
+        (sum, source) => sum + source.count,
+        0
+      );
+      const othersPercentage = otherSources.reduce(
+        (sum, source) => sum + source.percentage,
+        0
+      );
+
+      const processedTopSources = topSources.map((source) => ({
+        ...source,
+        displayColor: sourceColors.get(source.sourceId) || "#8884d8",
+        isOthers: false,
+      }));
+
+      // Create "Otros" category
+      const othersCategory = {
+        sourceId: "others",
+        name: "Otros",
+        category: "Múltiples",
+        count: othersTotal,
+        percentage: othersPercentage,
+        displayColor: "hsl(var(--muted-foreground))",
+        isOthers: true,
+        sourcesCount: otherSources.length,
+        costPerSource: null,
+      };
+
+      return [...processedTopSources, othersCategory];
+    } else {
+      // Show all sources
+      return sortedSources.map((source) => ({
+        ...source,
+        displayColor: sourceColors.get(source.sourceId) || "#8884d8",
+        isOthers: false,
+      }));
+    }
+  }, [data?.sources, sourceColors, showSimplifiedChart]);
 
   const axisColors = useMemo(() => getChartAxisColors(), [getChartAxisColors]);
 
@@ -323,6 +420,29 @@ export function LeadsSourcesChart({
             <p className="text-xs text-muted-foreground">Total de leads</p>
           </div>
         </div>
+
+        {/* Chart controls */}
+        {data.sources.length > 8 && (
+          <div className="flex items-center gap-2 pt-2">
+            <Button
+              variant={showSimplifiedChart ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowSimplifiedChart(true)}
+            >
+              Vista Simplificada
+            </Button>
+            <Button
+              variant={!showSimplifiedChart ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowSimplifiedChart(false)}
+            >
+              Vista Completa
+            </Button>
+            <Badge variant="secondary" className="ml-auto">
+              {data.sources.length} fuentes
+            </Badge>
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         <div className="flex flex-col lg:flex-row gap-6">
@@ -362,6 +482,15 @@ export function LeadsSourcesChart({
                 />
               </PieChart>
             </ResponsiveContainer>
+
+            {/* Chart info */}
+            <div className="text-center mt-2">
+              <p className="text-xs text-muted-foreground">
+                {showSimplifiedChart && data.sources.length > 8
+                  ? `Mostrando top 7 fuentes + ${data.sources.length - 7} agrupadas en "Otros"`
+                  : `Mostrando todas las ${data.sources.length} fuentes`}
+              </p>
+            </div>
           </div>
 
           {/* Sources List */}
@@ -370,6 +499,8 @@ export function LeadsSourcesChart({
               sources={data.sources}
               sourceColors={sourceColors}
               onSourceFilter={onSourceFilter}
+              showAll={showAllSources}
+              onToggleShowAll={() => setShowAllSources(!showAllSources)}
             />
           </div>
         </div>
