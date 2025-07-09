@@ -36,7 +36,7 @@ export function UserSelectorDialog({
   const { data, isLoading } = useQuery({
     queryKey: ["users-all"],
     queryFn: async (): Promise<User[]> => {
-      const res = await fetch("/api/users/all");
+      const res = await fetch("/api/users/all?active=true");
       const json = await res.json();
       return json.users as User[];
     },
