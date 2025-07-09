@@ -15,85 +15,92 @@ export async function GET(request: NextRequest) {
       .get("assignedToIds")
       ?.split(",")
       .filter(Boolean);
-    const period = searchParams.get("period") || "day"; // day, week, month
+    const period =
+      searchParams.get("groupBy") || searchParams.get("period") || "day"; // day, week, month
 
-    // Build base date filter
-    const dateFilter = {
-      ...(startDate && { gte: new Date(startDate) }),
-      ...(endDate && { lte: new Date(endDate) }),
-    };
+    // Build date filter
+    const dateFilter: any = {};
+    if (startDate) dateFilter.gte = new Date(startDate);
+    if (endDate) dateFilter.lte = new Date(endDate);
 
-    // Build user filter
-    const userFilter = assignedToIds?.length
-      ? { in: assignedToIds }
-      : undefined;
+    // Build lead filter
+    const leadFilter: any = {};
+    if (assignedToIds?.length) {
+      leadFilter.assignedToId = { in: assignedToIds };
+    }
+    if (countryIds?.length) {
+      leadFilter.assignedTo = {
+        countryId: { in: countryIds },
+      };
+    }
 
-    // Build country filter
-    const countryFilter = countryIds?.length ? { in: countryIds } : undefined;
+    // Get quotations with lead data
+    const quotations = await prisma.quotation.findMany({
+      where: {
+        createdAt: dateFilter,
+        lead: leadFilter,
+      },
+      select: {
+        id: true,
+        createdAt: true,
+        totalAmount: true,
+        currency: true,
+      },
+    });
 
-    // Determine date_trunc format based on period
-    const dateTruncFormat =
-      period === "week" ? "week" : period === "month" ? "month" : "day";
+    // Get reservations with lead data
+    const reservations = await prisma.reservation.findMany({
+      where: {
+        createdAt: dateFilter,
+        lead: leadFilter,
+      },
+      select: {
+        id: true,
+        createdAt: true,
+        amount: true,
+        currency: true,
+      },
+    });
 
-    // Get quotations timeline
-    const quotationsTimeline = await prisma.$queryRaw`
-      SELECT 
-        date_trunc(${dateTruncFormat}, q.created_at) as date,
-        q.currency,
-        COALESCE(SUM(q.total_amount), 0) as total_amount,
-        COUNT(q.id) as count
-      FROM quotations q
-      INNER JOIN leads l ON q.lead_id = l.id
-      ${userFilter ? prisma.$queryRaw`WHERE l.assigned_to_id = ANY(${userFilter})` : prisma.$queryRaw`WHERE 1=1`}
-      ${countryFilter ? prisma.$queryRaw`AND l.assigned_to_id IN (SELECT id FROM users WHERE country_id = ANY(${countryFilter}))` : prisma.$queryRaw``}
-      ${startDate ? prisma.$queryRaw`AND q.created_at >= ${new Date(startDate)}` : prisma.$queryRaw``}
-      ${endDate ? prisma.$queryRaw`AND q.created_at <= ${new Date(endDate)}` : prisma.$queryRaw``}
-      GROUP BY date_trunc(${dateTruncFormat}, q.created_at), q.currency
-      ORDER BY date_trunc(${dateTruncFormat}, q.created_at)
-    `;
-
-    // Get reservations timeline
-    const reservationsTimeline = await prisma.$queryRaw`
-      SELECT 
-        date_trunc(${dateTruncFormat}, r.created_at) as date,
-        r.currency,
-        COALESCE(SUM(r.amount), 0) as amount,
-        COUNT(r.id) as count
-      FROM reservations r
-      INNER JOIN leads l ON r.lead_id = l.id
-      ${userFilter ? prisma.$queryRaw`WHERE l.assigned_to_id = ANY(${userFilter})` : prisma.$queryRaw`WHERE 1=1`}
-      ${countryFilter ? prisma.$queryRaw`AND l.assigned_to_id IN (SELECT id FROM users WHERE country_id = ANY(${countryFilter}))` : prisma.$queryRaw``}
-      ${startDate ? prisma.$queryRaw`AND r.created_at >= ${new Date(startDate)}` : prisma.$queryRaw``}
-      ${endDate ? prisma.$queryRaw`AND r.created_at <= ${new Date(endDate)}` : prisma.$queryRaw``}
-      GROUP BY date_trunc(${dateTruncFormat}, r.created_at), r.currency
-      ORDER BY date_trunc(${dateTruncFormat}, r.created_at)
-    `;
-
-    // Get sales timeline
-    const salesTimeline = await prisma.$queryRaw`
-      SELECT 
-        date_trunc(${dateTruncFormat}, s.created_at) as date,
-        s.currency,
-        COALESCE(SUM(s.amount), 0) as amount,
-        COUNT(s.id) as count
-      FROM sales s
-      INNER JOIN leads l ON s.lead_id = l.id
-      ${userFilter ? prisma.$queryRaw`WHERE l.assigned_to_id = ANY(${userFilter})` : prisma.$queryRaw`WHERE 1=1`}
-      ${countryFilter ? prisma.$queryRaw`AND l.assigned_to_id IN (SELECT id FROM users WHERE country_id = ANY(${countryFilter}))` : prisma.$queryRaw``}
-      ${startDate ? prisma.$queryRaw`AND s.created_at >= ${new Date(startDate)}` : prisma.$queryRaw``}
-      ${endDate ? prisma.$queryRaw`AND s.created_at <= ${new Date(endDate)}` : prisma.$queryRaw``}
-      GROUP BY date_trunc(${dateTruncFormat}, s.created_at), s.currency
-      ORDER BY date_trunc(${dateTruncFormat}, s.created_at)
-    `;
+    // Get sales with lead data
+    const sales = await prisma.sale.findMany({
+      where: {
+        createdAt: dateFilter,
+        lead: leadFilter,
+      },
+      select: {
+        id: true,
+        createdAt: true,
+        amount: true,
+        currency: true,
+      },
+    });
 
     // Process and combine timeline data
     const combinedTimeline = new Map<string, any>();
 
+    // Helper function to get date key based on period
+    const getDateKey = (date: Date) => {
+      if (period === "week") {
+        const startOfWeek = new Date(date);
+        startOfWeek.setDate(date.getDate() - date.getDay());
+        return startOfWeek.toISOString().split("T")[0];
+      } else if (period === "month") {
+        return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}-01`;
+      } else {
+        return date.toISOString().split("T")[0];
+      }
+    };
+
     // Helper function to process timeline data
-    const processTimelineData = (data: any[], type: string) => {
+    const processTimelineData = (
+      data: any[],
+      type: string,
+      amountField: string
+    ) => {
       data.forEach((item: any) => {
-        const dateKey = item.date.toISOString().split("T")[0];
-        const currency = item.currency;
+        const dateKey = getDateKey(new Date(item.createdAt));
+        const currency = item.currency || "BOB";
         const compositeKey = `${dateKey}_${currency}`;
 
         if (!combinedTimeline.has(compositeKey)) {
@@ -109,18 +116,18 @@ export async function GET(request: NextRequest) {
         }
 
         const entry = combinedTimeline.get(compositeKey);
-        const amount = Number(item.total_amount || item.amount || 0);
-        const count = Number(item.count || 0);
+        const amount = Number(item[amountField] || 0);
 
-        entry[type] = { count, amount };
+        entry[type].count += 1;
+        entry[type].amount += amount;
         entry.totalAmount += amount;
-        entry.totalCount += count;
+        entry.totalCount += 1;
       });
     };
 
-    processTimelineData(quotationsTimeline as any[], "quotations");
-    processTimelineData(reservationsTimeline as any[], "reservations");
-    processTimelineData(salesTimeline as any[], "sales");
+    processTimelineData(quotations, "quotations", "totalAmount");
+    processTimelineData(reservations, "reservations", "amount");
+    processTimelineData(sales, "sales", "amount");
 
     // Convert to array and sort by date
     const timeline = Array.from(combinedTimeline.values()).sort(
@@ -178,16 +185,21 @@ export async function GET(request: NextRequest) {
       {} as Record<string, any>
     );
 
+    // Prepare simplified timeline for the chart component (date, revenue, sales)
+    const simpleTimeline = timeline.map((item) => ({
+      date: item.date,
+      revenue: item.totalAmount,
+      sales: item.totalCount,
+    }));
+
     return NextResponse.json({
       success: true,
       data: {
-        timeline,
-        timelineByCurrency,
-        currencyTotals,
+        timeline: simpleTimeline,
         period: {
-          type: period,
           startDate,
           endDate,
+          groupBy: period,
         },
       },
     });

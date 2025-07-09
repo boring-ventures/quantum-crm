@@ -16,124 +16,190 @@ export async function GET(request: NextRequest) {
       ?.split(",")
       .filter(Boolean);
 
-    // Build base date filter
-    const dateFilter = {
-      ...(startDate && { gte: new Date(startDate) }),
-      ...(endDate && { lte: new Date(endDate) }),
-    };
+    // Build date filter
+    const dateFilter: any = {};
+    if (startDate) dateFilter.gte = new Date(startDate);
+    if (endDate) dateFilter.lte = new Date(endDate);
 
-    // Build user filter
-    const userFilter = assignedToIds?.length
-      ? { in: assignedToIds }
-      : undefined;
+    // Build lead filter
+    const leadFilter: any = {};
+    if (assignedToIds?.length) {
+      leadFilter.assignedToId = { in: assignedToIds };
+    }
+    if (countryIds?.length) {
+      leadFilter.assignedTo = {
+        countryId: { in: countryIds },
+      };
+    }
 
-    // Build country filter
-    const countryFilter = countryIds?.length ? { in: countryIds } : undefined;
+    // Get quotations with country data
+    const quotations = await prisma.quotation.findMany({
+      where: {
+        createdAt: dateFilter,
+        lead: leadFilter,
+      },
+      select: {
+        id: true,
+        totalAmount: true,
+        currency: true,
+        lead: {
+          select: {
+            assignedTo: {
+              select: {
+                country: {
+                  select: {
+                    name: true,
+                    code: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
 
-    // Get quotations by country
-    const quotationsByCountry = await prisma.$queryRaw`
-      SELECT 
-        c.name as country_name,
-        c.code as country_code,
-        q.currency,
-        COALESCE(SUM(q.total_amount), 0) as total_revenue,
-        COUNT(q.id) as count
-      FROM quotations q
-      INNER JOIN leads l ON q.lead_id = l.id
-      INNER JOIN users u ON l.assigned_to_id = u.id
-      INNER JOIN countries c ON u.country_id = c.id
-      WHERE q.created_at >= ${startDate ? new Date(startDate) : new Date("1900-01-01")}
-        AND q.created_at <= ${endDate ? new Date(endDate) : new Date("2100-01-01")}
-        ${userFilter ? prisma.$queryRaw`AND l.assigned_to_id = ANY(${userFilter})` : prisma.$queryRaw``}
-        ${countryFilter ? prisma.$queryRaw`AND c.id = ANY(${countryFilter})` : prisma.$queryRaw``}
-      GROUP BY c.name, c.code, q.currency
-      ORDER BY total_revenue DESC
-    `;
+    // Get reservations with country data
+    const reservations = await prisma.reservation.findMany({
+      where: {
+        createdAt: dateFilter,
+        lead: leadFilter,
+      },
+      select: {
+        id: true,
+        amount: true,
+        currency: true,
+        lead: {
+          select: {
+            assignedTo: {
+              select: {
+                country: {
+                  select: {
+                    name: true,
+                    code: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
 
-    // Get reservations by country
-    const reservationsByCountry = await prisma.$queryRaw`
-      SELECT 
-        c.name as country_name,
-        c.code as country_code,
-        r.currency,
-        COALESCE(SUM(r.amount), 0) as total_revenue,
-        COUNT(r.id) as count
-      FROM reservations r
-      INNER JOIN leads l ON r.lead_id = l.id
-      INNER JOIN users u ON l.assigned_to_id = u.id
-      INNER JOIN countries c ON u.country_id = c.id
-      WHERE r.created_at >= ${startDate ? new Date(startDate) : new Date("1900-01-01")}
-        AND r.created_at <= ${endDate ? new Date(endDate) : new Date("2100-01-01")}
-        ${userFilter ? prisma.$queryRaw`AND l.assigned_to_id = ANY(${userFilter})` : prisma.$queryRaw``}
-        ${countryFilter ? prisma.$queryRaw`AND c.id = ANY(${countryFilter})` : prisma.$queryRaw``}
-      GROUP BY c.name, c.code, r.currency
-      ORDER BY total_revenue DESC
-    `;
+    // Get sales with country data
+    const sales = await prisma.sale.findMany({
+      where: {
+        createdAt: dateFilter,
+        lead: leadFilter,
+      },
+      select: {
+        id: true,
+        amount: true,
+        currency: true,
+        lead: {
+          select: {
+            assignedTo: {
+              select: {
+                country: {
+                  select: {
+                    name: true,
+                    code: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
 
-    // Get sales by country
-    const salesByCountry = await prisma.$queryRaw`
-      SELECT 
-        c.name as country_name,
-        c.code as country_code,
-        s.currency,
-        COALESCE(SUM(s.amount), 0) as total_revenue,
-        COUNT(s.id) as count
-      FROM sales s
-      INNER JOIN leads l ON s.lead_id = l.id
-      INNER JOIN users u ON l.assigned_to_id = u.id
-      INNER JOIN countries c ON u.country_id = c.id
-      WHERE s.created_at >= ${startDate ? new Date(startDate) : new Date("1900-01-01")}
-        AND s.created_at <= ${endDate ? new Date(endDate) : new Date("2100-01-01")}
-        ${userFilter ? prisma.$queryRaw`AND l.assigned_to_id = ANY(${userFilter})` : prisma.$queryRaw``}
-        ${countryFilter ? prisma.$queryRaw`AND c.id = ANY(${countryFilter})` : prisma.$queryRaw``}
-      GROUP BY c.name, c.code, s.currency
-      ORDER BY total_revenue DESC
-    `;
-
-    // Combine and aggregate countries data
+    // Process and combine countries data
     const countryMap = new Map<string, any>();
 
-    // Helper function to process country data
-    const processCountryData = (data: any[], type: string) => {
-      data.forEach((item: any) => {
-        const countryName = item.country_name;
-        const countryCode = item.country_code;
-        const currency = item.currency || "BOB";
-        const key = `${countryName}_${currency}`;
+    // Process quotations
+    quotations.forEach((quotation) => {
+      const countryName = quotation.lead.assignedTo.country?.name || "Sin País";
+      const countryCode = quotation.lead.assignedTo.country?.code || "XX";
+      const currency = quotation.currency || "BOB";
+      const key = `${countryName}_${currency}`;
+      const revenue = Number(quotation.totalAmount);
 
-        if (!countryMap.has(key)) {
-          countryMap.set(key, {
-            name: countryName,
-            code: countryCode,
-            currency,
-            quotations: { count: 0, revenue: 0 },
-            reservations: { count: 0, revenue: 0 },
-            sales: { count: 0, revenue: 0 },
-            totalRevenue: 0,
-            totalCount: 0,
-          });
-        }
+      if (!countryMap.has(key)) {
+        countryMap.set(key, {
+          name: countryName,
+          code: countryCode,
+          currency,
+          quotations: { count: 0, revenue: 0 },
+          reservations: { count: 0, revenue: 0 },
+          sales: { count: 0, revenue: 0 },
+          totalRevenue: 0,
+          totalCount: 0,
+        });
+      }
 
-        const entry = countryMap.get(key);
-        const revenue = Number(item.total_revenue || 0);
-        const count = Number(item.count || 0);
+      const entry = countryMap.get(key);
+      entry.quotations.count += 1;
+      entry.quotations.revenue += revenue;
+      entry.totalRevenue += revenue;
+      entry.totalCount += 1;
+    });
 
-        if (type === "quotations") {
-          entry.quotations = { count, revenue };
-        } else if (type === "reservations") {
-          entry.reservations = { count, revenue };
-        } else if (type === "sales") {
-          entry.sales = { count, revenue };
-        }
+    // Process reservations
+    reservations.forEach((reservation) => {
+      const countryName =
+        reservation.lead.assignedTo.country?.name || "Sin País";
+      const countryCode = reservation.lead.assignedTo.country?.code || "XX";
+      const currency = reservation.currency || "BOB";
+      const key = `${countryName}_${currency}`;
+      const revenue = Number(reservation.amount);
 
-        entry.totalRevenue += revenue;
-        entry.totalCount += count;
-      });
-    };
+      if (!countryMap.has(key)) {
+        countryMap.set(key, {
+          name: countryName,
+          code: countryCode,
+          currency,
+          quotations: { count: 0, revenue: 0 },
+          reservations: { count: 0, revenue: 0 },
+          sales: { count: 0, revenue: 0 },
+          totalRevenue: 0,
+          totalCount: 0,
+        });
+      }
 
-    processCountryData(quotationsByCountry as any[], "quotations");
-    processCountryData(reservationsByCountry as any[], "reservations");
-    processCountryData(salesByCountry as any[], "sales");
+      const entry = countryMap.get(key);
+      entry.reservations.count += 1;
+      entry.reservations.revenue += revenue;
+      entry.totalRevenue += revenue;
+      entry.totalCount += 1;
+    });
+
+    // Process sales
+    sales.forEach((sale) => {
+      const countryName = sale.lead.assignedTo.country?.name || "Sin País";
+      const countryCode = sale.lead.assignedTo.country?.code || "XX";
+      const currency = sale.currency || "BOB";
+      const key = `${countryName}_${currency}`;
+      const revenue = Number(sale.amount);
+
+      if (!countryMap.has(key)) {
+        countryMap.set(key, {
+          name: countryName,
+          code: countryCode,
+          currency,
+          quotations: { count: 0, revenue: 0 },
+          reservations: { count: 0, revenue: 0 },
+          sales: { count: 0, revenue: 0 },
+          totalRevenue: 0,
+          totalCount: 0,
+        });
+      }
+
+      const entry = countryMap.get(key);
+      entry.sales.count += 1;
+      entry.sales.revenue += revenue;
+      entry.totalRevenue += revenue;
+      entry.totalCount += 1;
+    });
 
     // Convert to array and sort by total revenue
     const countries = Array.from(countryMap.values()).sort(

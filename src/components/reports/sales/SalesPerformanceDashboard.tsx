@@ -21,6 +21,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
 import { exportAllSalesPerformance } from "@/lib/utils/export-utils";
 import { SUPPORTED_CURRENCIES } from "@/lib/reports/config";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface SalesPerformanceDashboardProps {
   initialFilters?: {
@@ -130,9 +131,11 @@ export function SalesPerformanceDashboard({
     ? [
         {
           title: "Ingresos Totales",
-          value: `$${overviewData.overview.totalRevenue.toLocaleString()}`,
+          value: `$${Number(
+            overviewData.overview.totalRevenue || 0
+          ).toLocaleString()}`,
           icon: DollarSign,
-          description: "Cotizaciones + Reservas + Ventas",
+          description: "Suma de cotizaciones, reservas y ventas",
           color: "text-green-600",
         },
         {
@@ -194,75 +197,118 @@ export function SalesPerformanceDashboard({
       </div>
 
       {/* Filters */}
-      <SalesFilters onFiltersChange={handleFiltersChange} />
+      <div className="flex justify-start">
+        <SalesFilters onFiltersChange={handleFiltersChange} />
+      </div>
 
       {/* Overview Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {overviewMetrics.map((metric) => (
-          <Card key={metric.title}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                {metric.title}
-              </CardTitle>
-              <metric.icon className={`h-4 w-4 ${metric.color}`} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metric.value}</div>
-              <p className="text-xs text-muted-foreground">
-                {metric.description}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
+        {isOverviewLoading
+          ? Array.from({ length: 4 }).map((_, index) => (
+              <Card key={index}>
+                <CardHeader>
+                  <Skeleton className="h-5 w-3/4" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-8 w-1/2 mb-2" />
+                  <Skeleton className="h-4 w-full" />
+                </CardContent>
+              </Card>
+            ))
+          : overviewMetrics.map((metric) => (
+              <Card key={metric.title}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    {metric.title}
+                  </CardTitle>
+                  <metric.icon className={`h-4 w-4 ${metric.color}`} />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{metric.value}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {metric.description}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
       </div>
 
       {/* Currency Breakdown */}
-      {overviewData?.byCurrency && (
+      {isOverviewLoading ? (
         <Card>
           <CardHeader>
-            <CardTitle>Desglose por Moneda</CardTitle>
+            <Skeleton className="h-6 w-1/4" />
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-3">
-              {Object.entries(overviewData.byCurrency).map(
-                ([currency, data]: [string, any]) => (
-                  <div key={currency} className="p-4 border rounded-lg">
-                    <h3 className="font-semibold text-lg mb-2">
-                      {currency} (
-                      {SUPPORTED_CURRENCIES[
-                        currency as keyof typeof SUPPORTED_CURRENCIES
-                      ]?.name || currency}
-                      )
-                    </h3>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span>Cotizaciones:</span>
-                        <span className="font-medium">
-                          {data.quotations.count} ($
-                          {data.quotations.amount.toLocaleString()})
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Reservas:</span>
-                        <span className="font-medium">
-                          {data.reservations.count} ($
-                          {data.reservations.amount.toLocaleString()})
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Ventas:</span>
-                        <span className="font-medium">
-                          {data.sales.count} ($
-                          {data.sales.amount.toLocaleString()})
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )
-              )}
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="p-4 border rounded-lg">
+                  <Skeleton className="h-6 w-1/2 mb-2" />
+                  <Skeleton className="h-4 w-full mb-1" />
+                  <Skeleton className="h-4 w-full mb-1" />
+                  <Skeleton className="h-4 w-full" />
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
+      ) : (
+        overviewData?.byCurrency && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Desglose por Moneda</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-3">
+                {Object.entries(overviewData.byCurrency).map(
+                  ([currency, data]: [string, any]) => {
+                    const currencyInfo =
+                      SUPPORTED_CURRENCIES[
+                        currency as keyof typeof SUPPORTED_CURRENCIES
+                      ];
+
+                    const formatCurrency = (amount: number) => {
+                      return `${
+                        currencyInfo?.symbol || "$"
+                      }${amount.toLocaleString()}`;
+                    };
+
+                    return (
+                      <div key={currency} className="p-4 border rounded-lg">
+                        <h3 className="font-semibold text-lg mb-2">
+                          {currency} ({currencyInfo?.name || currency})
+                        </h3>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span>Cotizaciones:</span>
+                            <span className="font-medium">
+                              {data.quotations.count} (
+                              {formatCurrency(data.quotations.amount)})
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Reservas:</span>
+                            <span className="font-medium">
+                              {data.reservations.count} (
+                              {formatCurrency(data.reservations.amount)})
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Ventas:</span>
+                            <span className="font-medium">
+                              {data.sales.count} (
+                              {formatCurrency(data.sales.amount)})
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )
       )}
 
       {/* Charts */}

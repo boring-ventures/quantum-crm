@@ -16,88 +16,130 @@ export async function GET(request: NextRequest) {
       ?.split(",")
       .filter(Boolean);
 
-    // Build base date filter
-    const dateFilter = {
-      ...(startDate && { gte: new Date(startDate) }),
-      ...(endDate && { lte: new Date(endDate) }),
-    };
+    // Build date filter
+    const dateFilter: any = {};
+    if (startDate) dateFilter.gte = new Date(startDate);
+    if (endDate) dateFilter.lte = new Date(endDate);
 
-    // Build user filter
-    const userFilter = assignedToIds?.length
-      ? { in: assignedToIds }
-      : undefined;
+    // Build lead filter
+    const leadFilter: any = {};
+    if (assignedToIds?.length) {
+      leadFilter.assignedToId = { in: assignedToIds };
+    }
+    if (countryIds?.length) {
+      leadFilter.assignedTo = {
+        countryId: { in: countryIds },
+      };
+    }
 
-    // Build country filter
-    const countryFilter = countryIds?.length ? { in: countryIds } : undefined;
+    // Get quotations with products
+    const quotations = await prisma.quotation.findMany({
+      where: {
+        createdAt: dateFilter,
+        lead: leadFilter,
+      },
+      select: {
+        id: true,
+        totalAmount: true,
+        currency: true,
+        quotationProducts: {
+          select: {
+            quantity: true,
+            price: true,
+            product: {
+              select: {
+                name: true,
+                currency: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
-    // Get products from quotations
-    const quotationProducts = await prisma.$queryRaw`
-      SELECT 
-        COALESCE(p.name, 'Sin Producto') as product_name,
-        p.currency,
-        SUM(qp.price * qp.quantity) as total_revenue,
-        COUNT(DISTINCT q.id) as quotation_count,
-        SUM(qp.quantity) as total_quantity
-      FROM quotations q
-      LEFT JOIN quotation_products qp ON q.id = qp.quotation_id
-      LEFT JOIN products p ON qp.product_id = p.id
-      INNER JOIN leads l ON q.lead_id = l.id
-      WHERE q.created_at >= ${startDate ? new Date(startDate) : new Date("1900-01-01")}
-        AND q.created_at <= ${endDate ? new Date(endDate) : new Date("2100-01-01")}
-        ${userFilter ? prisma.$queryRaw`AND l.assigned_to_id = ANY(${userFilter})` : prisma.$queryRaw``}
-        ${countryFilter ? prisma.$queryRaw`AND l.assigned_to_id IN (SELECT id FROM users WHERE country_id = ANY(${countryFilter}))` : prisma.$queryRaw``}
-      GROUP BY p.name, p.currency
-      ORDER BY total_revenue DESC
-      LIMIT 15
-    `;
+    // Get reservations with products from lead
+    const reservations = await prisma.reservation.findMany({
+      where: {
+        createdAt: dateFilter,
+        lead: leadFilter,
+      },
+      select: {
+        id: true,
+        amount: true,
+        currency: true,
+        lead: {
+          select: {
+            product: {
+              select: {
+                name: true,
+                currency: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
-    // Get products from reservations (using lead's product)
-    const reservationProducts = await prisma.$queryRaw`
-      SELECT 
-        COALESCE(p.name, 'Sin Producto') as product_name,
-        r.currency,
-        SUM(r.amount) as total_revenue,
-        COUNT(DISTINCT r.id) as reservation_count
-      FROM reservations r
-      INNER JOIN leads l ON r.lead_id = l.id
-      LEFT JOIN products p ON l.product_id = p.id
-      WHERE r.created_at >= ${startDate ? new Date(startDate) : new Date("1900-01-01")}
-        AND r.created_at <= ${endDate ? new Date(endDate) : new Date("2100-01-01")}
-        ${userFilter ? prisma.$queryRaw`AND l.assigned_to_id = ANY(${userFilter})` : prisma.$queryRaw``}
-        ${countryFilter ? prisma.$queryRaw`AND l.assigned_to_id IN (SELECT id FROM users WHERE country_id = ANY(${countryFilter}))` : prisma.$queryRaw``}
-      GROUP BY p.name, r.currency
-      ORDER BY total_revenue DESC
-      LIMIT 15
-    `;
+    // Get sales with products from lead
+    const sales = await prisma.sale.findMany({
+      where: {
+        createdAt: dateFilter,
+        lead: leadFilter,
+      },
+      select: {
+        id: true,
+        amount: true,
+        currency: true,
+        lead: {
+          select: {
+            product: {
+              select: {
+                name: true,
+                currency: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
-    // Get products from sales (using lead's product)
-    const salesProducts = await prisma.$queryRaw`
-      SELECT 
-        COALESCE(p.name, 'Sin Producto') as product_name,
-        s.currency,
-        SUM(s.amount) as total_revenue,
-        COUNT(DISTINCT s.id) as sale_count
-      FROM sales s
-      INNER JOIN leads l ON s.lead_id = l.id
-      LEFT JOIN products p ON l.product_id = p.id
-      WHERE s.created_at >= ${startDate ? new Date(startDate) : new Date("1900-01-01")}
-        AND s.created_at <= ${endDate ? new Date(endDate) : new Date("2100-01-01")}
-        ${userFilter ? prisma.$queryRaw`AND l.assigned_to_id = ANY(${userFilter})` : prisma.$queryRaw``}
-        ${countryFilter ? prisma.$queryRaw`AND l.assigned_to_id IN (SELECT id FROM users WHERE country_id = ANY(${countryFilter}))` : prisma.$queryRaw``}
-      GROUP BY p.name, s.currency
-      ORDER BY total_revenue DESC
-      LIMIT 15
-    `;
-
-    // Combine and aggregate products data
+    // Process and combine products data
     const productMap = new Map<string, any>();
 
-    // Helper function to process product data
-    const processProductData = (data: any[], type: string) => {
-      data.forEach((item: any) => {
-        const productName = item.product_name;
-        const currency = item.currency || "BOB";
+    // Process quotations products
+    quotations.forEach((quotation) => {
+      if (quotation.quotationProducts.length > 0) {
+        quotation.quotationProducts.forEach((qp) => {
+          const productName = qp.product?.name || "Sin Producto";
+          const currency = qp.product?.currency || quotation.currency || "BOB";
+          const key = `${productName}_${currency}`;
+          const revenue = Number(qp.price) * Number(qp.quantity);
+
+          if (!productMap.has(key)) {
+            productMap.set(key, {
+              name: productName,
+              currency,
+              quotations: { count: 0, revenue: 0, quantity: 0 },
+              reservations: { count: 0, revenue: 0 },
+              sales: { count: 0, revenue: 0 },
+              totalRevenue: 0,
+              totalCount: 0,
+            });
+          }
+
+          const entry = productMap.get(key);
+          entry.quotations.count += 1;
+          entry.quotations.revenue += revenue;
+          entry.quotations.quantity += Number(qp.quantity);
+          entry.totalRevenue += revenue;
+          entry.totalCount += 1;
+        });
+      } else {
+        // Handle quotations without products
+        const productName = "Sin Producto";
+        const currency = quotation.currency || "BOB";
         const key = `${productName}_${currency}`;
+        const revenue = Number(quotation.totalAmount);
 
         if (!productMap.has(key)) {
           productMap.set(key, {
@@ -112,28 +154,65 @@ export async function GET(request: NextRequest) {
         }
 
         const entry = productMap.get(key);
-        const revenue = Number(item.total_revenue || 0);
-        const count = Number(
-          item.quotation_count || item.reservation_count || item.sale_count || 0
-        );
-        const quantity = Number(item.total_quantity || 0);
-
-        if (type === "quotations") {
-          entry.quotations = { count, revenue, quantity };
-        } else if (type === "reservations") {
-          entry.reservations = { count, revenue };
-        } else if (type === "sales") {
-          entry.sales = { count, revenue };
-        }
-
+        entry.quotations.count += 1;
+        entry.quotations.revenue += revenue;
         entry.totalRevenue += revenue;
-        entry.totalCount += count;
-      });
-    };
+        entry.totalCount += 1;
+      }
+    });
 
-    processProductData(quotationProducts as any[], "quotations");
-    processProductData(reservationProducts as any[], "reservations");
-    processProductData(salesProducts as any[], "sales");
+    // Process reservations products
+    reservations.forEach((reservation) => {
+      const productName = reservation.lead.product?.name || "Sin Producto";
+      const currency =
+        reservation.lead.product?.currency || reservation.currency || "BOB";
+      const key = `${productName}_${currency}`;
+      const revenue = Number(reservation.amount);
+
+      if (!productMap.has(key)) {
+        productMap.set(key, {
+          name: productName,
+          currency,
+          quotations: { count: 0, revenue: 0, quantity: 0 },
+          reservations: { count: 0, revenue: 0 },
+          sales: { count: 0, revenue: 0 },
+          totalRevenue: 0,
+          totalCount: 0,
+        });
+      }
+
+      const entry = productMap.get(key);
+      entry.reservations.count += 1;
+      entry.reservations.revenue += revenue;
+      entry.totalRevenue += revenue;
+      entry.totalCount += 1;
+    });
+
+    // Process sales products
+    sales.forEach((sale) => {
+      const productName = sale.lead.product?.name || "Sin Producto";
+      const currency = sale.lead.product?.currency || sale.currency || "BOB";
+      const key = `${productName}_${currency}`;
+      const revenue = Number(sale.amount);
+
+      if (!productMap.has(key)) {
+        productMap.set(key, {
+          name: productName,
+          currency,
+          quotations: { count: 0, revenue: 0, quantity: 0 },
+          reservations: { count: 0, revenue: 0 },
+          sales: { count: 0, revenue: 0 },
+          totalRevenue: 0,
+          totalCount: 0,
+        });
+      }
+
+      const entry = productMap.get(key);
+      entry.sales.count += 1;
+      entry.sales.revenue += revenue;
+      entry.totalRevenue += revenue;
+      entry.totalCount += 1;
+    });
 
     // Convert to array and sort by total revenue
     const products = Array.from(productMap.values())

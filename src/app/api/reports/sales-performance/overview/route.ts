@@ -128,36 +128,6 @@ export async function GET(request: NextRequest) {
       distinct: ["id"],
     });
 
-    // Calculate totals by currency
-    const currencyTotals = Object.keys(SUPPORTED_CURRENCIES).reduce(
-      (acc, currency) => {
-        const quotationData = quotations.find((q) => q.currency === currency);
-        const reservationData = reservations.find(
-          (r) => r.currency === currency
-        );
-        const salesData = sales.find((s) => s.currency === currency);
-
-        acc[currency] = {
-          currency,
-          quotations: {
-            count: quotationData?._count.id || 0,
-            amount: Number(quotationData?._sum.totalAmount || 0),
-          },
-          reservations: {
-            count: reservationData?._count.id || 0,
-            amount: Number(reservationData?._sum.amount || 0),
-          },
-          sales: {
-            count: salesData?._count.id || 0,
-            amount: Number(salesData?._sum.amount || 0),
-          },
-        };
-
-        return acc;
-      },
-      {} as Record<string, any>
-    );
-
     // Calculate overall totals
     const totalQuotations = quotations.reduce(
       (sum, q) => sum + (q._count.id || 0),
@@ -169,11 +139,56 @@ export async function GET(request: NextRequest) {
     );
     const totalSales = sales.reduce((sum, s) => sum + (s._count.id || 0), 0);
 
-    const totalRevenue = [
-      ...quotations.map((q) => Number(q._sum.totalAmount || 0)),
-      ...reservations.map((r) => Number(r._sum.amount || 0)),
-      ...sales.map((s) => Number(s._sum.amount || 0)),
-    ].reduce((sum, amount) => sum + amount, 0);
+    const totalQuotationsAmount = quotations.reduce(
+      (sum, q) => sum + Number(q._sum.totalAmount || 0),
+      0
+    );
+    const totalReservationsAmount = reservations.reduce(
+      (sum, r) => sum + Number(r._sum.amount || 0),
+      0
+    );
+    const totalSalesAmount = sales.reduce(
+      (sum, s) => sum + Number(s._sum.amount || 0),
+      0
+    );
+    const totalRevenue =
+      totalQuotationsAmount + totalReservationsAmount + totalSalesAmount;
+
+    // Calculate totals by currency
+    const byCurrency: Record<string, any> = {};
+    for (const currency of Object.keys(SUPPORTED_CURRENCIES)) {
+      const currencyQuotations = quotations.filter(
+        (q) => q.currency === currency
+      );
+      const currencyReservations = reservations.filter(
+        (r) => r.currency === currency
+      );
+      const currencySales = sales.filter((s) => s.currency === currency);
+
+      byCurrency[currency] = {
+        quotations: {
+          count: currencyQuotations.reduce((sum, q) => sum + q._count.id, 0),
+          amount: currencyQuotations.reduce(
+            (sum, q) => sum + Number(q._sum.totalAmount || 0),
+            0
+          ),
+        },
+        reservations: {
+          count: currencyReservations.reduce((sum, r) => sum + r._count.id, 0),
+          amount: currencyReservations.reduce(
+            (sum, r) => sum + Number(r._sum.amount || 0),
+            0
+          ),
+        },
+        sales: {
+          count: currencySales.reduce((sum, s) => sum + s._count.id, 0),
+          amount: currencySales.reduce(
+            (sum, s) => sum + Number(s._sum.amount || 0),
+            0
+          ),
+        },
+      };
+    }
 
     const totalProcesses = totalQuotations + totalReservations + totalSales;
     const avgTicket = totalProcesses > 0 ? totalRevenue / totalProcesses : 0;
@@ -193,7 +208,7 @@ export async function GET(request: NextRequest) {
           conversionRate,
           convertedLeads: uniqueLeads.length,
         },
-        byCurrency: currencyTotals,
+        byCurrency: byCurrency,
       },
     });
   } catch (error) {

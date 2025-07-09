@@ -2,16 +2,22 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useForm } from "react-hook-form";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { CalendarDays, Filter, RotateCcw, Target } from "lucide-react";
+import { CalendarDays, Filter, RotateCcw, Target, X } from "lucide-react";
 import { format, subDays, subWeeks, subMonths, subYears } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { UserSelectorDialog } from "@/components/reports/leads/UserSelectorDialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface SalesFiltersProps {
   onFiltersChange: (filters: FiltersData) => void;
@@ -63,6 +69,7 @@ export function SalesFilters({
   onFiltersChange,
   className,
 }: SalesFiltersProps) {
+  const [isOpen, setIsOpen] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState("30d");
   const [activeFiltersCount, setActiveFiltersCount] = useState(0);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
@@ -140,40 +147,36 @@ export function SalesFilters({
   };
 
   return (
-    <Card className={cn("sticky top-4", className)}>
-      <CardContent className="p-4">
-        <div className="space-y-4">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4" />
-              <h3 className="font-medium">Filtros</h3>
-              {activeFiltersCount > 0 && (
-                <Badge variant="secondary" className="text-xs">
-                  {activeFiltersCount}
-                </Badge>
-              )}
-            </div>
-            {activeFiltersCount > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleResetFilters}
-                className="h-8 px-2"
-              >
-                <RotateCcw className="h-3 w-3 mr-1" />
-                Limpiar
-              </Button>
-            )}
-          </div>
-
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button
+          variant="outline"
+          className={cn("flex items-center gap-2", className)}
+        >
+          <Filter className="h-4 w-4" />
+          Filtros
+          {activeFiltersCount > 0 && (
+            <Badge variant="secondary" className="text-xs">
+              {activeFiltersCount}
+            </Badge>
+          )}
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filtros de Sales Performance
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-6">
           {/* Date Range Presets */}
-          <div className="space-y-2">
-            <Label className="text-xs font-medium flex items-center gap-1">
-              <CalendarDays className="h-3 w-3" />
+          <div className="space-y-3">
+            <Label className="text-sm font-medium flex items-center gap-2">
+              <CalendarDays className="h-4 w-4" />
               Período
             </Label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-3">
               {DATE_PRESETS.map((preset) => (
                 <Button
                   key={preset.value}
@@ -182,7 +185,7 @@ export function SalesFilters({
                   }
                   size="sm"
                   onClick={() => handlePresetClick(preset)}
-                  className="text-xs h-8"
+                  className="text-sm"
                 >
                   {preset.label}
                 </Button>
@@ -191,60 +194,67 @@ export function SalesFilters({
           </div>
 
           {/* Custom Date Range */}
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <Label htmlFor="startDate" className="text-xs">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="startDate" className="text-sm font-medium">
                 Desde
               </Label>
               <Input
                 id="startDate"
                 type="date"
                 {...register("startDate")}
-                className="h-8 text-xs"
+                className="w-full"
               />
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="endDate" className="text-xs">
+            <div className="space-y-2">
+              <Label htmlFor="endDate" className="text-sm font-medium">
                 Hasta
               </Label>
               <Input
                 id="endDate"
                 type="date"
                 {...register("endDate")}
-                className="h-8 text-xs"
+                className="w-full"
               />
             </div>
           </div>
 
-          {/* Selected Period Display */}
-          {watchedValues.startDate && watchedValues.endDate && (
-            <div className="text-xs text-muted-foreground p-2 bg-muted/50 rounded">
-              <strong>Período seleccionado:</strong>
-              <br />
-              {formatDateForDisplay(watchedValues.startDate)} -{" "}
-              {formatDateForDisplay(watchedValues.endDate)}
-            </div>
-          )}
+          {/* Current Selected Period */}
+          <div className="p-3 bg-muted rounded-lg">
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium">Período seleccionado:</span>{" "}
+              {formatDateForDisplay(watchedValues.startDate || "")} -{" "}
+              {formatDateForDisplay(watchedValues.endDate || "")}
+            </p>
+          </div>
 
-          {/* Additional Filters */}
-          <div className="pt-2 border-t space-y-3">
+          {/* User Selector */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium flex items-center gap-2">
+              <Target className="h-4 w-4" />
+              Vendedores
+            </Label>
             <UserSelectorDialog
               selectedIds={selectedUserIds}
-              onChange={(ids) => setSelectedUserIds(ids)}
+              onChange={setSelectedUserIds}
             />
+          </div>
 
-            <div className="space-y-2">
-              <Label className="text-xs font-medium flex items-center gap-1">
-                <Target className="h-3 w-3" />
-                Países
-              </Label>
-              <div className="text-xs text-muted-foreground">
-                Disponible en gráfico de países
-              </div>
-            </div>
+          {/* Action Buttons */}
+          <div className="flex items-center justify-between pt-4 border-t">
+            <Button
+              variant="outline"
+              onClick={handleResetFilters}
+              disabled={activeFiltersCount === 0}
+              className="flex items-center gap-2"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Limpiar Filtros
+            </Button>
+            <Button onClick={() => setIsOpen(false)}>Aplicar Filtros</Button>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </DialogContent>
+    </Dialog>
   );
 }
