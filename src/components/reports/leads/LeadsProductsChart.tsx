@@ -31,7 +31,8 @@ interface LeadsProductsChartProps {
     endDate?: string;
     countryIds?: string[];
     sourceIds?: string[];
-    assignedToId?: string;
+    assignedToIds?: string[];
+    leadCategory?: string;
   };
 }
 
@@ -72,7 +73,10 @@ async function fetchProductsData(
     params.append("countryIds", filters.countryIds.join(","));
   if (filters.sourceIds?.length)
     params.append("sourceIds", filters.sourceIds.join(","));
-  if (filters.assignedToId) params.append("assignedToId", filters.assignedToId);
+  if (filters.assignedToIds?.length)
+    params.append("assignedToIds", filters.assignedToIds.join(","));
+  if (filters.leadCategory && filters.leadCategory !== "all")
+    params.append("leadCategory", filters.leadCategory);
   params.append("groupBy", groupBy);
 
   const response = await fetch(

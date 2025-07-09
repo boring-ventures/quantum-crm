@@ -13,7 +13,8 @@ interface LeadsAnalyticsOverviewProps {
     endDate?: string;
     countryIds?: string[];
     sourceIds?: string[];
-    assignedToId?: string;
+    assignedToIds?: string[];
+    leadCategory?: string;
   };
 }
 
@@ -42,7 +43,10 @@ async function fetchOverviewData(filters: any): Promise<OverviewData> {
     params.append("countryIds", filters.countryIds.join(","));
   if (filters.sourceIds?.length)
     params.append("sourceIds", filters.sourceIds.join(","));
-  if (filters.assignedToId) params.append("assignedToId", filters.assignedToId);
+  if (filters.assignedToIds?.length)
+    params.append("assignedToIds", filters.assignedToIds.join(","));
+  if (filters.leadCategory && filters.leadCategory !== "all")
+    params.append("leadCategory", filters.leadCategory);
 
   const response = await fetch(
     `/api/reports/leads-analytics/overview?${params}`
@@ -153,7 +157,7 @@ export function LeadsAnalyticsOverview({
   filters,
 }: LeadsAnalyticsOverviewProps) {
   const { data, isLoading, error } = useQuery({
-    queryKey: ["leads-overview", filters],
+    queryKey: ["leads-analytics-overview", filters],
     queryFn: () => fetchOverviewData(filters),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });

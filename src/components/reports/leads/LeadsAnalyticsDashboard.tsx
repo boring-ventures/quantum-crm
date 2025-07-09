@@ -36,7 +36,8 @@ interface FiltersData {
   endDate?: string;
   countryIds?: string[];
   sourceIds?: string[];
-  assignedToId?: string;
+  assignedToIds?: string[];
+  leadCategory?: string;
 }
 
 export function LeadsAnalyticsDashboard({

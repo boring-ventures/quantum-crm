@@ -12,7 +12,11 @@ export async function GET(request: NextRequest) {
       ?.split(",")
       .filter(Boolean);
     const sourceIds = searchParams.get("sourceIds")?.split(",").filter(Boolean);
-    const assignedToId = searchParams.get("assignedToId");
+    const assignedToIds = searchParams
+      .get("assignedToIds")
+      ?.split(",")
+      .filter(Boolean);
+    const leadCategory = searchParams.get("leadCategory");
 
     // Default to last 30 days if no dates provided
     const defaultEndDate = endOfDay(new Date());
@@ -33,8 +37,27 @@ export async function GET(request: NextRequest) {
       baseWhereClause.sourceId = { in: sourceIds };
     }
 
-    if (assignedToId) {
-      baseWhereClause.assignedToId = assignedToId;
+    if (assignedToIds?.length) {
+      baseWhereClause.assignedToId = { in: assignedToIds };
+    }
+
+    switch (leadCategory) {
+      case "withoutTasks":
+        baseWhereClause.tasks = { none: {} };
+        break;
+      case "unmanaged":
+        baseWhereClause.AND = [
+          { quotations: { none: {} } },
+          { reservations: { none: {} } },
+          { sales: { none: {} } },
+        ];
+        break;
+      case "closed":
+        baseWhereClause.isClosed = true;
+        break;
+      case "archived":
+        baseWhereClause.isArchived = true;
+        break;
     }
 
     // Get leads grouped by country (through assignedTo user)

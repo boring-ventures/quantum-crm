@@ -12,7 +12,11 @@ export async function GET(request: NextRequest) {
       ?.split(",")
       .filter(Boolean);
     const sourceIds = searchParams.get("sourceIds")?.split(",").filter(Boolean);
-    const assignedToId = searchParams.get("assignedToId");
+    const assignedToIds = searchParams
+      .get("assignedToIds")
+      ?.split(",")
+      .filter(Boolean);
+    const leadCategory = searchParams.get("leadCategory");
 
     // Default to last 30 days if no dates provided
     const defaultEndDate = endOfDay(new Date());
@@ -48,8 +52,28 @@ export async function GET(request: NextRequest) {
       whereClause.sourceId = { in: sourceIds };
     }
 
-    if (assignedToId) {
-      whereClause.assignedToId = assignedToId;
+    if (assignedToIds?.length) {
+      whereClause.assignedToId = { in: assignedToIds };
+    }
+
+    // Lead category filters
+    switch (leadCategory) {
+      case "withoutTasks":
+        whereClause.tasks = { none: {} };
+        break;
+      case "unmanaged":
+        whereClause.AND = [
+          { quotations: { none: {} } },
+          { reservations: { none: {} } },
+          { sales: { none: {} } },
+        ];
+        break;
+      case "closed":
+        whereClause.isClosed = true;
+        break;
+      case "archived":
+        whereClause.isArchived = true;
+        break;
     }
 
     // Previous period where clause

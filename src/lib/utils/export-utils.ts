@@ -123,7 +123,10 @@ async function fetchTimelineData(filters: any): Promise<ExportData> {
     params.append("countryIds", filters.countryIds.join(","));
   if (filters.sourceIds?.length)
     params.append("sourceIds", filters.sourceIds.join(","));
-  if (filters.assignedToId) params.append("assignedToId", filters.assignedToId);
+  if (filters.assignedToIds?.length)
+    params.append("assignedToIds", filters.assignedToIds.join(","));
+  if (filters.leadCategory && filters.leadCategory !== "all")
+    params.append("leadCategory", filters.leadCategory);
   params.append("groupBy", "day");
 
   const response = await fetch(
@@ -158,7 +161,10 @@ async function fetchSourcesData(filters: any): Promise<ExportData> {
     params.append("countryIds", filters.countryIds.join(","));
   if (filters.sourceIds?.length)
     params.append("sourceIds", filters.sourceIds.join(","));
-  if (filters.assignedToId) params.append("assignedToId", filters.assignedToId);
+  if (filters.assignedToIds?.length)
+    params.append("assignedToIds", filters.assignedToIds.join(","));
+  if (filters.leadCategory && filters.leadCategory !== "all")
+    params.append("leadCategory", filters.leadCategory);
 
   const response = await fetch(
     `/api/reports/leads-analytics/sources?${params}`
@@ -194,7 +200,10 @@ async function fetchCountriesData(filters: any): Promise<ExportData> {
     params.append("countryIds", filters.countryIds.join(","));
   if (filters.sourceIds?.length)
     params.append("sourceIds", filters.sourceIds.join(","));
-  if (filters.assignedToId) params.append("assignedToId", filters.assignedToId);
+  if (filters.assignedToIds?.length)
+    params.append("assignedToIds", filters.assignedToIds.join(","));
+  if (filters.leadCategory && filters.leadCategory !== "all")
+    params.append("leadCategory", filters.leadCategory);
 
   const response = await fetch(
     `/api/reports/leads-analytics/countries?${params}`
@@ -234,7 +243,10 @@ async function fetchProductsData(
     params.append("countryIds", filters.countryIds.join(","));
   if (filters.sourceIds?.length)
     params.append("sourceIds", filters.sourceIds.join(","));
-  if (filters.assignedToId) params.append("assignedToId", filters.assignedToId);
+  if (filters.assignedToIds?.length)
+    params.append("assignedToIds", filters.assignedToIds.join(","));
+  if (filters.leadCategory && filters.leadCategory !== "all")
+    params.append("leadCategory", filters.leadCategory);
   params.append("groupBy", groupBy);
 
   const response = await fetch(
@@ -349,7 +361,12 @@ export async function exportAllLeadsAnalytics(filters: any): Promise<void> {
           ? `${filters.sourceIds.length} seleccionadas`
           : "Todas",
       ],
-      ["Asignado a:", filters.assignedToId || "Todos"],
+      [
+        "Vendedores:",
+        filters.assignedToIds?.length
+          ? `${filters.assignedToIds.length} seleccionados`
+          : "Todos",
+      ],
       [""],
       ["Hojas incluidas:"],
       ...workbook.SheetNames.map((name) => [`- ${name}`]),

@@ -7,10 +7,18 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { CalendarDays, Filter, RotateCcw, Users, Target } from "lucide-react";
+import { CalendarDays, Filter, RotateCcw, Target } from "lucide-react";
 import { format, subDays, subWeeks, subMonths, subYears } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { UserSelectorDialog } from "@/components/reports/leads/UserSelectorDialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface LeadsFiltersProps {
   onFiltersChange: (filters: FiltersData) => void;
@@ -22,7 +30,8 @@ interface FiltersData {
   endDate?: string;
   countryIds?: string[];
   sourceIds?: string[];
-  assignedToId?: string;
+  assignedToIds?: string[];
+  leadCategory?: string; // all | withoutTasks | unmanaged | closed | archived
 }
 
 interface DatePreset {
@@ -65,6 +74,7 @@ export function LeadsFilters({
 }: LeadsFiltersProps) {
   const [selectedPreset, setSelectedPreset] = useState("30d");
   const [activeFiltersCount, setActiveFiltersCount] = useState(0);
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
 
   const { register, watch, setValue, reset } = useForm<FiltersData>({
     defaultValues: {
@@ -72,7 +82,8 @@ export function LeadsFilters({
       endDate: format(new Date(), "yyyy-MM-dd"),
       countryIds: [],
       sourceIds: [],
-      assignedToId: "",
+      assignedToIds: [],
+      leadCategory: "all",
     },
   });
 
@@ -86,7 +97,8 @@ export function LeadsFilters({
       endDate: data.endDate,
       countryIds: data.countryIds || [],
       sourceIds: data.sourceIds || [],
-      assignedToId: data.assignedToId || "",
+      assignedToIds: data.assignedToIds || [],
+      leadCategory: data.leadCategory || "all",
     });
   }, []);
 
@@ -97,7 +109,8 @@ export function LeadsFilters({
       endDate: watchedValues.endDate,
       countryIds: watchedValues.countryIds || [],
       sourceIds: watchedValues.sourceIds || [],
-      assignedToId: watchedValues.assignedToId || "",
+      assignedToIds: selectedUserIds,
+      leadCategory: watchedValues.leadCategory || "all",
     };
 
     const currentFiltersString = serializeFilters(formData);
@@ -111,10 +124,11 @@ export function LeadsFilters({
       let count = 0;
       if (formData.countryIds?.length) count++;
       if (formData.sourceIds?.length) count++;
-      if (formData.assignedToId) count++;
+      if (formData.assignedToIds?.length) count++;
+      if (formData.leadCategory && formData.leadCategory !== "all") count++;
       setActiveFiltersCount(count);
     }
-  }, [watchedValues, onFiltersChange, serializeFilters]);
+  }, [watchedValues, onFiltersChange, serializeFilters, selectedUserIds]);
 
   const handlePresetClick = (preset: DatePreset) => {
     setSelectedPreset(preset.value);
@@ -128,10 +142,12 @@ export function LeadsFilters({
       endDate: format(new Date(), "yyyy-MM-dd"),
       countryIds: [],
       sourceIds: [],
-      assignedToId: "",
+      assignedToIds: [],
+      leadCategory: "all",
     });
     setSelectedPreset("30d");
     setActiveFiltersCount(0);
+    setSelectedUserIds([]);
   };
 
   const formatDateForDisplay = (dateString: string) => {
@@ -231,17 +247,32 @@ export function LeadsFilters({
 
           {/* Additional Filters Placeholder */}
           <div className="pt-2 border-t space-y-3">
+            {/* Lead category filter */}
             <div className="space-y-2">
               <Label className="text-xs font-medium flex items-center gap-1">
-                <Users className="h-3 w-3" />
-                Vendedor
+                Categoría de Leads
               </Label>
-              <Input
-                placeholder="Buscar vendedor..."
-                className="h-8 text-xs"
-                {...register("assignedToId")}
-              />
+              <Select
+                value={watch("leadCategory")}
+                onValueChange={(val) => setValue("leadCategory", val)}
+              >
+                <SelectTrigger className="w-full h-8 text-xs">
+                  <SelectValue placeholder="Todas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas</SelectItem>
+                  <SelectItem value="withoutTasks">Sin Tareas</SelectItem>
+                  <SelectItem value="unmanaged">Sin Gestión</SelectItem>
+                  <SelectItem value="closed">Cerrados</SelectItem>
+                  <SelectItem value="archived">Archivados</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+
+            <UserSelectorDialog
+              selectedIds={selectedUserIds}
+              onChange={(ids) => setSelectedUserIds(ids)}
+            />
 
             <div className="space-y-2">
               <Label className="text-xs font-medium flex items-center gap-1">

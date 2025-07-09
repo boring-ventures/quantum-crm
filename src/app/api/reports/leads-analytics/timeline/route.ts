@@ -19,7 +19,11 @@ export async function GET(request: NextRequest) {
       ?.split(",")
       .filter(Boolean);
     const sourceIds = searchParams.get("sourceIds")?.split(",").filter(Boolean);
-    const assignedToId = searchParams.get("assignedToId");
+    const assignedToIds = searchParams
+      .get("assignedToIds")
+      ?.split(",")
+      .filter(Boolean);
+    const leadCategory = searchParams.get("leadCategory");
     const groupBy = searchParams.get("groupBy") || "day"; // day, week, month
 
     // Default to last 30 days if no dates provided
@@ -47,8 +51,27 @@ export async function GET(request: NextRequest) {
       whereClause.sourceId = { in: sourceIds };
     }
 
-    if (assignedToId) {
-      whereClause.assignedToId = assignedToId;
+    if (assignedToIds?.length) {
+      whereClause.assignedToId = { in: assignedToIds };
+    }
+
+    switch (leadCategory) {
+      case "withoutTasks":
+        whereClause.tasks = { none: {} };
+        break;
+      case "unmanaged":
+        whereClause.AND = [
+          { quotations: { none: {} } },
+          { reservations: { none: {} } },
+          { sales: { none: {} } },
+        ];
+        break;
+      case "closed":
+        whereClause.isClosed = true;
+        break;
+      case "archived":
+        whereClause.isArchived = true;
+        break;
     }
 
     // Get all leads in the period with qualification

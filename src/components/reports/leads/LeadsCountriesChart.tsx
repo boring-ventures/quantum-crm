@@ -23,7 +23,8 @@ interface LeadsCountriesChartProps {
     endDate?: string;
     countryIds?: string[];
     sourceIds?: string[];
-    assignedToId?: string;
+    assignedToIds?: string[];
+    leadCategory?: string;
   };
 }
 
@@ -59,7 +60,10 @@ async function fetchCountriesData(filters: any): Promise<CountriesData> {
     params.append("countryIds", filters.countryIds.join(","));
   if (filters.sourceIds?.length)
     params.append("sourceIds", filters.sourceIds.join(","));
-  if (filters.assignedToId) params.append("assignedToId", filters.assignedToId);
+  if (filters.assignedToIds?.length)
+    params.append("assignedToIds", filters.assignedToIds.join(","));
+  if (filters.leadCategory && filters.leadCategory !== "all")
+    params.append("leadCategory", filters.leadCategory);
 
   const response = await fetch(
     `/api/reports/leads-analytics/countries?${params}`
