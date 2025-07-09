@@ -48,6 +48,7 @@ export async function POST(req: Request) {
     // Filtros para leads - solo excluir archivados para métricas principales
     const leadFilters: any = {
       isArchived: false,
+      isClosed: false,
     };
 
     if (leadsScope === "self") {
@@ -63,6 +64,7 @@ export async function POST(req: Request) {
       status: "PENDING",
       lead: {
         isArchived: false,
+        isClosed: false,
       },
     };
 
@@ -76,6 +78,7 @@ export async function POST(req: Request) {
     const quotationFilters: any = {
       lead: {
         isArchived: false,
+        isClosed: false,
       },
     };
 
@@ -92,6 +95,7 @@ export async function POST(req: Request) {
       },
       lead: {
         isArchived: false,
+        isClosed: false,
       },
     };
 
@@ -105,6 +109,7 @@ export async function POST(req: Request) {
     const reservationFilters: any = {
       lead: {
         isArchived: false,
+        isClosed: false,
       },
     };
 
