@@ -263,10 +263,18 @@ export async function GET(request: NextRequest) {
       {} as Record<string, any>
     );
 
+    // Prepare data for frontend
+    const countriesForChart = countries.map((c) => ({
+      countryName: c.name,
+      countryCode: c.code,
+      revenue: c.totalRevenue,
+      salesCount: c.totalCount,
+    }));
+
     return NextResponse.json({
       success: true,
       data: {
-        countries,
+        countries: countriesForChart,
         countriesByCurrency,
         currencyTotals,
       },

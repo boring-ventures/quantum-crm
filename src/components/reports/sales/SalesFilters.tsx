@@ -29,6 +29,7 @@ interface FiltersData {
   endDate?: string;
   countryIds?: string[];
   assignedToIds?: string[];
+  currency?: string;
 }
 
 interface DatePreset {
@@ -65,6 +66,13 @@ const DATE_PRESETS: DatePreset[] = [
   },
 ];
 
+const CURRENCY_OPTIONS = [
+  { label: "Todas", value: "" },
+  { label: "Boliviano (Bs)", value: "BOB" },
+  { label: "Dólar ($)", value: "USD" },
+  { label: "Tether (₮)", value: "USDT" },
+];
+
 export function SalesFilters({
   onFiltersChange,
   className,
@@ -80,6 +88,7 @@ export function SalesFilters({
       endDate: format(new Date(), "yyyy-MM-dd"),
       countryIds: [],
       assignedToIds: [],
+      currency: "",
     },
   });
 
@@ -93,6 +102,7 @@ export function SalesFilters({
       endDate: data.endDate,
       countryIds: data.countryIds || [],
       assignedToIds: data.assignedToIds || [],
+      currency: data.currency || "",
     });
   }, []);
 
@@ -103,6 +113,7 @@ export function SalesFilters({
       endDate: watchedValues.endDate,
       countryIds: watchedValues.countryIds || [],
       assignedToIds: selectedUserIds,
+      currency: watchedValues.currency || "",
     };
 
     const currentFiltersString = serializeFilters(formData);
@@ -116,6 +127,7 @@ export function SalesFilters({
       let count = 0;
       if (formData.countryIds?.length) count++;
       if (formData.assignedToIds?.length) count++;
+      if (formData.currency) count++;
       setActiveFiltersCount(count);
     }
   }, [watchedValues, onFiltersChange, serializeFilters, selectedUserIds]);
@@ -132,6 +144,7 @@ export function SalesFilters({
       endDate: format(new Date(), "yyyy-MM-dd"),
       countryIds: [],
       assignedToIds: [],
+      currency: "",
     });
     setSelectedPreset("30d");
     setActiveFiltersCount(0);
@@ -238,6 +251,23 @@ export function SalesFilters({
               selectedIds={selectedUserIds}
               onChange={setSelectedUserIds}
             />
+          </div>
+
+          {/* Currency Selector */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium flex items-center gap-2">
+              Moneda
+            </Label>
+            <select
+              {...register("currency")}
+              className="border rounded-md px-3 py-2 w-full bg-background text-sm"
+            >
+              {CURRENCY_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Action Buttons */}

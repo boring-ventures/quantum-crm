@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
       .get("assignedToIds")
       ?.split(",")
       .filter(Boolean);
+    const currencyParam = searchParams.get("currency");
 
     // Build date filter
     const dateFilter: any = {};
@@ -219,6 +220,14 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => b.totalRevenue - a.totalRevenue)
       .slice(0, 10); // Top 10 products
 
+    // Reformat products for frontend (revenue, salesCount, avgPrice)
+    const productsForChart = products.map((p) => ({
+      name: p.name,
+      revenue: p.totalRevenue,
+      salesCount: p.totalCount,
+      avgPrice: p.totalCount > 0 ? p.totalRevenue / p.totalCount : 0,
+    }));
+
     // Group by currency for better visualization
     const productsByCurrency = Object.keys(SUPPORTED_CURRENCIES).reduce(
       (acc, currency) => {
@@ -278,7 +287,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        products,
+        products: productsForChart,
         productsByCurrency,
         currencyTotals,
       },

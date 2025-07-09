@@ -59,6 +59,7 @@ async function fetchTimelineData(
     params.append("countryIds", filters.countryIds.join(","));
   if (filters.assignedToIds?.length)
     params.append("assignedToIds", filters.assignedToIds.join(","));
+  if (filters.currency) params.append("currency", filters.currency);
   params.append("groupBy", groupBy);
 
   const response = await fetch(

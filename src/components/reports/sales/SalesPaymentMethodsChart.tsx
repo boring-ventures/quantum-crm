@@ -21,6 +21,7 @@ interface PaymentMethodsChartProps {
     endDate?: string;
     countryIds?: string[];
     assignedToIds?: string[];
+    currency?: string;
   };
 }
 
@@ -44,6 +45,7 @@ async function fetchPaymentMethodsData(
     params.append("countryIds", filters.countryIds.join(","));
   if (filters.assignedToIds?.length)
     params.append("assignedToIds", filters.assignedToIds.join(","));
+  if (filters.currency) params.append("currency", filters.currency);
 
   const response = await fetch(
     `/api/reports/sales-performance/methods?${params}`

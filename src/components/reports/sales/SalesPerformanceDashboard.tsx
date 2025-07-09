@@ -29,6 +29,7 @@ interface SalesPerformanceDashboardProps {
     endDate?: string;
     countryIds?: string[];
     assignedToIds?: string[];
+    currency?: string;
   };
 }
 
@@ -55,6 +56,7 @@ async function fetchOverviewData(filters: any): Promise<OverviewData> {
     params.append("countryIds", filters.countryIds.join(","));
   if (filters.assignedToIds?.length)
     params.append("assignedToIds", filters.assignedToIds.join(","));
+  if (filters.currency) params.append("currency", filters.currency);
 
   const response = await fetch(
     `/api/reports/sales-performance/overview?${params}`
@@ -72,6 +74,13 @@ export function SalesPerformanceDashboard({
   const [isExporting, setIsExporting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { toast } = useToast();
+
+  const currencySymbol =
+    (filters.currency &&
+      SUPPORTED_CURRENCIES[
+        filters.currency as keyof typeof SUPPORTED_CURRENCIES
+      ]?.symbol) ||
+    "$";
 
   const {
     data: overviewData,
@@ -131,7 +140,7 @@ export function SalesPerformanceDashboard({
     ? [
         {
           title: "Ingresos Totales",
-          value: `$${Number(
+          value: `${currencySymbol}${Number(
             overviewData.overview.totalRevenue || 0
           ).toLocaleString()}`,
           icon: DollarSign,
@@ -147,7 +156,7 @@ export function SalesPerformanceDashboard({
         },
         {
           title: "Ticket Promedio",
-          value: `$${overviewData.overview.avgTicket.toLocaleString()}`,
+          value: `${currencySymbol}${Number(overviewData.overview.avgTicket || 0).toLocaleString()}`,
           icon: Target,
           description: "Por proceso completado",
           color: "text-purple-600",
