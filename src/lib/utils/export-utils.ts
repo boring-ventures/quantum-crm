@@ -431,3 +431,244 @@ export async function exportProductsData(
   );
   await exportAllLeadsAnalytics(filters);
 }
+
+// Sales Performance Export Functions
+
+// Obtener datos de Sales Timeline
+async function fetchSalesTimelineData(filters: any): Promise<ExportData> {
+  const params = new URLSearchParams();
+  if (filters.startDate) params.append("startDate", filters.startDate);
+  if (filters.endDate) params.append("endDate", filters.endDate);
+  if (filters.countryIds?.length)
+    params.append("countryIds", filters.countryIds.join(","));
+  if (filters.assignedToIds?.length)
+    params.append("assignedToIds", filters.assignedToIds.join(","));
+  params.append("groupBy", "day");
+
+  const response = await fetch(
+    `/api/reports/sales-performance/timeline?${params}`
+  );
+  const result = await response.json();
+
+  if (!result.success) throw new Error("Error fetching sales timeline data");
+
+  return {
+    sheetName: "Evolución Temporal",
+    data: result.data.timeline,
+    headers: {
+      date: "Fecha",
+      revenue: "Ingresos",
+      sales: "# Ventas",
+    },
+    formatters: {
+      date: safeFormatDate,
+      revenue: (value: number) => `$${value.toLocaleString("es-ES")}`,
+    },
+  };
+}
+
+// Obtener datos de Sales Products
+async function fetchSalesProductsData(filters: any): Promise<ExportData> {
+  const params = new URLSearchParams();
+  if (filters.startDate) params.append("startDate", filters.startDate);
+  if (filters.endDate) params.append("endDate", filters.endDate);
+  if (filters.countryIds?.length)
+    params.append("countryIds", filters.countryIds.join(","));
+  if (filters.assignedToIds?.length)
+    params.append("assignedToIds", filters.assignedToIds.join(","));
+
+  const response = await fetch(
+    `/api/reports/sales-performance/products?${params}`
+  );
+  const result = await response.json();
+
+  if (!result.success) throw new Error("Error fetching sales products data");
+
+  return {
+    sheetName: "Productos",
+    data: result.data.products,
+    headers: {
+      name: "Producto",
+      revenue: "Ingresos",
+      salesCount: "# Ventas",
+      avgPrice: "Precio Promedio",
+    },
+    formatters: {
+      revenue: (value: number) => `$${value.toLocaleString("es-ES")}`,
+      avgPrice: (value: number) =>
+        value ? `$${value.toLocaleString("es-ES")}` : "N/A",
+    },
+  };
+}
+
+// Obtener datos de Sales Payment Methods
+async function fetchSalesMethodsData(filters: any): Promise<ExportData> {
+  const params = new URLSearchParams();
+  if (filters.startDate) params.append("startDate", filters.startDate);
+  if (filters.endDate) params.append("endDate", filters.endDate);
+  if (filters.countryIds?.length)
+    params.append("countryIds", filters.countryIds.join(","));
+  if (filters.assignedToIds?.length)
+    params.append("assignedToIds", filters.assignedToIds.join(","));
+
+  const response = await fetch(
+    `/api/reports/sales-performance/methods?${params}`
+  );
+  const result = await response.json();
+
+  if (!result.success) throw new Error("Error fetching sales methods data");
+
+  return {
+    sheetName: "Métodos de Pago",
+    data: result.data.methods,
+    headers: {
+      paymentMethodLabel: "Método de Pago",
+      revenue: "Ingresos",
+      salesCount: "# Ventas",
+      percentage: "Porcentaje",
+    },
+    formatters: {
+      revenue: (value: number) => `$${value.toLocaleString("es-ES")}`,
+      percentage: (value: number) => `${value}%`,
+    },
+  };
+}
+
+// Obtener datos de Sales Countries
+async function fetchSalesCountriesData(filters: any): Promise<ExportData> {
+  const params = new URLSearchParams();
+  if (filters.startDate) params.append("startDate", filters.startDate);
+  if (filters.endDate) params.append("endDate", filters.endDate);
+  if (filters.countryIds?.length)
+    params.append("countryIds", filters.countryIds.join(","));
+  if (filters.assignedToIds?.length)
+    params.append("assignedToIds", filters.assignedToIds.join(","));
+
+  const response = await fetch(
+    `/api/reports/sales-performance/countries?${params}`
+  );
+  const result = await response.json();
+
+  if (!result.success) throw new Error("Error fetching sales countries data");
+
+  return {
+    sheetName: "Países",
+    data: result.data.countries,
+    headers: {
+      countryName: "País",
+      countryCode: "Código",
+      revenue: "Ingresos",
+      salesCount: "# Ventas",
+    },
+    formatters: {
+      revenue: (value: number) => `$${value.toLocaleString("es-ES")}`,
+    },
+  };
+}
+
+// Función principal de exportación Sales Performance
+export async function exportAllSalesPerformance(filters: any): Promise<void> {
+  try {
+    // Obtener todos los datos en paralelo
+    const [timelineData, productsData, methodsData, countriesData] =
+      await Promise.all([
+        fetchSalesTimelineData(filters),
+        fetchSalesProductsData(filters),
+        fetchSalesMethodsData(filters),
+        fetchSalesCountriesData(filters),
+      ]);
+
+    // Crear workbook de Excel
+    const workbook = XLSX.utils.book_new();
+
+    // Procesar cada hoja
+    const sheetsData = [timelineData, productsData, methodsData, countriesData];
+
+    sheetsData.forEach((sheetData) => {
+      try {
+        const processedData = processData(
+          sheetData.data,
+          sheetData.headers,
+          sheetData.formatters
+        );
+
+        // Crear worksheet
+        const worksheet = XLSX.utils.aoa_to_sheet(processedData);
+
+        // Configurar ancho de columnas automático
+        const maxWidths = processedData[0].map((_, colIndex) => {
+          return Math.max(
+            ...processedData.map((row) =>
+              row[colIndex] ? row[colIndex].toString().length : 0
+            )
+          );
+        });
+
+        worksheet["!cols"] = maxWidths.map((width) => ({
+          wch: Math.min(Math.max(width + 2, 10), 50),
+        }));
+
+        // Agregar hoja al workbook
+        XLSX.utils.book_append_sheet(workbook, worksheet, sheetData.sheetName);
+      } catch (error) {
+        console.error(`Error processing sheet ${sheetData.sheetName}:`, error);
+        // Continuar con las otras hojas si una falla
+      }
+    });
+
+    // Verificar que al menos una hoja se creó
+    if (workbook.SheetNames.length === 0) {
+      throw new Error("No se pudo generar ninguna hoja de datos");
+    }
+
+    // Agregar hoja de resumen
+    const summaryData = [
+      ["RESUMEN - DASHBOARD SALES PERFORMANCE"],
+      [""],
+      ["Filtros Aplicados:"],
+      ["Fecha Inicio:", filters.startDate || "Sin filtro"],
+      ["Fecha Fin:", filters.endDate || "Sin filtro"],
+      [
+        "Países:",
+        filters.countryIds?.length
+          ? `${filters.countryIds.length} seleccionados`
+          : "Todos",
+      ],
+      [
+        "Vendedores:",
+        filters.assignedToIds?.length
+          ? `${filters.assignedToIds.length} seleccionados`
+          : "Todos",
+      ],
+      [""],
+      ["Hojas incluidas:"],
+      ...workbook.SheetNames.map((name) => [`- ${name}`]),
+      [""],
+      [
+        "Generado el:",
+        format(new Date(), "dd/MM/yyyy HH:mm:ss", { locale: es }),
+      ],
+    ];
+
+    const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+    summarySheet["!cols"] = [{ wch: 25 }, { wch: 30 }];
+
+    // Agregar hoja de resumen
+    XLSX.utils.book_append_sheet(workbook, summarySheet, "📊 Resumen");
+
+    // Reorganizar hojas para que el resumen sea primero
+    const sheetNames = workbook.SheetNames;
+    const summaryIndex = sheetNames.indexOf("📊 Resumen");
+    if (summaryIndex > 0) {
+      sheetNames.unshift(sheetNames.splice(summaryIndex, 1)[0]);
+      workbook.SheetNames = sheetNames;
+    }
+
+    // Descargar archivo
+    const filename = generateFilename("sales_performance_completo");
+    downloadExcel(workbook, filename);
+  } catch (error) {
+    console.error("Error exporting sales performance:", error);
+    throw new Error("Error al exportar el dashboard de Sales Performance");
+  }
+}

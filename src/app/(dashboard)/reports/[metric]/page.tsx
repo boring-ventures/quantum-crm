@@ -22,6 +22,7 @@ import { getMetricByRoute, getValidMetricIds } from "@/lib/reports/config";
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
 import { LeadsAnalyticsDashboard } from "@/components/reports/leads/LeadsAnalyticsDashboard";
+import { SalesPerformanceDashboard } from "@/components/reports/sales/SalesPerformanceDashboard";
 
 // Icon mapping for client-side rendering
 const iconMap: Record<string, LucideIcon> = {
@@ -71,9 +72,13 @@ async function MetricContent({ metric }: { metric: string }) {
     notFound();
   }
 
-  // Special handling for leads-analytics - Phase 2 implementation
+  // Special handling for advanced dashboards
   if (metric === "leads-analytics") {
     return <LeadsAnalyticsDashboard config={metricConfig} />;
+  }
+
+  if (metric === "sales-performance") {
+    return <SalesPerformanceDashboard config={metricConfig} />;
   }
 
   return (
