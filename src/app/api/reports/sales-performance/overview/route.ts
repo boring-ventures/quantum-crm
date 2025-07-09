@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { subDays, startOfDay, endOfDay } from "date-fns";
+import { SUPPORTED_CURRENCIES } from "@/lib/reports/config";
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,68 +16,190 @@ export async function GET(request: NextRequest) {
       ?.split(",")
       .filter(Boolean);
 
-    // default last 30 days
-    const defaultEnd = endOfDay(new Date());
-    const defaultStart = startOfDay(subDays(defaultEnd, 30));
-
-    const periodStart = startDate ? new Date(startDate) : defaultStart;
-    const periodEnd = endDate ? new Date(endDate) : defaultEnd;
-
-    // build where for sales
-    const saleWhere: any = {
-      createdAt: { gte: periodStart, lte: periodEnd },
-      lead: {
-        isArchived: false,
-        isClosed: false,
-      },
+    // Build base date filter
+    const dateFilter = {
+      ...(startDate && { gte: new Date(startDate) }),
+      ...(endDate && { lte: new Date(endDate) }),
     };
 
-    if (countryIds?.length) {
-      saleWhere.lead.assignedTo = { countryId: { in: countryIds } };
-    }
-    if (assignedToIds?.length) {
-      saleWhere.lead.assignedToId = { in: assignedToIds };
-    }
+    // Build user filter for assigned leads
+    const userFilter = assignedToIds?.length
+      ? { in: assignedToIds }
+      : undefined;
 
-    const [salesAgg, totalLeads] = await Promise.all([
-      prisma.sale.aggregate({
-        _sum: { amount: true },
-        _count: { id: true },
-        where: saleWhere,
-      }),
-      prisma.lead.count({
-        where: {
-          createdAt: { gte: periodStart, lte: periodEnd },
-          isArchived: false,
-          isClosed: false,
-          ...(countryIds?.length
-            ? { assignedTo: { countryId: { in: countryIds } } }
-            : {}),
-          ...(assignedToIds?.length
-            ? { assignedToId: { in: assignedToIds } }
-            : {}),
+    // Build country filter
+    const countryFilter = countryIds?.length ? { in: countryIds } : undefined;
+
+    // Get total leads for conversion rate calculation
+    const totalLeads = await prisma.lead.count({
+      where: {
+        createdAt: dateFilter,
+        ...(userFilter && { assignedToId: userFilter }),
+        ...(countryFilter && {
+          assignedTo: {
+            countryId: countryFilter,
+          },
+        }),
+      },
+    });
+
+    // Get quotations data grouped by currency
+    const quotations = await prisma.quotation.groupBy({
+      by: ["currency"],
+      where: {
+        createdAt: dateFilter,
+        lead: {
+          ...(userFilter && { assignedToId: userFilter }),
+          ...(countryFilter && {
+            assignedTo: {
+              countryId: countryFilter,
+            },
+          }),
         },
-      }),
-    ]);
+      },
+      _sum: {
+        totalAmount: true,
+      },
+      _count: {
+        id: true,
+      },
+    });
 
-    const revenue = salesAgg._sum.amount ?? 0;
-    const salesCount = salesAgg._count.id;
-    const avgTicket = salesCount > 0 ? Number(revenue) / salesCount : 0;
-    const conversionRate = totalLeads > 0 ? (salesCount / totalLeads) * 100 : 0;
+    // Get reservations data grouped by currency
+    const reservations = await prisma.reservation.groupBy({
+      by: ["currency"],
+      where: {
+        createdAt: dateFilter,
+        lead: {
+          ...(userFilter && { assignedToId: userFilter }),
+          ...(countryFilter && {
+            assignedTo: {
+              countryId: countryFilter,
+            },
+          }),
+        },
+      },
+      _sum: {
+        amount: true,
+      },
+      _count: {
+        id: true,
+      },
+    });
+
+    // Get sales data grouped by currency
+    const sales = await prisma.sale.groupBy({
+      by: ["currency"],
+      where: {
+        createdAt: dateFilter,
+        lead: {
+          ...(userFilter && { assignedToId: userFilter }),
+          ...(countryFilter && {
+            assignedTo: {
+              countryId: countryFilter,
+            },
+          }),
+        },
+      },
+      _sum: {
+        amount: true,
+      },
+      _count: {
+        id: true,
+      },
+    });
+
+    // Get unique leads that have quotations, reservations, or sales
+    const uniqueLeads = await prisma.lead.findMany({
+      where: {
+        OR: [
+          { quotations: { some: { createdAt: dateFilter } } },
+          { reservations: { some: { createdAt: dateFilter } } },
+          { sales: { some: { createdAt: dateFilter } } },
+        ],
+        ...(userFilter && { assignedToId: userFilter }),
+        ...(countryFilter && {
+          assignedTo: {
+            countryId: countryFilter,
+          },
+        }),
+      },
+      select: { id: true },
+      distinct: ["id"],
+    });
+
+    // Calculate totals by currency
+    const currencyTotals = Object.keys(SUPPORTED_CURRENCIES).reduce(
+      (acc, currency) => {
+        const quotationData = quotations.find((q) => q.currency === currency);
+        const reservationData = reservations.find(
+          (r) => r.currency === currency
+        );
+        const salesData = sales.find((s) => s.currency === currency);
+
+        acc[currency] = {
+          currency,
+          quotations: {
+            count: quotationData?._count.id || 0,
+            amount: Number(quotationData?._sum.totalAmount || 0),
+          },
+          reservations: {
+            count: reservationData?._count.id || 0,
+            amount: Number(reservationData?._sum.amount || 0),
+          },
+          sales: {
+            count: salesData?._count.id || 0,
+            amount: Number(salesData?._sum.amount || 0),
+          },
+        };
+
+        return acc;
+      },
+      {} as Record<string, any>
+    );
+
+    // Calculate overall totals
+    const totalQuotations = quotations.reduce(
+      (sum, q) => sum + (q._count.id || 0),
+      0
+    );
+    const totalReservations = reservations.reduce(
+      (sum, r) => sum + (r._count.id || 0),
+      0
+    );
+    const totalSales = sales.reduce((sum, s) => sum + (s._count.id || 0), 0);
+
+    const totalRevenue = [
+      ...quotations.map((q) => Number(q._sum.totalAmount || 0)),
+      ...reservations.map((r) => Number(r._sum.amount || 0)),
+      ...sales.map((s) => Number(s._sum.amount || 0)),
+    ].reduce((sum, amount) => sum + amount, 0);
+
+    const totalProcesses = totalQuotations + totalReservations + totalSales;
+    const avgTicket = totalProcesses > 0 ? totalRevenue / totalProcesses : 0;
+    const conversionRate =
+      totalLeads > 0 ? (uniqueLeads.length / totalLeads) * 100 : 0;
 
     return NextResponse.json({
       success: true,
       data: {
-        revenue,
-        salesCount,
-        avgTicket,
-        conversionRate: parseFloat(conversionRate.toFixed(1)),
+        overview: {
+          totalRevenue,
+          totalQuotations,
+          totalReservations,
+          totalSales,
+          totalProcesses,
+          avgTicket,
+          conversionRate,
+          convertedLeads: uniqueLeads.length,
+        },
+        byCurrency: currencyTotals,
       },
     });
   } catch (error) {
-    console.error("Error sales performance overview", error);
+    console.error("Error fetching sales performance overview:", error);
     return NextResponse.json(
-      { success: false, error: "Internal error" },
+      { success: false, error: "Error fetching sales performance overview" },
       { status: 500 }
     );
   }

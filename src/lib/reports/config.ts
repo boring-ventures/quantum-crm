@@ -17,7 +17,7 @@ export const REPORTS_METRICS: ReportsMetrics = {
     id: "sales-performance",
     title: "Sales Performance",
     description:
-      "Revenue timeline, productos top, métodos de pago y performance geográfico",
+      "Cotizaciones, reservas y ventas: timeline de ingresos, productos top, métodos de pago por moneda (BOB, USD, USDT)",
     iconName: "DollarSign",
     route: "/reports/sales-performance",
     colorTheme: "green",
@@ -60,3 +60,12 @@ export const getMetricByRoute = (route: string) => {
 export const getValidMetricIds = (): string[] => {
   return Object.values(REPORTS_METRICS).map((metric) => metric.id);
 };
+
+// Currency configuration
+export const SUPPORTED_CURRENCIES = {
+  BOB: { symbol: "Bs", name: "Boliviano" },
+  USD: { symbol: "$", name: "Dólar" },
+  USDT: { symbol: "₮", name: "Tether" },
+} as const;
+
+export type Currency = keyof typeof SUPPORTED_CURRENCIES;

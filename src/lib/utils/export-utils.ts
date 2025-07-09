@@ -567,108 +567,243 @@ async function fetchSalesCountriesData(filters: any): Promise<ExportData> {
 }
 
 // Función principal de exportación Sales Performance
-export async function exportAllSalesPerformance(filters: any): Promise<void> {
+export async function exportAllSalesPerformance(filters: any) {
   try {
-    // Obtener todos los datos en paralelo
-    const [timelineData, productsData, methodsData, countriesData] =
-      await Promise.all([
-        fetchSalesTimelineData(filters),
-        fetchSalesProductsData(filters),
-        fetchSalesMethodsData(filters),
-        fetchSalesCountriesData(filters),
-      ]);
+    // Prepare query parameters
+    const params = new URLSearchParams();
 
-    // Crear workbook de Excel
+    if (filters.startDate) params.append("startDate", filters.startDate);
+    if (filters.endDate) params.append("endDate", filters.endDate);
+    if (filters.countryIds?.length)
+      params.append("countryIds", filters.countryIds.join(","));
+    if (filters.assignedToIds?.length)
+      params.append("assignedToIds", filters.assignedToIds.join(","));
+
+    // Fetch all data concurrently
+    const [
+      overviewResponse,
+      timelineResponse,
+      productsResponse,
+      methodsResponse,
+      countriesResponse,
+    ] = await Promise.all([
+      fetch(`/api/reports/sales-performance/overview?${params}`),
+      fetch(`/api/reports/sales-performance/timeline?${params}`),
+      fetch(`/api/reports/sales-performance/products?${params}`),
+      fetch(`/api/reports/sales-performance/methods?${params}`),
+      fetch(`/api/reports/sales-performance/countries?${params}`),
+    ]);
+
+    // Parse responses
+    const overviewData = await overviewResponse.json();
+    const timelineData = await timelineResponse.json();
+    const productsData = await productsResponse.json();
+    const methodsData = await methodsResponse.json();
+    const countriesData = await countriesResponse.json();
+
+    // Create workbook
     const workbook = XLSX.utils.book_new();
 
-    // Procesar cada hoja
-    const sheetsData = [timelineData, productsData, methodsData, countriesData];
+    // 1. Overview/Summary Sheet
+    const overviewSheet = [
+      ["Sales Performance Summary", "", "", ""],
+      [
+        "Período",
+        filters.startDate || "Sin definir",
+        "hasta",
+        filters.endDate || "Sin definir",
+      ],
+      ["", "", "", ""],
+      ["Resumen General", "", "", ""],
+      ["Total Ingresos", overviewData.data.overview.totalRevenue || 0, "", ""],
+      [
+        "Total Cotizaciones",
+        overviewData.data.overview.totalQuotations || 0,
+        "",
+        "",
+      ],
+      [
+        "Total Reservas",
+        overviewData.data.overview.totalReservations || 0,
+        "",
+        "",
+      ],
+      ["Total Ventas", overviewData.data.overview.totalSales || 0, "", ""],
+      [
+        "Total Procesos",
+        overviewData.data.overview.totalProcesses || 0,
+        "",
+        "",
+      ],
+      ["Ticket Promedio", overviewData.data.overview.avgTicket || 0, "", ""],
+      [
+        "Tasa de Conversión",
+        `${overviewData.data.overview.conversionRate || 0}%`,
+        "",
+        "",
+      ],
+      [
+        "Leads Convertidos",
+        overviewData.data.overview.convertedLeads || 0,
+        "",
+        "",
+      ],
+      ["", "", "", ""],
+      ["Desglose por Moneda", "", "", ""],
+      ["Moneda", "Cotizaciones", "Reservas", "Ventas"],
+    ];
 
-    sheetsData.forEach((sheetData) => {
-      try {
-        const processedData = processData(
-          sheetData.data,
-          sheetData.headers,
-          sheetData.formatters
-        );
-
-        // Crear worksheet
-        const worksheet = XLSX.utils.aoa_to_sheet(processedData);
-
-        // Configurar ancho de columnas automático
-        const maxWidths = processedData[0].map((_, colIndex) => {
-          return Math.max(
-            ...processedData.map((row) =>
-              row[colIndex] ? row[colIndex].toString().length : 0
-            )
-          );
-        });
-
-        worksheet["!cols"] = maxWidths.map((width) => ({
-          wch: Math.min(Math.max(width + 2, 10), 50),
-        }));
-
-        // Agregar hoja al workbook
-        XLSX.utils.book_append_sheet(workbook, worksheet, sheetData.sheetName);
-      } catch (error) {
-        console.error(`Error processing sheet ${sheetData.sheetName}:`, error);
-        // Continuar con las otras hojas si una falla
+    // Add currency breakdown
+    Object.entries(overviewData.data.byCurrency || {}).forEach(
+      ([currency, data]: [string, any]) => {
+        overviewSheet.push([
+          currency,
+          `${data.quotations.count} ($${data.quotations.amount.toLocaleString()})`,
+          `${data.reservations.count} ($${data.reservations.amount.toLocaleString()})`,
+          `${data.sales.count} ($${data.sales.amount.toLocaleString()})`,
+        ]);
       }
-    });
+    );
 
-    // Verificar que al menos una hoja se creó
-    if (workbook.SheetNames.length === 0) {
-      throw new Error("No se pudo generar ninguna hoja de datos");
-    }
+    const overviewWs = XLSX.utils.aoa_to_sheet(overviewSheet);
+    XLSX.utils.book_append_sheet(workbook, overviewWs, "Resumen");
 
-    // Agregar hoja de resumen
-    const summaryData = [
-      ["RESUMEN - DASHBOARD SALES PERFORMANCE"],
-      [""],
-      ["Filtros Aplicados:"],
-      ["Fecha Inicio:", filters.startDate || "Sin filtro"],
-      ["Fecha Fin:", filters.endDate || "Sin filtro"],
+    // 2. Timeline Sheet
+    const timelineSheet = [
+      ["Timeline - Ingresos y Procesos por Fecha", "", "", "", "", "", ""],
       [
-        "Países:",
-        filters.countryIds?.length
-          ? `${filters.countryIds.length} seleccionados`
-          : "Todos",
-      ],
-      [
-        "Vendedores:",
-        filters.assignedToIds?.length
-          ? `${filters.assignedToIds.length} seleccionados`
-          : "Todos",
-      ],
-      [""],
-      ["Hojas incluidas:"],
-      ...workbook.SheetNames.map((name) => [`- ${name}`]),
-      [""],
-      [
-        "Generado el:",
-        format(new Date(), "dd/MM/yyyy HH:mm:ss", { locale: es }),
+        "Fecha",
+        "Cotizaciones Count",
+        "Cotizaciones Amount",
+        "Reservas Count",
+        "Reservas Amount",
+        "Ventas Count",
+        "Ventas Amount",
       ],
     ];
 
-    const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-    summarySheet["!cols"] = [{ wch: 25 }, { wch: 30 }];
-
-    // Agregar hoja de resumen
-    XLSX.utils.book_append_sheet(workbook, summarySheet, "📊 Resumen");
-
-    // Reorganizar hojas para que el resumen sea primero
-    const sheetNames = workbook.SheetNames;
-    const summaryIndex = sheetNames.indexOf("📊 Resumen");
-    if (summaryIndex > 0) {
-      sheetNames.unshift(sheetNames.splice(summaryIndex, 1)[0]);
-      workbook.SheetNames = sheetNames;
+    if (timelineData.data.timeline?.length) {
+      timelineData.data.timeline.forEach((item: any) => {
+        timelineSheet.push([
+          item.date,
+          item.quotations.count,
+          item.quotations.amount,
+          item.reservations.count,
+          item.reservations.amount,
+          item.sales.count,
+          item.sales.amount,
+        ]);
+      });
     }
 
-    // Descargar archivo
-    const filename = generateFilename("sales_performance_completo");
-    downloadExcel(workbook, filename);
+    const timelineWs = XLSX.utils.aoa_to_sheet(timelineSheet);
+    XLSX.utils.book_append_sheet(workbook, timelineWs, "Timeline");
+
+    // 3. Products Sheet
+    const productsSheet = [
+      ["Top Productos por Ingresos", "", "", "", "", "", "", ""],
+      [
+        "Producto",
+        "Moneda",
+        "Cotizaciones Count",
+        "Cotizaciones Revenue",
+        "Reservas Count",
+        "Reservas Revenue",
+        "Ventas Count",
+        "Ventas Revenue",
+      ],
+    ];
+
+    if (productsData.data.products?.length) {
+      productsData.data.products.forEach((product: any) => {
+        productsSheet.push([
+          product.name,
+          product.currency,
+          product.quotations.count,
+          product.quotations.revenue,
+          product.reservations.count,
+          product.reservations.revenue,
+          product.sales.count,
+          product.sales.revenue,
+        ]);
+      });
+    }
+
+    const productsWs = XLSX.utils.aoa_to_sheet(productsSheet);
+    XLSX.utils.book_append_sheet(workbook, productsWs, "Productos");
+
+    // 4. Payment Methods Sheet
+    const methodsSheet = [
+      ["Métodos de Pago", "", "", "", "", ""],
+      [
+        "Método",
+        "Moneda",
+        "Total Count",
+        "Total Revenue",
+        "Reservas Count",
+        "Ventas Count",
+      ],
+    ];
+
+    if (methodsData.data.paymentMethods?.length) {
+      methodsData.data.paymentMethods.forEach((method: any) => {
+        methodsSheet.push([
+          method.method,
+          method.currency,
+          method.count,
+          method.revenue,
+          method.reservations.count,
+          method.sales.count,
+        ]);
+      });
+    }
+
+    const methodsWs = XLSX.utils.aoa_to_sheet(methodsSheet);
+    XLSX.utils.book_append_sheet(workbook, methodsWs, "Métodos de Pago");
+
+    // 5. Countries Sheet
+    const countriesSheet = [
+      ["Ventas por País", "", "", "", "", "", ""],
+      [
+        "País",
+        "Código",
+        "Cotizaciones Count",
+        "Cotizaciones Revenue",
+        "Reservas Count",
+        "Reservas Revenue",
+        "Ventas Count",
+        "Ventas Revenue",
+      ],
+    ];
+
+    if (countriesData.data.countries?.length) {
+      countriesData.data.countries.forEach((country: any) => {
+        countriesSheet.push([
+          country.name,
+          country.code,
+          country.quotations?.count || 0,
+          country.quotations?.revenue || 0,
+          country.reservations?.count || 0,
+          country.reservations?.revenue || 0,
+          country.sales?.count || 0,
+          country.sales?.revenue || 0,
+        ]);
+      });
+    }
+
+    const countriesWs = XLSX.utils.aoa_to_sheet(countriesSheet);
+    XLSX.utils.book_append_sheet(workbook, countriesWs, "Países");
+
+    // Generate filename with timestamp
+    const timestamp = new Date().toISOString().split("T")[0];
+    const filename = `sales-performance-${timestamp}.xlsx`;
+
+    // Export file
+    XLSX.writeFile(workbook, filename);
+
+    return { success: true, filename };
   } catch (error) {
-    console.error("Error exporting sales performance:", error);
-    throw new Error("Error al exportar el dashboard de Sales Performance");
+    console.error("Error exporting sales performance data:", error);
+    throw new Error("Error al exportar los datos de performance de ventas");
   }
 }

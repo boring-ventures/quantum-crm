@@ -7,15 +7,15 @@ import {
   PieChart,
   Pie,
   Cell,
-  Tooltip,
   ResponsiveContainer,
+  Tooltip,
   Legend,
 } from "recharts";
 import { useMemo } from "react";
 import { CreditCard } from "lucide-react";
 import { useChartColors } from "@/lib/utils/chart-colors";
 
-interface SalesPaymentMethodsChartProps {
+interface PaymentMethodsChartProps {
   filters: {
     startDate?: string;
     endDate?: string;
@@ -24,19 +24,18 @@ interface SalesPaymentMethodsChartProps {
   };
 }
 
-interface PaymentMethodsData {
-  methods: Array<{
-    paymentMethod: string;
-    paymentMethodLabel: string;
-    revenue: number;
-    salesCount: number;
+interface PaymentMethodData {
+  paymentMethods: Array<{
+    method: string;
+    count: number;
     percentage: number;
+    revenue: number;
   }>;
 }
 
 async function fetchPaymentMethodsData(
   filters: any
-): Promise<PaymentMethodsData> {
+): Promise<PaymentMethodData> {
   const params = new URLSearchParams();
 
   if (filters.startDate) params.append("startDate", filters.startDate);
@@ -55,14 +54,14 @@ async function fetchPaymentMethodsData(
   return result.data;
 }
 
-const PAYMENT_METHOD_COLORS = [
-  "#3b82f6", // blue
-  "#10b981", // green
-  "#f59e0b", // amber
-  "#ef4444", // red
-  "#8b5cf6", // violet
-  "#06b6d4", // cyan
-];
+// Payment method translations
+const paymentMethodTranslations: Record<string, string> = {
+  CASH: "Efectivo",
+  CARD: "Tarjeta",
+  TRANSFER: "Transferencia",
+  CHECK: "Cheque",
+  FINANCING: "Financiamiento",
+};
 
 function CustomTooltip({ active, payload }: any) {
   const { getChartAxisColors } = useChartColors();
@@ -76,9 +75,25 @@ function CustomTooltip({ active, payload }: any) {
         style={{ backgroundColor: axisColors.background }}
       >
         <p className="font-medium mb-2" style={{ color: axisColors.text }}>
-          {data.paymentMethodLabel}
+          {data.method}
         </p>
         <div className="space-y-1 text-sm">
+          <div className="flex justify-between">
+            <span style={{ color: axisColors.text }} className="opacity-70">
+              Ventas:
+            </span>
+            <span className="font-medium" style={{ color: axisColors.text }}>
+              {data.count}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span style={{ color: axisColors.text }} className="opacity-70">
+              Porcentaje:
+            </span>
+            <span className="font-medium" style={{ color: axisColors.text }}>
+              {data.percentage.toFixed(1)}%
+            </span>
+          </div>
           <div className="flex justify-between">
             <span style={{ color: axisColors.text }} className="opacity-70">
               Ingresos:
@@ -87,27 +102,35 @@ function CustomTooltip({ active, payload }: any) {
               ${data.revenue.toLocaleString()}
             </span>
           </div>
-          <div className="flex justify-between">
-            <span style={{ color: axisColors.text }} className="opacity-70">
-              Ventas:
-            </span>
-            <span className="font-medium" style={{ color: axisColors.text }}>
-              {data.salesCount}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span style={{ color: axisColors.text }} className="opacity-70">
-              Porcentaje:
-            </span>
-            <span className="font-medium" style={{ color: axisColors.text }}>
-              {data.percentage}%
-            </span>
-          </div>
         </div>
       </div>
     );
   }
   return null;
+}
+
+function CustomLegend({ payload }: any) {
+  const { getChartAxisColors } = useChartColors();
+  const axisColors = getChartAxisColors();
+
+  return (
+    <div className="flex flex-wrap justify-center gap-4 mt-4">
+      {payload.map((entry: any, index: number) => (
+        <div key={index} className="flex items-center gap-2">
+          <div
+            className="w-3 h-3 rounded-full"
+            style={{ backgroundColor: entry.color }}
+          />
+          <span
+            className="text-sm font-medium"
+            style={{ color: axisColors.text }}
+          >
+            {entry.value} ({entry.payload.percentage.toFixed(1)}%)
+          </span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function PaymentMethodsChartSkeleton() {
@@ -128,15 +151,27 @@ function PaymentMethodsChartSkeleton() {
 
 export function SalesPaymentMethodsChart({
   filters,
-}: SalesPaymentMethodsChartProps) {
-  const { getChartAxisColors } = useChartColors();
+}: PaymentMethodsChartProps) {
+  const { getColor, getChartAxisColors } = useChartColors();
   const axisColors = useMemo(() => getChartAxisColors(), [getChartAxisColors]);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["sales-methods", filters],
+    queryKey: ["sales-payment-methods", filters],
     queryFn: () => fetchPaymentMethodsData(filters),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
+
+  // Define colors for each payment method
+  const colors = useMemo(
+    () => ({
+      Efectivo: getColor("green"),
+      Tarjeta: getColor("blue"),
+      Transferencia: getColor("purple"),
+      Cheque: getColor("orange"),
+      Financiamiento: getColor("red"),
+    }),
+    [getColor]
+  );
 
   if (isLoading) {
     return <PaymentMethodsChartSkeleton />;
@@ -147,14 +182,14 @@ export function SalesPaymentMethodsChart({
       <Card>
         <CardContent className="p-6 text-center">
           <p className="text-muted-foreground">
-            Error al cargar métodos de pago
+            Error al cargar datos de métodos de pago
           </p>
         </CardContent>
       </Card>
     );
   }
 
-  if (!data?.methods.length) {
+  if (!data?.paymentMethods.length) {
     return (
       <Card>
         <CardHeader>
@@ -172,6 +207,14 @@ export function SalesPaymentMethodsChart({
     );
   }
 
+  // Transform data for the chart
+  const chartData = data.paymentMethods.map((method) => ({
+    method: paymentMethodTranslations[method.method] || method.method,
+    count: method.count,
+    percentage: method.percentage,
+    revenue: method.revenue,
+  }));
+
   return (
     <Card>
       <CardHeader>
@@ -184,38 +227,28 @@ export function SalesPaymentMethodsChart({
         <ResponsiveContainer width="100%" height={350}>
           <PieChart>
             <Pie
-              data={data.methods}
+              data={chartData}
               cx="50%"
-              cy="50%"
-              labelLine={false}
-              label={({ paymentMethodLabel, percentage }) =>
-                `${paymentMethodLabel} (${percentage}%)`
-              }
+              cy="40%"
               outerRadius={80}
-              fill="#8884d8"
-              dataKey="revenue"
+              innerRadius={40}
+              paddingAngle={2}
+              dataKey="count"
             >
-              {data.methods.map((entry, index) => (
+              {chartData.map((entry, index) => (
                 <Cell
                   key={`cell-${index}`}
                   fill={
-                    PAYMENT_METHOD_COLORS[index % PAYMENT_METHOD_COLORS.length]
+                    colors[entry.method as keyof typeof colors] ||
+                    colors["Efectivo"]
                   }
                 />
               ))}
             </Pie>
             <Tooltip content={<CustomTooltip />} />
             <Legend
-              wrapperStyle={{
-                paddingTop: "20px",
-                fontSize: "14px",
-                color: axisColors.text,
-              }}
-              formatter={(value, entry: any) => (
-                <span style={{ color: axisColors.text }}>
-                  {entry.payload.paymentMethodLabel}
-                </span>
-              )}
+              content={<CustomLegend />}
+              wrapperStyle={{ paddingTop: "20px" }}
             />
           </PieChart>
         </ResponsiveContainer>

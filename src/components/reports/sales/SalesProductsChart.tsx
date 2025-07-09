@@ -160,6 +160,18 @@ export function SalesProductsChart({ filters }: SalesProductsChartProps) {
     );
   }
 
+  // Ensure we have valid data and truncate long product names
+  const processedData = data.products
+    .map((product) => ({
+      ...product,
+      name:
+        product.name.length > 15
+          ? `${product.name.substring(0, 15)}...`
+          : product.name,
+      revenue: Number(product.revenue) || 0,
+    }))
+    .filter((product) => product.revenue > 0);
+
   return (
     <Card>
       <CardHeader>
@@ -171,34 +183,40 @@ export function SalesProductsChart({ filters }: SalesProductsChartProps) {
       <CardContent>
         <ResponsiveContainer width="100%" height={350}>
           <BarChart
-            data={data.products}
+            data={processedData}
             layout="horizontal"
-            margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
+            margin={{ top: 5, right: 30, left: 120, bottom: 5 }}
           >
             <CartesianGrid
               strokeDasharray="3 3"
               stroke={axisColors.grid}
               opacity={0.3}
+              horizontal={true}
             />
             <XAxis
               type="number"
-              tick={{ fill: axisColors.text, fontSize: 12 }}
+              tick={{ fill: axisColors.text, fontSize: 11 }}
               tickMargin={8}
               axisLine={{ stroke: axisColors.grid }}
               tickLine={{ stroke: axisColors.grid }}
-              tickFormatter={(value) => `$${value.toLocaleString()}`}
+              tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
             />
             <YAxis
               type="category"
               dataKey="name"
-              tick={{ fill: axisColors.text, fontSize: 12 }}
+              tick={{ fill: axisColors.text, fontSize: 11 }}
               tickMargin={8}
               axisLine={{ stroke: axisColors.grid }}
               tickLine={{ stroke: axisColors.grid }}
-              width={90}
+              width={110}
             />
             <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="revenue" fill={orangeColor} radius={[0, 4, 4, 0]} />
+            <Bar
+              dataKey="revenue"
+              fill={orangeColor}
+              radius={[0, 4, 4, 0]}
+              minPointSize={2}
+            />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>

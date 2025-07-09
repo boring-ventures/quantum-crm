@@ -1,269 +1,276 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { ArrowLeft, RefreshCw, Download } from "lucide-react";
-import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
-import { cn } from "@/lib/utils";
-import { useQueryClient } from "@tanstack/react-query";
-import { exportAllSalesPerformance } from "@/lib/utils/export-utils";
-import { SalesOverview } from "./SalesOverview";
+import {
+  RefreshCw,
+  Download,
+  DollarSign,
+  TrendingUp,
+  Users,
+  Target,
+} from "lucide-react";
+import { SalesFilters } from "./SalesFilters";
 import { SalesTimelineChart } from "./SalesTimelineChart";
 import { SalesProductsChart } from "./SalesProductsChart";
 import { SalesPaymentMethodsChart } from "./SalesPaymentMethodsChart";
 import { SalesCountriesChart } from "./SalesCountriesChart";
-import { SalesFilters } from "./SalesFilters";
+import { SalesOverview } from "./SalesOverview";
+import { useQuery } from "@tanstack/react-query";
+import { useToast } from "@/components/ui/use-toast";
+import { exportAllSalesPerformance } from "@/lib/utils/export-utils";
+import { SUPPORTED_CURRENCIES } from "@/lib/reports/config";
 
-interface MetricConfig {
-  id: string;
-  title: string;
-  description: string;
-  colorTheme: "blue" | "green" | "purple" | "orange";
-  iconName: string;
-  route: string;
-  gradientFrom: string;
-  gradientTo: string;
+interface SalesPerformanceDashboardProps {
+  initialFilters?: {
+    startDate?: string;
+    endDate?: string;
+    countryIds?: string[];
+    assignedToIds?: string[];
+  };
 }
 
-interface FiltersData {
-  startDate?: string;
-  endDate?: string;
-  countryIds?: string[];
-  assignedToIds?: string[];
+interface OverviewData {
+  overview: {
+    totalRevenue: number;
+    totalQuotations: number;
+    totalReservations: number;
+    totalSales: number;
+    totalProcesses: number;
+    avgTicket: number;
+    conversionRate: number;
+    convertedLeads: number;
+  };
+  byCurrency: Record<string, any>;
+}
+
+async function fetchOverviewData(filters: any): Promise<OverviewData> {
+  const params = new URLSearchParams();
+
+  if (filters.startDate) params.append("startDate", filters.startDate);
+  if (filters.endDate) params.append("endDate", filters.endDate);
+  if (filters.countryIds?.length)
+    params.append("countryIds", filters.countryIds.join(","));
+  if (filters.assignedToIds?.length)
+    params.append("assignedToIds", filters.assignedToIds.join(","));
+
+  const response = await fetch(
+    `/api/reports/sales-performance/overview?${params}`
+  );
+  if (!response.ok) throw new Error("Error fetching overview data");
+
+  const result = await response.json();
+  return result.data;
 }
 
 export function SalesPerformanceDashboard({
-  config,
-}: {
-  config: MetricConfig;
-}) {
-  const [filters, setFilters] = useState<FiltersData>({});
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  initialFilters,
+}: SalesPerformanceDashboardProps) {
+  const [filters, setFilters] = useState(initialFilters || {});
   const [isExporting, setIsExporting] = useState(false);
-
-  const queryClient = useQueryClient();
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { toast } = useToast();
 
-  const handleFiltersChange = useCallback((data: FiltersData) => {
-    setFilters(data);
-  }, []);
+  const {
+    data: overviewData,
+    isLoading: isOverviewLoading,
+    refetch: refetchOverview,
+  } = useQuery({
+    queryKey: ["sales-overview", filters],
+    queryFn: () => fetchOverviewData(filters),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
 
-  // Refresh functionality with proper invalidation and refetch
-  const handleRefresh = useCallback(async () => {
+  const handleFiltersChange = (newFilters: any) => {
+    setFilters(newFilters);
+  };
+
+  const handleRefresh = async () => {
     setIsRefreshing(true);
-
     try {
-      // Invalidate and refetch all sales performance queries
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: ["sales-overview"],
-          exact: false,
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ["sales-timeline"],
-          exact: false,
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ["sales-products"],
-          exact: false,
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ["sales-methods"],
-          exact: false,
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ["sales-countries"],
-          exact: false,
-        }),
-      ]);
-
-      // Force refetch all queries
-      await Promise.all([
-        queryClient.refetchQueries({
-          queryKey: ["sales-overview"],
-          exact: false,
-        }),
-        queryClient.refetchQueries({
-          queryKey: ["sales-timeline"],
-          exact: false,
-        }),
-        queryClient.refetchQueries({
-          queryKey: ["sales-products"],
-          exact: false,
-        }),
-        queryClient.refetchQueries({
-          queryKey: ["sales-methods"],
-          exact: false,
-        }),
-        queryClient.refetchQueries({
-          queryKey: ["sales-countries"],
-          exact: false,
-        }),
-      ]);
-
+      await refetchOverview();
       toast({
-        title: "Datos actualizados",
-        description:
-          "Todos los gráficos han sido actualizados con los datos más recientes.",
+        title: "Datos actualizados correctamente",
         variant: "default",
       });
     } catch (error) {
-      console.error("Error refreshing data:", error);
       toast({
-        title: "Error al actualizar",
-        description:
-          "Hubo un problema al actualizar los datos. Intenta de nuevo.",
+        title: "Error al actualizar los datos",
         variant: "destructive",
       });
     } finally {
       setIsRefreshing(false);
     }
-  }, [queryClient, toast]);
+  };
 
-  // Export functionality with toast notifications
-  const handleExport = useCallback(async () => {
+  const handleExport = async () => {
+    if (isExporting) return;
+
     setIsExporting(true);
-
     try {
       await exportAllSalesPerformance(filters);
-
       toast({
-        title: "Exportación completada",
-        description:
-          "El archivo Excel con todas las métricas ha sido descargado exitosamente.",
+        title: "Exportación completada exitosamente",
         variant: "default",
       });
     } catch (error) {
-      console.error("Error exporting data:", error);
+      console.error("Error exporting sales performance:", error);
       toast({
-        title: "Error en exportación",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Error al exportar los datos.",
+        title: "Error al exportar los datos",
         variant: "destructive",
       });
     } finally {
       setIsExporting(false);
     }
-  }, [filters, toast]);
+  };
+
+  // Format overview data for the metrics cards
+  const overviewMetrics = overviewData?.overview
+    ? [
+        {
+          title: "Ingresos Totales",
+          value: `$${overviewData.overview.totalRevenue.toLocaleString()}`,
+          icon: DollarSign,
+          description: "Cotizaciones + Reservas + Ventas",
+          color: "text-green-600",
+        },
+        {
+          title: "Procesos Totales",
+          value: overviewData.overview.totalProcesses.toLocaleString(),
+          icon: TrendingUp,
+          description: `${overviewData.overview.totalQuotations} cotizaciones, ${overviewData.overview.totalReservations} reservas, ${overviewData.overview.totalSales} ventas`,
+          color: "text-blue-600",
+        },
+        {
+          title: "Ticket Promedio",
+          value: `$${overviewData.overview.avgTicket.toLocaleString()}`,
+          icon: Target,
+          description: "Por proceso completado",
+          color: "text-purple-600",
+        },
+        {
+          title: "Tasa de Conversión",
+          value: `${overviewData.overview.conversionRate.toFixed(1)}%`,
+          icon: Users,
+          description: `${overviewData.overview.convertedLeads} leads convertidos`,
+          color: "text-orange-600",
+        },
+      ]
+    : [];
 
   return (
-    <div className="space-y-8">
-      {/* Back Navigation */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" asChild>
-          <Link href="/reports" className="flex items-center gap-2">
-            <ArrowLeft className="h-4 w-4" />
-            Volver a Reportes
-          </Link>
-        </Button>
-      </div>
-
+    <div className="space-y-6">
       {/* Header */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div
-              className={cn(
-                "p-3 rounded-xl transition-colors duration-300",
-                config.colorTheme === "green" &&
-                  "bg-green-100 dark:bg-green-900/30",
-                config.colorTheme === "blue" &&
-                  "bg-blue-100 dark:bg-blue-900/30",
-                config.colorTheme === "purple" &&
-                  "bg-purple-100 dark:bg-purple-900/30",
-                config.colorTheme === "orange" &&
-                  "bg-orange-100 dark:bg-orange-900/30"
-              )}
-            >
-              <div className="h-8 w-8" /> {/* Icon placeholder */}
-            </div>
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+        <div>
+          <h1 className="text-2xl font-bold">Sales Performance</h1>
+          <p className="text-muted-foreground">
+            Cotizaciones, reservas y ventas por moneda
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
+            />
+            Actualizar
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleExport}
+            disabled={isExporting}
+            className="flex items-center gap-2"
+          >
+            <Download className="h-4 w-4" />
+            {isExporting ? "Exportando..." : "Exportar"}
+          </Button>
+        </div>
+      </div>
 
-            <div className="space-y-1">
-              <div className="flex items-center gap-3">
-                <h1 className="text-3xl font-bold tracking-tight">
-                  {config.title}
-                </h1>
-                <Badge
-                  variant="default"
-                  className="text-xs bg-green-600 hover:bg-green-700"
-                >
-                  Activo
-                </Badge>
-              </div>
-              <p className="text-muted-foreground text-lg">
-                {config.description}
+      {/* Filters */}
+      <SalesFilters onFiltersChange={handleFiltersChange} />
+
+      {/* Overview Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {overviewMetrics.map((metric) => (
+          <Card key={metric.title}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                {metric.title}
+              </CardTitle>
+              <metric.icon className={`h-4 w-4 ${metric.color}`} />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{metric.value}</div>
+              <p className="text-xs text-muted-foreground">
+                {metric.description}
               </p>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-            >
-              <RefreshCw
-                className={cn("h-4 w-4 mr-2", isRefreshing && "animate-spin")}
-              />
-              {isRefreshing ? "Actualizando..." : "Actualizar"}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExport}
-              disabled={isExporting}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              {isExporting ? "Exportando..." : "Exportar"}
-            </Button>
-          </div>
-        </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Dashboard Layout */}
-      <div className="grid lg:grid-cols-4 gap-6">
-        {/* Main Content Area - 3 columns */}
-        <div className="lg:col-span-3 space-y-6">
-          {/* KPI Overview */}
-          <SalesOverview filters={filters} />
-
-          {/* Charts Grid */}
-          <div className="grid gap-6">
-            {/* Timeline Chart - Full width */}
-            <SalesTimelineChart filters={filters} />
-
-            {/* Products and Payment Methods Charts - Side by side */}
-            <div className="grid lg:grid-cols-2 gap-6">
-              <SalesProductsChart filters={filters} />
-              <SalesPaymentMethodsChart filters={filters} />
+      {/* Currency Breakdown */}
+      {overviewData?.byCurrency && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Desglose por Moneda</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-3">
+              {Object.entries(overviewData.byCurrency).map(
+                ([currency, data]: [string, any]) => (
+                  <div key={currency} className="p-4 border rounded-lg">
+                    <h3 className="font-semibold text-lg mb-2">
+                      {currency} (
+                      {SUPPORTED_CURRENCIES[
+                        currency as keyof typeof SUPPORTED_CURRENCIES
+                      ]?.name || currency}
+                      )
+                    </h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>Cotizaciones:</span>
+                        <span className="font-medium">
+                          {data.quotations.count} ($
+                          {data.quotations.amount.toLocaleString()})
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Reservas:</span>
+                        <span className="font-medium">
+                          {data.reservations.count} ($
+                          {data.reservations.amount.toLocaleString()})
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Ventas:</span>
+                        <span className="font-medium">
+                          {data.sales.count} ($
+                          {data.sales.amount.toLocaleString()})
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )
+              )}
             </div>
+          </CardContent>
+        </Card>
+      )}
 
-            {/* Countries Chart - Full width */}
-            <SalesCountriesChart filters={filters} />
-          </div>
-        </div>
-
-        {/* Filters Sidebar - 1 column */}
-        <div className="lg:col-span-1">
-          <SalesFilters
-            onFiltersChange={handleFiltersChange}
-            className="lg:sticky lg:top-4"
-          />
-        </div>
-      </div>
-
-      {/* Footer Information */}
-      <div className="text-center py-4 border-t">
-        <p className="text-sm text-muted-foreground">
-          Datos actualizados en tiempo real • Última actualización:{" "}
-          {new Date().toLocaleString("es-ES")}
-        </p>
+      {/* Charts */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <SalesTimelineChart filters={filters} />
+        <SalesProductsChart filters={filters} />
+        <SalesPaymentMethodsChart filters={filters} />
+        <SalesCountriesChart filters={filters} />
       </div>
     </div>
   );
