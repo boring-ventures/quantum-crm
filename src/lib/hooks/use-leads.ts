@@ -52,9 +52,9 @@ export const useLeadsQuery = (filters: LeadsFilter = {}) => {
       }
       return response.json();
     },
-    enabled: !(
-      filters.assignedToId === undefined && filters.countryId === undefined
-    ),
+    // Siempre permitimos la ejecución de la consulta para soportar casos donde
+    // se desea obtener todos los leads (sin filtros de vendedor o país).
+    enabled: true,
   });
 };
 

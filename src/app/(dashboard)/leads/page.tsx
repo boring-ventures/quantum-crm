@@ -97,6 +97,9 @@ export default function LeadsPage() {
   // Solo aplicamos el filtro por vendedor si no estamos viendo todos los leads
   if (selectedSellerId && !showAllLeads) {
     assignedToId = selectedSellerId;
+    countryId = undefined; // Al ver un vendedor, no filtramos por país
+  } else if (showAllLeads) {
+    assignedToId = undefined; // Al ver todos los leads, no filtramos por vendedor
   }
 
   // Resetear showAllLeads cuando se selecciona un vendedor específico
@@ -219,15 +222,62 @@ export default function LeadsPage() {
   const handleExportLeads = async () => {
     setIsExporting(true);
     try {
+      const params = new URLSearchParams();
+
+      if (searchTerm) {
+        params.append("search", searchTerm);
+      }
+      if (assignedToId) {
+        params.append("assignedToId", assignedToId);
+      }
+      if (countryId) {
+        params.append("countryId", countryId);
+      }
+
+      params.append("status", activeTab);
+
+      const qualityScore = getInterestScore(interestFilter);
+      if (qualityScore > 0) {
+        params.append("qualityScore", String(qualityScore));
+      }
+
+      const response = await fetch(`/api/leads/export?${params.toString()}`);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Error al exportar los leads");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+
+      const contentDisposition = response.headers.get("content-disposition");
+      let filename = "leads.xlsx"; // fallback
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+        if (filenameMatch && filenameMatch.length > 1) {
+          filename = filenameMatch[1];
+        }
+      }
+
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
       toast({
-        title: "Exportación pendiente",
-        description: "Esta funcionalidad será implementada próximamente.",
+        title: "Exportación completada",
+        description: "El archivo de leads se ha descargado.",
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error exporting leads:", err);
       toast({
         title: "Error en la exportación",
-        description: "Ha ocurrido un error al exportar los leads.",
+        description:
+          err.message || "Ha ocurrido un error al exportar los leads.",
         variant: "destructive",
       });
     } finally {
@@ -338,20 +388,6 @@ export default function LeadsPage() {
                 </TableCell>
               </TableRow>
             ))}
-            <TableRow>
-              <TableCell colSpan={4}>
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    setShowAllLeads(true);
-                    setSelectedSellerId(null);
-                  }}
-                >
-                  Ver todos los leads
-                </Button>
-              </TableCell>
-            </TableRow>
           </TableBody>
         </Table>
       </>
@@ -408,31 +444,45 @@ export default function LeadsPage() {
               </p>
             </div>
             <div className="flex items-center space-x-2">
-              {canCreateLeads && (
+              {canManageTeam && !selectedSellerId && !showAllLeads ? (
+                <Button
+                  onClick={() => {
+                    setShowAllLeads(true);
+                    setSelectedSellerId(null);
+                  }}
+                >
+                  <Eye className="mr-2 h-4 w-4" />
+                  Ver todos los leads
+                </Button>
+              ) : (
                 <>
-                  <Button onClick={() => setNewLeadOpen(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    {selectedSellerId
-                      ? "Nuevo Lead para este Vendedor"
-                      : "Nuevo Lead"}
-                  </Button>
+                  {canCreateLeads && (
+                    <>
+                      <Button onClick={() => setNewLeadOpen(true)}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        {selectedSellerId
+                          ? "Nuevo Lead para este Vendedor"
+                          : "Nuevo Lead"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => setImportLeadsOpen(true)}
+                      >
+                        <Upload className="mr-2 h-4 w-4" />
+                        Importar
+                      </Button>
+                    </>
+                  )}
                   <Button
                     variant="outline"
-                    onClick={() => setImportLeadsOpen(true)}
+                    onClick={handleExportLeads}
+                    disabled={isExporting}
                   >
-                    <Upload className="mr-2 h-4 w-4" />
-                    Importar
+                    <Download className="mr-2 h-4 w-4" />
+                    Exportar
                   </Button>
                 </>
               )}
-              <Button
-                variant="outline"
-                onClick={handleExportLeads}
-                disabled={isExporting}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Exportar
-              </Button>
             </div>
           </div>
 

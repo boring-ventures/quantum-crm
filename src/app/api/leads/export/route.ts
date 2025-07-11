@@ -1,140 +1,123 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
-import { cookies } from "next/headers";
+import * as XLSX from "xlsx";
+import { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
   try {
-    // Verificar autenticación
-    const cookieStore = await cookies();
-    const token = cookieStore.get("auth-token");
-
-    if (!token) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(req.url);
-    const format = searchParams.get("format") || "csv";
+    const { searchParams } = req.nextUrl;
     const search = searchParams.get("search");
-    const status = searchParams.get("status");
-    const source = searchParams.get("source");
     const assignedToId = searchParams.get("assignedToId");
-    const isArchived = searchParams.get("isArchived");
-    const isClosed = searchParams.get("isClosed");
+    const countryId = searchParams.get("countryId");
+    const status = searchParams.get("status"); // active, closed, archived
+    const qualityScore = searchParams.get("qualityScore");
 
-    // Construir condiciones de filtro
-    const where: any = {};
+    const where: Prisma.LeadWhereInput = {};
 
     if (search) {
       where.OR = [
         { firstName: { contains: search, mode: "insensitive" } },
         { lastName: { contains: search, mode: "insensitive" } },
         { email: { contains: search, mode: "insensitive" } },
-        { cellphone: { contains: search, mode: "insensitive" } },
         { phone: { contains: search, mode: "insensitive" } },
       ];
-    }
-
-    if (status) {
-      where.statusId = status;
-    }
-
-    if (source) {
-      where.sourceId = source;
     }
 
     if (assignedToId) {
       where.assignedToId = assignedToId;
     }
 
-    if (isArchived === "true") {
-      where.isArchived = true;
-    } else if (isArchived === "false") {
+    if (countryId) {
+      where.assignedTo = {
+        countryId: countryId,
+      };
+    }
+
+    if (status === "active") {
       where.isArchived = false;
-    }
-
-    if (isClosed === "true") {
-      where.isClosed = true;
-    } else if (isClosed === "false") {
       where.isClosed = false;
+    } else if (status === "closed") {
+      where.isClosed = true;
+      where.isArchived = false;
+    } else if (status === "archived") {
+      where.isArchived = true;
     }
 
-    // Obtener los leads con relaciones
+    if (qualityScore && qualityScore !== "0") {
+      where.qualityScore = parseInt(qualityScore, 10);
+    }
+
     const leads = await prisma.lead.findMany({
       where,
       include: {
-        status: {
-          select: {
-            name: true,
-          },
-        },
-        source: {
-          select: {
-            name: true,
-          },
-        },
-        assignedTo: {
-          select: {
-            name: true,
-          },
-        },
+        assignedTo: { select: { name: true, email: true } },
+        product: { select: { name: true, code: true } },
+        source: { select: { name: true } },
+        status: { select: { name: true } },
       },
       orderBy: {
         createdAt: "desc",
       },
     });
 
-    // Convertir a CSV
-    if (format === "csv") {
-      const headers = [
-        "ID",
-        "Nombre",
-        "Apellido",
-        "Email",
-        "Teléfono",
-        "Celular",
-        "Estado",
-        "Fuente",
-        "Asignado a",
-        "Comentarios",
-        "Fecha de creación",
-        "Última actualización",
-      ];
+    const dataForSheet = leads.map((lead) => ({
+      Nombre: lead.firstName,
+      Apellido: lead.lastName,
+      Email: lead.email,
+      Teléfono: lead.phone,
+      Celular: lead.cellphone,
+      Estado: lead.status.name,
+      Fuente: lead.source.name,
+      "Asignado a": lead.assignedTo.name,
+      "Email Asignado": lead.assignedTo.email,
+      Producto: lead.product?.name || "N/A",
+      "Código de Producto": lead.product?.code || "N/A",
+      "Puntuación de Calidad": lead.qualityScore,
+      Calificación: lead.qualification,
+      Archivado: lead.isArchived ? "Sí" : "No",
+      Cerrado: lead.isClosed ? "Sí" : "No",
+      "Fecha de Creación": lead.createdAt.toISOString(),
+      "Última Actualización": lead.updatedAt.toISOString(),
+      "Último Contacto": lead.lastContactedAt?.toISOString() || "N/A",
+      "Próximo Seguimiento": lead.nextFollowUpDate?.toISOString() || "N/A",
+      "Comentarios Extra": lead.extraComments,
+    }));
 
-      const csvContent = [
-        headers.join(","),
-        ...leads.map((lead) =>
-          [
-            lead.id,
-            `"${lead.firstName || ""}"`,
-            `"${lead.lastName || ""}"`,
-            `"${lead.email || ""}"`,
-            `"${lead.phone || ""}"`,
-            `"${lead.cellphone || ""}"`,
-            `"${lead.status?.name || ""}"`,
-            `"${lead.source?.name || ""}"`,
-            `"${lead.assignedTo?.name || ""}"`,
-            `"${(lead.extraComments || "").replace(/"/g, '""')}"`,
-            new Date(lead.createdAt).toISOString(),
-            new Date(lead.updatedAt).toISOString(),
-          ].join(",")
-        ),
-      ].join("\n");
+    const worksheet = XLSX.utils.json_to_sheet(dataForSheet);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Leads");
 
-      return new NextResponse(csvContent, {
-        headers: {
-          "Content-Type": "text/csv; charset=utf-8",
-          "Content-Disposition": `attachment; filename="leads_export_${new Date().toISOString().split("T")[0]}.csv"`,
-        },
-      });
-    }
+    const columnWidths = Object.keys(dataForSheet[0] || {}).map((key) => {
+      let width = key.length;
+      if (dataForSheet.length > 0) {
+        const max = Math.max(
+          ...dataForSheet.map(
+            (row) => String(row[key as keyof typeof row] || "").length
+          )
+        );
+        width = Math.max(width, max);
+      }
+      return { wch: width + 2 };
+    });
 
-    // Para Excel, simplemente retornamos JSON por ahora
-    // En producción se podría usar una librería como xlsx
-    return NextResponse.json(leads);
+    worksheet["!cols"] = columnWidths;
+
+    const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+
+    const fileName = `quantum_crm_leads_${new Date().toISOString().split("T")[0]}.xlsx`;
+
+    return new NextResponse(buffer, {
+      status: 200,
+      headers: {
+        "Content-Type":
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition": `attachment; filename="${fileName}"`,
+      },
+    });
   } catch (error) {
-    console.error("[EXPORT_LEADS_API]", error);
+    console.error("Error exporting leads:", error);
     return NextResponse.json(
-      { error: "Error interno del servidor" },
+      { error: "Error al exportar los leads" },
       { status: 500 }
     );
   }
