@@ -42,6 +42,7 @@ export async function GET(req: NextRequest) {
     } else if (status === "archived") {
       where.isArchived = true;
     }
+    // Si no se especifica status o es "all", se incluyen todos los leads (activos, cerrados y archivados)
 
     if (qualityScore && qualityScore !== "0") {
       where.qualityScore = parseInt(qualityScore, 10);

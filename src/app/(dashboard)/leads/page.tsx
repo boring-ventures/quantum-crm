@@ -234,7 +234,8 @@ export default function LeadsPage() {
         params.append("countryId", countryId);
       }
 
-      params.append("status", activeTab);
+      // No agregamos el parámetro status para exportar todos los leads (activos, cerrados y archivados)
+      // params.append("status", activeTab);
 
       const qualityScore = getInterestScore(interestFilter);
       if (qualityScore > 0) {
