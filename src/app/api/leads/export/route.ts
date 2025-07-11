@@ -54,34 +54,61 @@ export async function GET(req: NextRequest) {
         product: { select: { name: true, code: true } },
         source: { select: { name: true } },
         status: { select: { name: true } },
+        reassignments: {
+          orderBy: { createdAt: "asc" },
+          take: 1,
+          include: {
+            fromUser: { select: { name: true, email: true } },
+          },
+        },
       },
       orderBy: {
         createdAt: "desc",
       },
     });
 
-    const dataForSheet = leads.map((lead) => ({
-      Nombre: lead.firstName,
-      Apellido: lead.lastName,
-      Email: lead.email,
-      Teléfono: lead.phone,
-      Celular: lead.cellphone,
-      Estado: lead.status.name,
-      Fuente: lead.source.name,
-      "Asignado a": lead.assignedTo.name,
-      "Email Asignado": lead.assignedTo.email,
-      Producto: lead.product?.name || "N/A",
-      "Código de Producto": lead.product?.code || "N/A",
-      "Puntuación de Calidad": lead.qualityScore,
-      Calificación: lead.qualification,
-      Archivado: lead.isArchived ? "Sí" : "No",
-      Cerrado: lead.isClosed ? "Sí" : "No",
-      "Fecha de Creación": lead.createdAt.toISOString(),
-      "Última Actualización": lead.updatedAt.toISOString(),
-      "Último Contacto": lead.lastContactedAt?.toISOString() || "N/A",
-      "Próximo Seguimiento": lead.nextFollowUpDate?.toISOString() || "N/A",
-      "Comentarios Extra": lead.extraComments,
-    }));
+    const dataForSheet = leads.map((lead) => {
+      // Determinar el creador original
+      let creatorName = "N/A";
+      let creatorEmail = "N/A";
+
+      if (lead.reassignments.length > 0) {
+        // Si hay reasignaciones, el primer fromUser es el creador original
+        creatorName = lead.reassignments[0].fromUser.name;
+        creatorEmail = lead.reassignments[0].fromUser.email;
+      } else {
+        // Si no hay reasignaciones, el assignedTo actual es el creador
+        creatorName = lead.assignedTo.name;
+        creatorEmail = lead.assignedTo.email;
+      }
+
+      return {
+        Nombre: lead.firstName,
+        Apellido: lead.lastName,
+        Email: lead.email,
+        Teléfono: lead.phone,
+        Celular: lead.cellphone,
+        "Creado por": creatorName,
+        "Email Creador": creatorEmail,
+        Estado: lead.status.name,
+        Fuente: lead.source.name,
+        "Asignado a": lead.assignedTo.name,
+        "Email Asignado": lead.assignedTo.email,
+        Producto: lead.product?.name || "N/A",
+        "Código de Producto": lead.product?.code || "N/A",
+        "Puntuación de Calidad": lead.qualityScore,
+        Calificación: lead.qualification,
+        Archivado: lead.isArchived ? "Sí" : "No",
+        Cerrado: lead.isClosed ? "Sí" : "No",
+        "Fecha de Cierre": lead.closedAt?.toISOString() || "N/A",
+        "Razón de Cierre": lead.reasonClosed || "N/A",
+        "Fecha de Creación": lead.createdAt.toISOString(),
+        "Última Actualización": lead.updatedAt.toISOString(),
+        "Último Contacto": lead.lastContactedAt?.toISOString() || "N/A",
+        "Próximo Seguimiento": lead.nextFollowUpDate?.toISOString() || "N/A",
+        "Comentarios Extra": lead.extraComments,
+      };
+    });
 
     const worksheet = XLSX.utils.json_to_sheet(dataForSheet);
     const workbook = XLSX.utils.book_new();
