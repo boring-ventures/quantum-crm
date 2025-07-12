@@ -19,6 +19,8 @@ const productUpdateSchema = z.object({
     .nullable(),
   brandId: z.string().uuid("ID de marca inválido").optional().nullable(),
   modelId: z.string().uuid("ID de modelo inválido").optional().nullable(),
+  countryId: z.string().uuid("ID de país inválido").optional().nullable(),
+  currency: z.enum(["BOB", "USD", "USDT"]).optional(),
   isActive: z.boolean().optional(),
   images: z
     .array(
@@ -68,12 +70,9 @@ export async function GET(
       where: { id },
       include: {
         businessType: true,
-        brand: {
-          include: {
-            company: true,
-          },
-        },
+        brand: true,
         model: true,
+        country: true,
         images: true,
       },
     });
@@ -202,12 +201,9 @@ export async function PATCH(
           where: { id },
           include: {
             businessType: true,
-            brand: {
-              include: {
-                company: true,
-              },
-            },
+            brand: true,
             model: true,
+            country: true,
             images: true,
           },
         });

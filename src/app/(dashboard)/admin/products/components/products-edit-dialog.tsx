@@ -15,22 +15,49 @@ import { PricesDiscountsTab } from "./tabs/prices-discounts-tab";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2 } from "lucide-react";
 
+type ProductFormData = {
+  code: string;
+  name: string;
+  nameProduct: string;
+  descriptionProduct?: string;
+  price?: number;
+  businessTypeId?: string;
+  brandId?: string;
+  modelId?: string;
+  isActive: boolean;
+  images: { url: string; isMain: boolean }[];
+  specifications: { feature: string; value: string }[];
+  commercialCondition?: string;
+  validUntil?: string;
+  sellerDiscount?: number;
+  managerDiscount?: number;
+  countryId?: string;
+  currency: string;
+  savingsPlan?: {
+    type?: string;
+    firstQuota?: number;
+    totalQuotas?: number;
+  };
+};
+
 interface ProductsEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   productId: string;
+  onSuccess?: () => void;
 }
 
 export function ProductsEditDialog({
   open,
   onOpenChange,
   productId,
+  onSuccess,
 }: ProductsEditDialogProps) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("basic-info");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState<any>({
+  const [formData, setFormData] = useState<ProductFormData>({
     code: "",
     name: "",
     nameProduct: "",
@@ -40,6 +67,8 @@ export function ProductsEditDialog({
     specifications: [],
     sellerDiscount: 0,
     managerDiscount: 0,
+    currency: "BOB",
+    countryId: "",
   });
 
   // Cargar datos del producto al abrir el diálogo
@@ -58,9 +87,23 @@ export function ProductsEditDialog({
 
         // Convertir los datos a la estructura esperada por el formulario
         setFormData({
-          ...productData,
-          // Agregar campos que podrían estar ausentes
+          code: productData.code || "",
+          name: productData.name || "",
+          nameProduct: productData.nameProduct || "",
+          descriptionProduct: productData.descriptionProduct || "",
+          price: productData.price || undefined,
+          businessTypeId: productData.businessTypeId || "",
+          brandId: productData.brandId || "",
+          modelId: productData.modelId || "",
+          countryId: productData.countryId || "",
+          currency: productData.currency || "BOB",
+          isActive: productData.isActive ?? true,
+          images: productData.images || [],
           specifications: productData.specifications || [],
+          commercialCondition: productData.commercialCondition || "",
+          validUntil: productData.validUntil || "",
+          sellerDiscount: productData.sellerDiscount || 0,
+          managerDiscount: productData.managerDiscount || 0,
           savingsPlan: productData.savingsPlan || undefined,
         });
       } catch (error) {
@@ -79,7 +122,7 @@ export function ProductsEditDialog({
     fetchProductData();
   }, [productId, open, toast, onOpenChange]);
 
-  const updateFormData = (newData: any) => {
+  const updateFormData = (newData: Partial<ProductFormData>) => {
     setFormData((prev) => ({ ...prev, ...newData }));
   };
 
@@ -115,9 +158,9 @@ export function ProductsEditDialog({
         description: "Producto actualizado correctamente",
       });
 
-      // Cerrar el diálogo y refrescar la página
+      // Cerrar el diálogo y llamar callback de éxito
       onOpenChange(false);
-      window.location.reload();
+      onSuccess?.();
     } catch (error) {
       console.error("Error updating product:", error);
       toast({

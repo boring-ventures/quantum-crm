@@ -93,6 +93,10 @@ export default function ProductsPage() {
     });
   }, [fetchProducts, toast]);
 
+  const handleRefresh = useCallback(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
   // Validar acceso a la página
   if (!canViewProducts) {
     return (
@@ -135,7 +139,7 @@ export default function ProductsPage() {
         </CardHeader>
         <CardContent>
           <DataTable
-            columns={columns(canEditProducts, canDeleteProducts)}
+            columns={columns(canEditProducts, canDeleteProducts, handleRefresh)}
             data={products || []} /* Asegurar que nunca sea undefined */
             isLoading={isLoading}
             noResultsMessage="No se encontraron productos"

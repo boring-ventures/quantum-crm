@@ -12,48 +12,29 @@ import {
 import { Button } from "@/components/ui/button";
 import { MoreHorizontal, Pencil, Trash2, Eye } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-import { ConfirmDialog } from "@/components/confirm-dialog";
+import { DeleteProductDialog } from "./delete-product-dialog";
 import { ProductsEditDialog } from "./products-edit-dialog";
-import { type Product } from "./columns";
+import { type Product } from "@/types/product";
 
 interface ProductActionsCellProps {
   product: Product;
+  onRefresh?: () => void;
 }
 
-export function ProductActionsCell({ product }: ProductActionsCellProps) {
+export function ProductActionsCell({
+  product,
+  onRefresh,
+}: ProductActionsCellProps) {
   const { toast } = useToast();
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
 
-  const handleDelete = async () => {
-    setIsDeleting(true);
-    try {
-      const response = await fetch(`/api/products/${product.id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error("Error al eliminar el producto");
-      }
-
-      toast({
-        title: "Éxito",
-        description: "Producto eliminado correctamente",
-      });
-
-      // Refrescar la página después de eliminar
+  const handleSuccess = () => {
+    if (onRefresh) {
+      onRefresh();
+    } else {
+      // Fallback to page reload if no refresh callback provided
       window.location.reload();
-    } catch (error) {
-      console.error("Error deleting product:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "No se pudo eliminar el producto",
-      });
-    } finally {
-      setIsDeleting(false);
-      setShowDeleteConfirm(false);
     }
   };
 
@@ -74,7 +55,7 @@ export function ProductActionsCell({ product }: ProductActionsCellProps) {
             Editar
           </DropdownMenuItem>
           <DropdownMenuItem
-            onSelect={() => setShowDeleteConfirm(true)}
+            onSelect={() => setShowDeleteDialog(true)}
             className="text-red-600"
           >
             <Trash2 className="mr-2 h-4 w-4" />
@@ -83,24 +64,20 @@ export function ProductActionsCell({ product }: ProductActionsCellProps) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {showDeleteConfirm && (
-        <ConfirmDialog
-          open={showDeleteConfirm}
-          onOpenChange={setShowDeleteConfirm}
-          title="Eliminar Producto"
-          description={`¿Estás seguro que deseas eliminar el producto "${product.nameProduct}"? Esta acción no se puede deshacer.`}
-          onConfirm={handleDelete}
-          isLoading={isDeleting}
-        />
-      )}
+      <DeleteProductDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        productId={product.id}
+        productName={product.name}
+        onSuccess={handleSuccess}
+      />
 
-      {showEditDialog && (
-        <ProductsEditDialog
-          open={showEditDialog}
-          onOpenChange={setShowEditDialog}
-          productId={product.id}
-        />
-      )}
+      <ProductsEditDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        productId={product.id}
+        onSuccess={handleSuccess}
+      />
     </>
   );
 }
