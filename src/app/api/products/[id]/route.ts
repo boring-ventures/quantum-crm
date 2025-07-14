@@ -11,7 +11,7 @@ const productUpdateSchema = z.object({
     .min(1, "El nombre del producto es requerido")
     .optional(),
   descriptionProduct: z.string().optional().nullable(),
-  price: z.number().optional().nullable(),
+  price: z.coerce.number().optional().nullable(),
   businessTypeId: z
     .string()
     .uuid("ID de tipo de negocio inválido")
@@ -41,13 +41,13 @@ const productUpdateSchema = z.object({
     .optional(),
   commercialCondition: z.string().optional().nullable(),
   validUntil: z.string().optional().nullable(),
-  sellerDiscount: z.number().optional().nullable(),
-  managerDiscount: z.number().optional().nullable(),
+  sellerDiscount: z.coerce.number().optional().nullable(),
+  managerDiscount: z.coerce.number().optional().nullable(),
   savingsPlan: z
     .object({
       type: z.string().optional().nullable(),
-      firstQuota: z.number().optional().nullable(),
-      totalQuotas: z.number().optional().nullable(),
+      firstQuota: z.coerce.number().optional().nullable(),
+      totalQuotas: z.coerce.number().optional().nullable(),
     })
     .optional()
     .nullable(),
@@ -168,10 +168,11 @@ export async function PATCH(
           data: {
             ...productData,
             // Guardar campos adicionales como JSON
-            specifications: specifications
-              ? JSON.stringify(specifications)
-              : undefined,
-            savingsPlan: savingsPlan ? JSON.stringify(savingsPlan) : undefined,
+            specifications:
+              specifications && specifications.length > 0
+                ? JSON.stringify(specifications)
+                : null,
+            savingsPlan: savingsPlan ? JSON.stringify(savingsPlan) : null,
           },
         });
 
@@ -220,7 +221,10 @@ export async function PATCH(
       throw validationError;
     }
   } catch (error) {
-    console.error("Error updating product:", error);
+    console.error(
+      "Error updating product:",
+      error instanceof Error ? error.message : String(error)
+    );
     return NextResponse.json(
       { error: "Error al actualizar el producto" },
       { status: 500 }

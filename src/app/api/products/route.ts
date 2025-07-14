@@ -8,7 +8,7 @@ const productSchema = z.object({
   name: z.string().min(1, "El nombre es requerido"),
   nameProduct: z.string().min(1, "El nombre del producto es requerido"),
   descriptionProduct: z.string().optional().nullable(),
-  price: z.number().optional().nullable(),
+  price: z.coerce.number().optional().nullable(),
   businessTypeId: z
     .string()
     .uuid("ID de tipo de negocio inválido")
@@ -27,6 +27,26 @@ const productSchema = z.object({
       })
     )
     .default([]),
+  specifications: z
+    .array(
+      z.object({
+        feature: z.string(),
+        value: z.string(),
+      })
+    )
+    .default([]),
+  commercialCondition: z.string().optional().nullable(),
+  validUntil: z.string().optional().nullable(),
+  sellerDiscount: z.coerce.number().optional().nullable(),
+  managerDiscount: z.coerce.number().optional().nullable(),
+  savingsPlan: z
+    .object({
+      type: z.string().optional().nullable(),
+      firstQuota: z.coerce.number().optional().nullable(),
+      totalQuotas: z.coerce.number().optional().nullable(),
+    })
+    .optional()
+    .nullable(),
 });
 
 export async function GET(request: NextRequest) {
@@ -144,14 +164,23 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Extraer las imágenes de los datos validados
-      const { images, ...productData } = validatedData;
+      // Extraer las imágenes y otros campos complejos de los datos validados
+      const { images, specifications, savingsPlan, ...productData } =
+        validatedData;
 
       // Crear el producto usando una transacción para gestionar imágenes
       const product = await prisma.$transaction(async (tx: any) => {
         // Crear el producto
         const newProduct = await tx.product.create({
-          data: productData,
+          data: {
+            ...productData,
+            // Guardar campos adicionales como JSON
+            specifications:
+              specifications && specifications.length > 0
+                ? JSON.stringify(specifications)
+                : null,
+            savingsPlan: savingsPlan ? JSON.stringify(savingsPlan) : null,
+          },
         });
 
         // Crear las imágenes si existen
@@ -193,7 +222,10 @@ export async function POST(request: NextRequest) {
       throw validationError;
     }
   } catch (error) {
-    console.error("Error creating product:", error);
+    console.error(
+      "Error creating product:",
+      error instanceof Error ? error.message : String(error)
+    );
     return NextResponse.json(
       { error: "Error al crear el producto" },
       { status: 500 }

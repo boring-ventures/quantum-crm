@@ -2,31 +2,44 @@ export interface Product {
   id: string;
   code: string;
   name: string;
-  price: number;
-  stock: number;
+  nameProduct: string;
+  price?: number | null;
   isActive: boolean;
-  description?: string;
-  businessTypeId?: string;
+  descriptionProduct?: string | null;
+  businessTypeId?: string | null;
   businessType?: {
     id: string;
     name: string;
   } | null;
-  createdAt: Date;
-  updatedAt: Date;
+  brandId?: string | null;
   brand?: {
     id: string;
     name: string;
   } | null;
+  modelId?: string | null;
   model?: {
     id: string;
     name: string;
   } | null;
-  validUntil?: string | null;
-  images?: { url: string; isMain: boolean }[];
-  currency?: "BOB" | "USD" | "USDT";
+  countryId?: string | null;
   country?: {
     id: string;
     name: string;
     code: string;
+  } | null;
+  currency: "BOB" | "USD" | "USDT";
+  createdAt: Date;
+  updatedAt: Date;
+  images?: { url: string; isMain: boolean }[];
+  validUntil?: string | null;
+  // Additional fields for the forms
+  specifications?: { feature: string; value: string }[];
+  commercialCondition?: string | null;
+  sellerDiscount?: number | null;
+  managerDiscount?: number | null;
+  savingsPlan?: {
+    type?: string | null;
+    firstQuota?: number | null;
+    totalQuotas?: number | null;
   } | null;
 }

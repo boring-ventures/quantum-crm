@@ -296,27 +296,33 @@ model ActivityLog {
 }
 
 model Product {
-  id                 String             @id @default(uuid())
-  createdAt          DateTime           @default(now()) @map("created_at")
-  updatedAt          DateTime           @updatedAt @map("updated_at")
-  name               String             @unique
-  price              Decimal?           @db.Decimal(10, 2)
-  isActive           Boolean            @default(true) @map("is_active")
-  brandId            String?            @map("brand_id")
-  businessTypeId     String?            @map("business_type_id")
-  code               String             @unique
-  descriptionProduct String?
-  modelId            String?            @map("model_id")
-  nameProduct        String
-  countryId          String?            @map("country_id")
-  currency           Currency           @default(BOB)
-  leads              Lead[]
-  images             ProductImage[]
-  brand              Brand?             @relation(fields: [brandId], references: [id])
-  businessType       BusinessType?      @relation(fields: [businessTypeId], references: [id])
-  model              Model?             @relation(fields: [modelId], references: [id])
-  country            Country?           @relation(fields: [countryId], references: [id])
-  QuotationProduct   QuotationProduct[]
+  id                  String             @id @default(uuid())
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+  name                String             @unique
+  price               Decimal?           @db.Decimal(10, 2)
+  isActive            Boolean            @default(true) @map("is_active")
+  brandId             String?            @map("brand_id")
+  businessTypeId      String?            @map("business_type_id")
+  code                String             @unique
+  descriptionProduct  String?
+  modelId             String?            @map("model_id")
+  nameProduct         String
+  countryId           String?            @map("country_id")
+  currency            Currency           @default(BOB)
+  specifications      Json?              @map("specifications")
+  savingsPlan         Json?              @map("savings_plan")
+  commercialCondition String?            @map("commercial_condition")
+  validUntil          String?            @map("valid_until")
+  sellerDiscount      Decimal?           @map("seller_discount") @db.Decimal(5, 2)
+  managerDiscount     Decimal?           @map("manager_discount") @db.Decimal(5, 2)
+  leads               Lead[]
+  images              ProductImage[]
+  brand               Brand?             @relation(fields: [brandId], references: [id])
+  businessType        BusinessType?      @relation(fields: [businessTypeId], references: [id])
+  model               Model?             @relation(fields: [modelId], references: [id])
+  country             Country?           @relation(fields: [countryId], references: [id])
+  QuotationProduct    QuotationProduct[]
 
   @@index([code])
   @@index([name])

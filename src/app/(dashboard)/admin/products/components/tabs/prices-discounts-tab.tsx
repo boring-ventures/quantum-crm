@@ -69,7 +69,8 @@ export function PricesDiscountsTab({
   // Manejar cambios en los campos numéricos
   const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    const numValue = value === "" ? undefined : parseFloat(value);
+    // Convertir a número o null si el valor está vacío
+    const numValue = value === "" ? null : parseFloat(value);
     updateFormData({ [name]: numValue });
   };
 

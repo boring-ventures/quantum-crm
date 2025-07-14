@@ -141,12 +141,45 @@ export function ProductsEditDialog({
         return;
       }
 
+      // Preparar datos con tipos correctos
+      const dataToSend = {
+        ...formData,
+        // Convertir campos numéricos a números o null
+        price: formData.price ? Number(formData.price) : null,
+        sellerDiscount: formData.sellerDiscount
+          ? Number(formData.sellerDiscount)
+          : null,
+        managerDiscount: formData.managerDiscount
+          ? Number(formData.managerDiscount)
+          : null,
+        // Convertir campos del savings plan
+        savingsPlan: formData.savingsPlan
+          ? {
+              ...formData.savingsPlan,
+              firstQuota: formData.savingsPlan.firstQuota
+                ? Number(formData.savingsPlan.firstQuota)
+                : null,
+              totalQuotas: formData.savingsPlan.totalQuotas
+                ? Number(formData.savingsPlan.totalQuotas)
+                : null,
+            }
+          : null,
+        // Limpiar strings vacíos
+        descriptionProduct: formData.descriptionProduct || null,
+        commercialCondition: formData.commercialCondition || null,
+        validUntil: formData.validUntil || null,
+        businessTypeId: formData.businessTypeId || null,
+        brandId: formData.brandId || null,
+        modelId: formData.modelId || null,
+        countryId: formData.countryId || null,
+      };
+
       const response = await fetch(`/api/products/${productId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(dataToSend),
       });
 
       if (!response.ok) {
