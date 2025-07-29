@@ -150,8 +150,12 @@ export function SaleDialog({
 
   // Validar el formulario - solo saldo y método de pago son obligatorios
   const isFormValid =
-    parseFloat(saldo) > 0 && paymentMethod && invoice && paymentReceipt;
-
+    saldo !== "" &&
+    !isNaN(parseFloat(saldo)) &&
+    parseFloat(saldo) >= 0 &&
+    paymentMethod &&
+    invoice &&
+    paymentReceipt;
 
   // Manejar envío del formulario
   const handleSubmit = async () => {
@@ -271,8 +275,9 @@ export function SaleDialog({
             Registrar venta para {leadName}
           </DialogTitle>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Ingresa los detalles de la venta final. La venta será creada con
-            estado "En producción" y pendiente de aprobación.
+            Ingresa los detalles de la venta final. El saldo puede ser 0. La
+            venta será creada con estado "En producción" y pendiente de
+            aprobación.
           </p>
         </DialogHeader>
 
