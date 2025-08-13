@@ -4,13 +4,11 @@ import prisma from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
   try {
-    // Verificar autenticación
     const session = await auth();
     if (!session) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    // Obtener parámetros de consulta
     const searchParams = request.nextUrl.searchParams;
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
@@ -20,10 +18,8 @@ export async function GET(request: NextRequest) {
     const assignedToId = searchParams.get("assignedToId");
     const countryId = searchParams.get("countryId");
 
-    // Construir condiciones de filtrado
     const where: any = {};
 
-    // Filtrar por rango de fechas
     if (startDate && endDate) {
       where.createdAt = {
         gte: new Date(startDate),
@@ -31,12 +27,10 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // Filtrar por estado
     if (status) {
       where.status = status;
     }
 
-    // Buscar por categoría de producto
     if (category) {
       where.lead = {
         product: {
@@ -47,25 +41,22 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // Filtrar por vendedor asignado
     if (assignedToId) {
       where.lead = {
         ...where.lead,
-        assignedToId: assignedToId,
+        assignedToId,
       };
     }
 
-    // Filtrar por país del vendedor (scope team)
     if (countryId) {
       where.lead = {
         ...where.lead,
         assignedTo: {
-          countryId: countryId,
+          countryId,
         },
       };
     }
 
-    // Buscar por texto
     if (search) {
       const searchConditions = [
         {
@@ -96,19 +87,16 @@ export async function GET(request: NextRequest) {
         },
       ];
 
-      // Si ya tenemos condiciones para lead, las integramos con OR
       if (where.lead) {
         const leadFilters = { ...where.lead };
         where.lead = undefined;
-
         where.AND = [{ lead: leadFilters }, { OR: searchConditions }];
       } else {
         where.OR = searchConditions;
       }
     }
 
-    // Obtener ventas con relaciones
-    const sales = await prisma.sale.findMany({
+    const quotations = await prisma.quotation.findMany({
       where,
       include: {
         lead: {
@@ -116,8 +104,6 @@ export async function GET(request: NextRequest) {
             id: true,
             firstName: true,
             lastName: true,
-            email: true,
-            cellphone: true,
             product: {
               select: {
                 id: true,
@@ -140,26 +126,18 @@ export async function GET(request: NextRequest) {
             },
           },
         },
-        reservation: {
+        quotationProducts: {
           include: {
-            quotation: {
-              include: {
-                quotationProducts: {
-                  include: {
-                    product: {
-                      select: {
-                        id: true,
-                        name: true,
-                        nameProduct: true,
-                        code: true,
-                        businessType: {
-                          select: {
-                            id: true,
-                            name: true,
-                          },
-                        },
-                      },
-                    },
+            product: {
+              select: {
+                id: true,
+                name: true,
+                nameProduct: true,
+                code: true,
+                businessType: {
+                  select: {
+                    id: true,
+                    name: true,
                   },
                 },
               },
@@ -172,11 +150,11 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(sales);
+    return NextResponse.json(quotations);
   } catch (error) {
-    console.error("Error al obtener ventas:", error);
+    console.error("Error al obtener cotizaciones:", error);
     return NextResponse.json(
-      { error: "Error al obtener ventas" },
+      { error: "Error al obtener cotizaciones" },
       { status: 500 }
     );
   }

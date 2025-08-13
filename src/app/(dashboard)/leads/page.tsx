@@ -170,24 +170,25 @@ export default function LeadsPage() {
     });
   };
 
-  // Calcular conteos para cada categoría
+  // Conteos sincronizados con el tab superior seleccionado (activos/cerrados/archivados)
+  const currentTabLeads = getFilteredLeads(activeTab as any) || [];
   const leadCounts = {
     active: getFilteredLeads("active")?.length || 0,
     closed: getFilteredLeads("closed")?.length || 0,
     archived: getFilteredLeads("archived")?.length || 0,
-    all: leadsData?.length || 0,
+    all: currentTabLeads.length || 0,
     noManagement:
-      leadsData?.filter(
+      currentTabLeads.filter(
         (lead) =>
           (!lead.quotations || lead.quotations.length === 0) &&
           (!lead.reservations || lead.reservations.length === 0) &&
           (!lead.sales || lead.sales.length === 0)
       ).length || 0,
     noTasks:
-      leadsData?.filter((lead) => !lead.tasks || lead.tasks.length === 0)
+      currentTabLeads.filter((lead) => !lead.tasks || lead.tasks.length === 0)
         .length || 0,
     todayTasks:
-      leadsData?.filter((lead) => {
+      currentTabLeads.filter((lead) => {
         if (!lead.tasks || lead.tasks.length === 0) return false;
         return lead.tasks.some((task) => {
           if (!task.scheduledFor) return false;
@@ -202,7 +203,7 @@ export default function LeadsPage() {
         });
       }).length || 0,
     overdueTasks:
-      leadsData?.filter((lead) => {
+      currentTabLeads.filter((lead) => {
         if (!lead.tasks || lead.tasks.length === 0) return false;
         return lead.tasks.some((task) => {
           if (!task.scheduledFor) return false;
@@ -211,10 +212,10 @@ export default function LeadsPage() {
           return taskDate < today && task.status === "PENDING";
         });
       }).length || 0,
-    favorites: leadsData?.filter((lead) => lead.isFavorite).length || 0,
+    favorites: currentTabLeads.filter((lead) => lead.isFavorite).length || 0,
     myLeads:
       leadsScope !== "self" && currentUser?.id
-        ? leadsData?.filter((lead) => lead.assignedToId === currentUser.id)
+        ? currentTabLeads.filter((lead) => lead.assignedToId === currentUser.id)
             .length || 0
         : 0,
   };

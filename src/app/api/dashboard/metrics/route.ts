@@ -45,7 +45,7 @@ export async function POST(req: Request) {
       salesScope,
     });
 
-    // Filtros para leads - solo excluir archivados para métricas principales
+    // Filtros para leads - excluir cerrados y archivados de métricas
     const leadFilters: any = {
       isArchived: false,
       isClosed: false,

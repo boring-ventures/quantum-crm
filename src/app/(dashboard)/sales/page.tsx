@@ -433,6 +433,12 @@ export default function SalesPage() {
 
   // Renderizar tarjeta de venta
   const renderSaleCard = (sale: any) => {
+    const clientName =
+      `${sale.lead?.firstName ?? ""} ${sale.lead?.lastName ?? ""}`.trim() ||
+      "Cliente sin nombre";
+    const clientEmail = sale.lead?.email || "Sin email";
+    const clientPhone =
+      sale.lead?.cellphone || sale.lead?.phone || "Sin teléfono";
     // Acceder a los productos a través de la reserva y cotización
     const quotationProducts =
       sale.reservation?.quotation?.quotationProducts || [];
@@ -510,6 +516,15 @@ export default function SalesPage() {
                 </div>
               </div>
               <h3 className="text-lg font-semibold mt-1">{productDisplay}</h3>
+              <div className="mt-1 text-sm text-muted-foreground flex flex-wrap gap-x-3 gap-y-1">
+                <span className="font-medium text-foreground">
+                  {clientName}
+                </span>
+                <span className="hidden sm:inline">•</span>
+                <span>{clientPhone}</span>
+                <span className="hidden sm:inline">•</span>
+                <span>{clientEmail}</span>
+              </div>
               <div className="text-sm text-muted-foreground mt-1 flex items-center flex-wrap gap-1">
                 <span>
                   #{sale.id.substring(0, 3)} | Cod. Int.{" "}
@@ -618,9 +633,15 @@ export default function SalesPage() {
     const deliveryDate = reservation.deliveryDate
       ? format(parseISO(reservation.deliveryDate), "PPP", { locale: es })
       : "Fecha no especificada";
-    const remainingDays = reservation.deliveryDate
-      ? getRemainingDays(reservation.deliveryDate)
-      : null;
+    // Detener contador de días vencidos si existe una venta aprobada/ganada asociada a la reserva
+    const hasApprovedSale = Array.isArray(reservation.sales)
+      ? reservation.sales.some((s: any) => s.approvalStatus === "APPROVED")
+      : false;
+    const remainingDays = hasApprovedSale
+      ? null
+      : reservation.deliveryDate
+        ? getRemainingDays(reservation.deliveryDate)
+        : null;
     const currencyDisplay = formatCurrency(reservation.currency);
 
     return (
@@ -758,7 +779,11 @@ export default function SalesPage() {
     }
 
     const productIcon = getProductIcon(firstProductNameForIcon);
-    const quotationAmount = quotation.total ? parseFloat(quotation.total) : 0;
+    const quotationAmount = quotation.totalAmount
+      ? parseFloat(quotation.totalAmount)
+      : quotation.total
+        ? parseFloat(quotation.total)
+        : 0;
     const currencyDisplay = formatCurrency(quotation.currency);
 
     return (
@@ -800,9 +825,11 @@ export default function SalesPage() {
           <div className="flex items-center">
             <div className="text-right mr-3">
               <div className="text-xs text-muted-foreground">
-                {format(parseISO(quotation.createdAt), "dd/MM/yyyy", {
-                  locale: es,
-                })}
+                {quotation.createdAt
+                  ? format(parseISO(quotation.createdAt), "dd/MM/yyyy", {
+                      locale: es,
+                    })
+                  : ""}
               </div>
               <div className="text-xl font-bold">
                 {currencyDisplay}{" "}
@@ -975,6 +1002,17 @@ export default function SalesPage() {
                         : "Pendiente de Aprobación"}
                   </Badge>
                 </div>
+                {(item as any).approvalStatus === "REJECTED" &&
+                  (item as any).rejectionReason && (
+                    <div className="ml-0 pl-0 text-sm text-muted-foreground">
+                      <span className="text-muted-foreground">
+                        Motivo del rechazo:
+                      </span>{" "}
+                      <span className="text-foreground">
+                        {(item as any).rejectionReason}
+                      </span>
+                    </div>
+                  )}
               </div>
             </div>
 
@@ -1220,7 +1258,20 @@ export default function SalesPage() {
                   ))}
                 </div>
               ) : sales && sales.length > 0 ? (
-                sales.map((sale) => renderSaleCard(sale))
+                // Ordenar: primero ventas con status en proceso o pendientes de aprobación
+                [...sales]
+                  .sort((a: any, b: any) => {
+                    const aPending =
+                      a.approvalStatus === "PENDING" ||
+                      a.saleStatus === "IN_PRODUCTION";
+                    const bPending =
+                      b.approvalStatus === "PENDING" ||
+                      b.saleStatus === "IN_PRODUCTION";
+                    if (aPending && !bPending) return -1;
+                    if (!aPending && bPending) return 1;
+                    return 0;
+                  })
+                  .map((sale) => renderSaleCard(sale))
               ) : (
                 <div className="text-center py-10">
                   <h3 className="text-lg font-medium">

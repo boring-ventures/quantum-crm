@@ -39,6 +39,7 @@ interface TaskWithRelations extends Task {
     id: string;
     firstName: string;
     lastName: string;
+    cellphone?: string;
     email?: string;
   };
   assignedTo?: {
@@ -246,6 +247,22 @@ export function TaskQuickViewModal({
                   <span>
                     {task.lead.firstName} {task.lead.lastName}
                   </span>
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {task.lead.cellphone
+                    ? `Cel: ${task.lead.cellphone}`
+                    : "Sin celular"}
+                </div>
+                <div className="mt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      window.open(`/leads/${task.lead?.id}`, "_blank")
+                    }
+                  >
+                    Ver detalle del Lead
+                  </Button>
                 </div>
               </div>
             )}

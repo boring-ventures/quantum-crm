@@ -76,6 +76,7 @@ export async function GET(request: NextRequest) {
             id: true,
             firstName: true,
             lastName: true,
+            cellphone: true,
             email: true,
           },
         },

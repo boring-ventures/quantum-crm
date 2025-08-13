@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status");
     const search = searchParams.get("search");
     const assignedToId = searchParams.get("assignedToId");
+    const countryId = searchParams.get("countryId");
 
     // Construir condiciones de filtrado
     const where: any = {};
@@ -51,6 +52,16 @@ export async function GET(request: NextRequest) {
       where.lead = {
         ...where.lead,
         assignedToId: assignedToId,
+      };
+    }
+
+    // Filtrar por país del vendedor (scope team)
+    if (countryId) {
+      where.lead = {
+        ...where.lead,
+        assignedTo: {
+          countryId: countryId,
+        },
       };
     }
 
@@ -105,6 +116,8 @@ export async function GET(request: NextRequest) {
             id: true,
             firstName: true,
             lastName: true,
+            email: true,
+            cellphone: true,
             product: {
               select: {
                 id: true,
@@ -147,6 +160,13 @@ export async function GET(request: NextRequest) {
                 },
               },
             },
+          },
+        },
+        // Incluir ventas asociadas para decidir si detener conteo de días vencidos
+        sales: {
+          select: {
+            id: true,
+            approvalStatus: true,
           },
         },
       },

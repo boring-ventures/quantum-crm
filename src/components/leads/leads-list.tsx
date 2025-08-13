@@ -677,15 +677,7 @@ export function LeadsList({
       break;
     case "all":
     default:
-      // Para el tab "all", ordenar para que los leads cerrados aparezcan al final
-      if (leadStatus === "active") {
-        filteredLeads = filteredLeads.sort((a, b) => {
-          // Primero los leads activos, después los cerrados
-          if (a.isClosed && !b.isClosed) return 1;
-          if (!a.isClosed && b.isClosed) return -1;
-          return 0;
-        });
-      }
+      // Para el tab "all", ya viene sincronizado con el estado superior
       break;
   }
 
