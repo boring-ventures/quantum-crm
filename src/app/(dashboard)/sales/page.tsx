@@ -1008,7 +1008,7 @@ export default function SalesPage() {
                       <span className="text-muted-foreground">
                         Motivo del rechazo:
                       </span>{" "}
-                      <span className="text-foreground">
+                      <span className="text-muted-foreground">
                         {(item as any).rejectionReason}
                       </span>
                     </div>

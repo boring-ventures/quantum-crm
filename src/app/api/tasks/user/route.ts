@@ -52,6 +52,11 @@ export async function GET(request: NextRequest) {
     // Construir el objeto where para filtrar tareas
     const where: any = {
       assignedToId: effectiveAssignedToId,
+      // Excluir tareas cuyos leads estén cerrados o archivados
+      lead: {
+        isClosed: false,
+        isArchived: false,
+      },
     };
 
     // Agregar filtro de estado si se especifica
