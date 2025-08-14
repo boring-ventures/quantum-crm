@@ -10,9 +10,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
-import { Search, Plus, Loader2, UserIcon } from "lucide-react";
+import {
+  Search,
+  Plus,
+  Loader2,
+  UserIcon,
+  Calendar,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+} from "lucide-react";
 import { TaskCalendar } from "./components/task-calendar";
 import { TaskModal } from "./components/task-modal";
 import { TaskQuickViewModal } from "./components/task-quick-view-modal";
@@ -29,11 +38,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 
 export default function TasksPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [priorityFilter, setPriorityFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isQuickViewModalOpen, setIsQuickViewModalOpen] = useState(false);
@@ -55,7 +65,9 @@ export default function TasksPage() {
 
   // Estado para la selección de vendedor (solo para administradores)
   const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null);
-  const [showSellerSelector, setShowSellerSelector] = useState(isManagerRole);
+
+  // Calcular showSellerSelector directamente en lugar de usar estado
+  const showSellerSelector = isManagerRole && !selectedSellerId;
 
   // Para vendedores, mostrar siempre sus propias tareas
   // Para administradores, mostrar tareas según el scope
@@ -100,6 +112,19 @@ export default function TasksPage() {
   // Filtrar tareas según los criterios de búsqueda y filtro
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
 
+  // Calcular contadores de tareas
+  const taskCounts = {
+    total: tasksData?.length || 0,
+    scheduled: tasksData?.filter((task) => task.scheduledFor).length || 0,
+    pending: tasksData?.filter((task) => task.status === "PENDING").length || 0,
+    inProgress:
+      tasksData?.filter((task) => task.status === "IN_PROGRESS").length || 0,
+    completed:
+      tasksData?.filter((task) => task.status === "COMPLETED").length || 0,
+    cancelled:
+      tasksData?.filter((task) => task.status === "CANCELLED").length || 0,
+  };
+
   // Cuando cambian las tareas o los filtros, aplicar filtrado
   useEffect(() => {
     if (!tasksData) {
@@ -119,24 +144,14 @@ export default function TasksPage() {
       );
     }
 
-    // Filtrar por prioridad/status
-    if (priorityFilter !== "all") {
-      if (priorityFilter === "completed") {
-        filtered = filtered.filter((task) => task.status === "COMPLETED");
-      } else {
-        // Aquí implementaremos la lógica para los filtros de prioridad
-        // cuando agreguemos ese campo a las tareas
-      }
+    // Filtrar por estado
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((task) => task.status === statusFilter);
     }
 
     setFilteredTasks(filtered);
     setIsLoading(false);
-  }, [tasksData, searchQuery, priorityFilter]);
-
-  // Asegurar que el estado de showSellerSelector se mantenga correcto si cambia el rol
-  useEffect(() => {
-    setShowSellerSelector(isManagerRole && !selectedSellerId);
-  }, [isManagerRole, selectedSellerId]);
+  }, [tasksData, searchQuery, statusFilter]);
 
   // Manejadores para la interfaz de usuario
   const handleOpenTask = (task: Task) => {
@@ -168,13 +183,11 @@ export default function TasksPage() {
   // Manejador para seleccionar un vendedor
   const handleSelectSeller = (sellerId: string) => {
     setSelectedSellerId(sellerId);
-    setShowSellerSelector(false);
   };
 
   // Manejador para volver a la selección de vendedores
   const handleBackToSelection = () => {
     setSelectedSellerId(null);
-    setShowSellerSelector(true);
   };
 
   // Obtener el nombre del vendedor seleccionado
@@ -278,6 +291,91 @@ export default function TasksPage() {
       {/* Mostrar el calendario solo si no estamos en modo de selección de vendedor o no somos administradores */}
       {(!isManagerRole || !showSellerSelector) && (
         <>
+          {/* Contadores de tareas */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+            <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                  Total
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+                  {taskCounts.total}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-orange-700 dark:text-orange-300 flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Programadas
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-orange-900 dark:text-orange-100">
+                  {taskCounts.scheduled}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-950 dark:to-yellow-900">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-yellow-700 dark:text-yellow-300 flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  Pendientes
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-900 dark:text-yellow-100">
+                  {taskCounts.pending}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-300 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4" />
+                  En Progreso
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+                  {taskCounts.inProgress}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-green-700 dark:text-green-300 flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4" />
+                  Completadas
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-900 dark:text-green-100">
+                  {taskCounts.completed}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Canceladas
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  {taskCounts.cancelled}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           {/* Filtros */}
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
@@ -289,16 +387,16 @@ export default function TasksPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Todas las prioridades" />
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Filtrar por estado" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todas las prioridades</SelectItem>
-                <SelectItem value="high">Alta</SelectItem>
-                <SelectItem value="medium">Media</SelectItem>
-                <SelectItem value="low">Baja</SelectItem>
-                <SelectItem value="completed">Completadas</SelectItem>
+                <SelectItem value="all">Todos los estados</SelectItem>
+                <SelectItem value="PENDING">Pendientes</SelectItem>
+                <SelectItem value="IN_PROGRESS">En Progreso</SelectItem>
+                <SelectItem value="COMPLETED">Completadas</SelectItem>
+                <SelectItem value="CANCELLED">Canceladas</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -314,6 +412,7 @@ export default function TasksPage() {
                 <TaskCalendar
                   tasks={filteredTasks}
                   onTaskClick={handleOpenTask}
+                  statusFilter={statusFilter}
                 />
               )}
             </CardContent>

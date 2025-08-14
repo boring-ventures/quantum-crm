@@ -280,7 +280,7 @@ export function TaskModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="max-w-[90vw] max-h-[90vh] w-full overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {task ? "Editar Tarea" : "Crear Nueva Tarea"}
@@ -288,26 +288,26 @@ export function TaskModal({
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="title" className="text-right">
+          <div className="grid grid-cols-1 md:grid-cols-4 items-center gap-4">
+            <Label htmlFor="title" className="md:text-right">
               Título
             </Label>
             <Input
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="col-span-3"
+              className="md:col-span-3"
               placeholder="Título de la tarea"
             />
           </div>
 
-          <div className="grid grid-cols-4 items-start gap-4">
-            <Label htmlFor="lead" className="text-right pt-2">
+          <div className="grid grid-cols-1 md:grid-cols-4 items-start gap-4">
+            <Label htmlFor="lead" className="md:text-right pt-2">
               Lead
             </Label>
-            <div className="col-span-3 relative">
+            <div className="md:col-span-3 relative">
               {selectedLead ? (
-                <div className="flex items-center justify-between rounded-md border border-input px-3 py-2">
+                <div className="flex items-center justify-between rounded-md border border-input px-3 py-2 bg-background">
                   <span>
                     {selectedLead.firstName} {selectedLead.lastName}
                   </span>
@@ -370,11 +370,11 @@ export function TaskModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="date" className="text-right">
+          <div className="grid grid-cols-1 md:grid-cols-4 items-center gap-4">
+            <Label htmlFor="date" className="md:text-right">
               Fecha
             </Label>
-            <div className="col-span-3 flex gap-4">
+            <div className="md:col-span-3 flex flex-col sm:flex-row gap-4">
               <div className="flex-1">
                 <Popover>
                   <PopoverTrigger asChild>
@@ -403,26 +403,26 @@ export function TaskModal({
                   </PopoverContent>
                 </Popover>
               </div>
-              <div className="w-[140px]">
-                <div className="flex w-full items-center rounded-md border border-input px-3">
+              <div className="w-full sm:w-[140px]">
+                <div className="flex w-full items-center rounded-md border border-input px-3 bg-background">
                   <Clock className="h-4 w-4 text-muted-foreground mr-2" />
                   <Input
                     type="time"
                     value={selectedTime}
                     onChange={(e) => setSelectedTime(e.target.value)}
-                    className="border-0 p-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="border-0 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
                   />
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="priority" className="text-right">
+          <div className="grid grid-cols-1 md:grid-cols-4 items-center gap-4">
+            <Label htmlFor="priority" className="md:text-right">
               Prioridad
             </Label>
             <Select value={priority} onValueChange={setPriority}>
-              <SelectTrigger className="col-span-3">
+              <SelectTrigger className="md:col-span-3">
                 <SelectValue placeholder="Seleccionar prioridad" />
               </SelectTrigger>
               <SelectContent>
@@ -433,15 +433,15 @@ export function TaskModal({
             </Select>
           </div>
 
-          <div className="grid grid-cols-4 items-start gap-4">
-            <Label htmlFor="description" className="text-right pt-2">
+          <div className="grid grid-cols-1 md:grid-cols-4 items-start gap-4">
+            <Label htmlFor="description" className="md:text-right pt-2">
               Descripción
             </Label>
             <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="col-span-3"
+              className="md:col-span-3"
               placeholder="Descripción opcional"
               rows={4}
             />
@@ -463,6 +463,7 @@ export function TaskModal({
             disabled={
               createTaskMutation.isPending || updateTaskMutation.isPending
             }
+            className="bg-blue-600 hover:bg-blue-700 text-white"
           >
             {(createTaskMutation.isPending || updateTaskMutation.isPending) && (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

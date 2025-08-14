@@ -12,7 +12,15 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Clock, CalendarIcon, Trash2, User } from "lucide-react";
+import {
+  CheckCircle2,
+  Clock,
+  CalendarIcon,
+  Trash2,
+  User,
+  Copy,
+  Check,
+} from "lucide-react";
 import { Task, LeadWithRelations } from "@/types/lead";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -68,6 +76,7 @@ export function TaskQuickViewModal({
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [isStatusChangeLoading, setIsStatusChangeLoading] = useState(false);
   const [isDeleteLoading, setIsDeleteLoading] = useState(false);
+  const [copiedId, setCopiedId] = useState(false);
 
   const updateTaskStatusMutation = useUpdateTaskStatusMutation();
   const deleteTaskMutation = useDeleteTaskMutation();
@@ -108,15 +117,15 @@ export function TaskQuickViewModal({
   const getStatusColor = (status: string) => {
     switch (status) {
       case "PENDING":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+        return "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900 dark:text-yellow-200 dark:border-yellow-700";
       case "IN_PROGRESS":
-        return "bg-blue-100 text-blue-800 border-blue-200";
+        return "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900 dark:text-blue-200 dark:border-blue-700";
       case "COMPLETED":
-        return "bg-green-100 text-green-800 border-green-200";
+        return "bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-200 dark:border-green-700";
       case "CANCELLED":
-        return "bg-red-100 text-red-800 border-red-200";
+        return "bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-200 dark:border-red-700";
       default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
+        return "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-900 dark:text-gray-200 dark:border-gray-700";
     }
   };
 
@@ -204,6 +213,24 @@ export function TaskQuickViewModal({
     }
   };
 
+  const copyTaskId = async () => {
+    try {
+      await navigator.clipboard.writeText(task.id);
+      setCopiedId(true);
+      toast({
+        title: "ID copiado",
+        description: "El ID de la tarea se ha copiado al portapapeles",
+      });
+      setTimeout(() => setCopiedId(false), 2000);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo copiar el ID",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Verificar si la tarea se puede completar
   const canCompleteTask = () => {
     return (
@@ -214,52 +241,75 @@ export function TaskQuickViewModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-[40vw] max-h-[90vh] w-full overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl">{task.title}</DialogTitle>
-            {/* Reemplazar DialogDescription con div para evitar problema de anidación */}
-            <div className="flex items-center gap-2 pt-1 text-sm text-muted-foreground">
-              <Badge
-                variant="outline"
-                className={`${getStatusColor(task.status)} px-2 py-0.5`}
-              >
-                {getStatusText(task.status)}
-              </Badge>
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <DialogTitle className="text-xl">{task.title}</DialogTitle>
+                {/* Reemplazar DialogDescription con div para evitar problema de anidación */}
+                <div className="flex items-center gap-2 pt-1 text-sm text-muted-foreground">
+                  <Badge
+                    variant="outline"
+                    className={`${getStatusColor(task.status)} px-2 py-0.5`}
+                  >
+                    {getStatusText(task.status)}
+                  </Badge>
 
-              {task.scheduledFor && (
-                <div className="flex items-center text-muted-foreground">
-                  <CalendarIcon className="mr-1 h-3 w-3" />
-                  <span className="text-xs">
-                    {formatScheduledDate(task.scheduledFor)}
-                  </span>
+                  {task.scheduledFor && (
+                    <div className="flex items-center text-muted-foreground">
+                      <CalendarIcon className="mr-1 h-3 w-3" />
+                      <span className="text-xs">
+                        {formatScheduledDate(task.scheduledFor)}
+                      </span>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
+
+              {/* Botón para copiar ID */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={copyTaskId}
+                className="ml-2 h-8 w-8 p-0"
+                title="Copiar ID de la tarea"
+              >
+                {copiedId ? (
+                  <Check className="h-4 w-4 text-green-600" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+              </Button>
             </div>
           </DialogHeader>
 
           <div className="space-y-4">
             {/* Información del lead */}
             {task.lead && (
-              <div>
-                <h3 className="text-sm font-medium mb-1">Lead asociado:</h3>
+              <div className="bg-muted/30 rounded-lg p-4">
+                <h3 className="text-sm font-medium mb-2 text-foreground">
+                  Lead asociado:
+                </h3>
                 <div className="flex items-center gap-2 text-sm">
                   <User className="h-4 w-4 text-blue-500" />
-                  <span>
+                  <span className="font-medium">
                     {task.lead.firstName} {task.lead.lastName}
                   </span>
                 </div>
-                <div className="mt-1 text-xs text-muted-foreground">
+                <div className="mt-2 text-xs text-muted-foreground">
                   {task.lead.cellphone
                     ? `Cel: ${task.lead.cellphone}`
                     : "Sin celular"}
+                  {task.lead.email && <div>Email: {task.lead.email}</div>}
                 </div>
-                <div className="mt-2">
+                <div className="mt-3">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() =>
                       window.open(`/leads/${task.lead?.id}`, "_blank")
                     }
+                    className="w-full sm:w-auto"
                   >
                     Ver detalle del Lead
                   </Button>
@@ -269,11 +319,13 @@ export function TaskQuickViewModal({
 
             {/* Información del vendedor asignado */}
             {task.assignedTo && (
-              <div>
-                <h3 className="text-sm font-medium mb-1">Asignado a:</h3>
+              <div className="bg-muted/30 rounded-lg p-4">
+                <h3 className="text-sm font-medium mb-2 text-foreground">
+                  Asignado a:
+                </h3>
                 <div className="flex items-center gap-2 text-sm">
                   <User className="h-4 w-4 text-green-500" />
-                  <span>{task.assignedTo.name}</span>
+                  <span className="font-medium">{task.assignedTo.name}</span>
                 </div>
               </div>
             )}
@@ -282,38 +334,57 @@ export function TaskQuickViewModal({
 
             {/* Descripción de la tarea */}
             <div>
-              <h3 className="text-sm font-medium mb-1">Descripción:</h3>
-              <p className="text-sm">{task.description || "Sin descripción"}</p>
+              <h3 className="text-sm font-medium mb-2 text-foreground">
+                Descripción:
+              </h3>
+              <p className="text-sm text-muted-foreground bg-muted/30 rounded-lg p-3">
+                {task.description || "Sin descripción"}
+              </p>
             </div>
 
             {/* Datos de tiempo */}
-            <div>
-              <div className="flex items-start gap-6 text-xs text-muted-foreground">
+            <div className="bg-muted/30 rounded-lg p-4">
+              <h3 className="text-sm font-medium mb-3 text-foreground">
+                Información temporal:
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-muted-foreground">
                 <div>
-                  <h4 className="font-medium mb-1">Creada</h4>
-                  <p>
+                  <h4 className="font-medium mb-1 text-foreground">Creada</h4>
+                  <p className="bg-background rounded px-2 py-1">
                     {task.createdAt
                       ? format(new Date(task.createdAt), "Pp", { locale: es })
                       : "N/A"}
                   </p>
                 </div>
                 <div>
-                  <h4 className="font-medium mb-1">Actualizada</h4>
-                  <p>
+                  <h4 className="font-medium mb-1 text-foreground">
+                    Actualizada
+                  </h4>
+                  <p className="bg-background rounded px-2 py-1">
                     {task.updatedAt
                       ? format(new Date(task.updatedAt), "Pp", { locale: es })
                       : "N/A"}
                   </p>
                 </div>
+                {task.completedAt && (
+                  <div className="sm:col-span-2">
+                    <h4 className="font-medium mb-1 text-foreground">
+                      Completada
+                    </h4>
+                    <p className="bg-background rounded px-2 py-1">
+                      {format(new Date(task.completedAt), "Pp", { locale: es })}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          <DialogFooter className="flex justify-end">
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 justify-end">
             {task.status === "PENDING" && canCompleteTask() && (
               <Button
                 size="sm"
-                className="bg-green-600 hover:bg-green-700 text-white"
+                className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto"
                 onClick={handleCompleteTask}
                 disabled={isStatusChangeLoading}
               >
@@ -326,7 +397,7 @@ export function TaskQuickViewModal({
               <Button
                 variant="outline"
                 size="sm"
-                className="text-red-500 hover:text-red-600"
+                className="text-red-500 hover:text-red-600 w-full sm:w-auto"
                 onClick={() => setIsDeleteAlertOpen(true)}
               >
                 <Trash2 className="mr-2 h-4 w-4" />
