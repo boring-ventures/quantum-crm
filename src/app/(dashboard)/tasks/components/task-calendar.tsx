@@ -23,6 +23,14 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useTheme } from "@/context/theme-context";
+import {
+  ListTodo,
+  Target,
+  Clock,
+  PlayCircle,
+  CheckCircle,
+  XCircle,
+} from "lucide-react";
 
 interface TaskCalendarProps {
   tasks: Task[];
@@ -101,12 +109,69 @@ export function TaskCalendar({
     }).length;
   }, [tasks, currentMonth]);
 
+  // Calcular conteo por estado del período visible
+  const getTasksCountByStatus = useCallback(() => {
+    const currentYear = currentMonth.getFullYear();
+    const currentMonthNum = currentMonth.getMonth();
+
+    const periodTasks = tasks.filter((task) => {
+      const taskDate = task.scheduledFor || task.createdAt;
+      if (!taskDate) return false;
+
+      const taskDateObj = new Date(taskDate);
+      return (
+        taskDateObj.getFullYear() === currentYear &&
+        taskDateObj.getMonth() === currentMonthNum
+      );
+    });
+
+    return {
+      total: periodTasks.length,
+      scheduled: periodTasks.filter((task) => task.scheduledFor).length,
+      pending: periodTasks.filter((task) => task.status === "PENDING").length,
+      inProgress: periodTasks.filter((task) => task.status === "IN_PROGRESS")
+        .length,
+      completed: periodTasks.filter((task) => task.status === "COMPLETED")
+        .length,
+      cancelled: periodTasks.filter((task) => task.status === "CANCELLED")
+        .length,
+    };
+  }, [tasks, currentMonth]);
+
+  // Obtener el nombre del período visible
+  const getPeriodName = useCallback(() => {
+    if (calendarView === "dayGridMonth") {
+      return currentMonth.toLocaleDateString("es-ES", {
+        month: "long",
+        year: "numeric",
+      });
+    } else if (calendarView === "timeGridWeek") {
+      const weekStart = new Date(currentMonth);
+      weekStart.setDate(weekStart.getDate() - currentMonth.getDay() + 1);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      return `Semana del ${weekStart.toLocaleDateString("es-ES", { day: "numeric", month: "short" })} al ${weekEnd.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}`;
+    } else if (calendarView === "timeGridDay") {
+      return currentMonth.toLocaleDateString("es-ES", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
+    } else if (calendarView === "listWeek") {
+      return `Agenda de la semana del ${currentMonth.toLocaleDateString("es-ES", { day: "numeric", month: "short" })}`;
+    }
+    return currentMonth.toLocaleDateString("es-ES", {
+      month: "long",
+      year: "numeric",
+    });
+  }, [calendarView, currentMonth]);
+
   // Listener para detectar cambios de mes en el calendario
   const handleDatesSet = useCallback((dateInfo: any) => {
-    if (dateInfo.view.type === "dayGridMonth") {
-      const newMonth = new Date(dateInfo.start);
-      setCurrentMonth(newMonth);
-    }
+    // Actualizar el mes actual para cualquier vista
+    const newMonth = new Date(dateInfo.start);
+    setCurrentMonth(newMonth);
   }, []);
 
   // Filtrar tareas por estado si se especifica - usar useMemo para evitar recálculos innecesarios
@@ -209,7 +274,15 @@ export function TaskCalendar({
     return () => {
       calendarInstance.destroy();
     };
-  }, [calendarEl, calendarView, handleDatesSet]); // Solo recrear cuando cambie el elemento o la vista
+  }, [
+    calendarEl,
+    calendarView,
+    handleDatesSet,
+    calendarEvents,
+    handleEventClick,
+    renderEventContent,
+    renderDayCellContent,
+  ]); // Solo recrear cuando cambie el elemento o la vista
 
   // Actualizar eventos cuando cambien las tareas
   useEffect(() => {
@@ -225,32 +298,33 @@ export function TaskCalendar({
       setCalendarView(view);
       if (calendarApi) {
         calendarApi.changeView(view);
+        // Actualizar el mes actual cuando se cambie la vista
+        const currentDate = calendarApi.getDate();
+        setCurrentMonth(currentDate);
       }
     },
     [calendarApi]
   );
 
-  // Navegar al mes anterior
-  const goToPreviousMonth = useCallback(() => {
+  // Navegar al período anterior
+  const goToPreviousPeriod = useCallback(() => {
     if (calendarApi) {
       calendarApi.prev();
-      const newDate = new Date(currentMonth);
-      newDate.setMonth(newDate.getMonth() - 1);
-      setCurrentMonth(newDate);
+      const currentDate = calendarApi.getDate();
+      setCurrentMonth(currentDate);
     }
-  }, [calendarApi, currentMonth]);
+  }, [calendarApi]);
 
-  // Navegar al mes siguiente
-  const goToNextMonth = useCallback(() => {
+  // Navegar al período siguiente
+  const goToNextPeriod = useCallback(() => {
     if (calendarApi) {
       calendarApi.next();
-      const newDate = new Date(currentMonth);
-      newDate.setMonth(newDate.getMonth() + 1);
-      setCurrentMonth(newDate);
+      const currentDate = calendarApi.getDate();
+      setCurrentMonth(currentDate);
     }
-  }, [calendarApi, currentMonth]);
+  }, [calendarApi]);
 
-  // Ir al mes actual
+  // Ir al período actual
   const goToToday = useCallback(() => {
     if (calendarApi) {
       calendarApi.today();
@@ -261,14 +335,71 @@ export function TaskCalendar({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2 justify-between items-center mb-4">
-        {/* Contador de tareas del mes visible */}
-        <div className="text-sm text-muted-foreground">
-          {getTotalTasksForMonth()} tarea
-          {getTotalTasksForMonth() !== 1 ? "s" : ""} del mes de{" "}
-          {currentMonth.toLocaleDateString("es-ES", {
-            month: "long",
-            year: "numeric",
-          })}
+        {/* Contador de tareas del período visible con desglose por estado */}
+        <div className="flex flex-wrap items-center gap-4 text-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground font-medium">
+              {getPeriodName()}:
+            </span>
+          </div>
+
+          {/* Total */}
+          <div className="flex items-center gap-1">
+            <ListTodo className="h-4 w-4 text-blue-600" />
+            <span className="font-semibold text-blue-600">
+              {getTasksCountByStatus().total}
+            </span>
+          </div>
+
+          {/* Programadas */}
+          {getTasksCountByStatus().scheduled > 0 && (
+            <div className="flex items-center gap-1">
+              <Target className="h-4 w-4 text-orange-600" />
+              <span className="font-semibold text-orange-600">
+                {getTasksCountByStatus().scheduled}
+              </span>
+            </div>
+          )}
+
+          {/* Pendientes */}
+          {getTasksCountByStatus().pending > 0 && (
+            <div className="flex items-center gap-1">
+              <Clock className="h-4 w-4 text-yellow-600" />
+              <span className="font-semibold text-yellow-600">
+                {getTasksCountByStatus().pending}
+              </span>
+            </div>
+          )}
+
+          {/* En Progreso */}
+          {getTasksCountByStatus().inProgress > 0 && (
+            <div className="flex items-center gap-1">
+              <PlayCircle className="h-4 w-4 text-blue-600" />
+              <span className="font-semibold text-blue-600">
+                {getTasksCountByStatus().inProgress}
+              </span>
+            </div>
+          )}
+
+          {/* Completadas */}
+          {getTasksCountByStatus().completed > 0 && (
+            <div className="flex items-center gap-1">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <span className="font-semibold text-green-600">
+                {getTasksCountByStatus().completed}
+              </span>
+            </div>
+          )}
+
+          {/* Canceladas */}
+          {getTasksCountByStatus().cancelled > 0 && (
+            <div className="flex items-center gap-1">
+              <XCircle className="h-4 w-4 text-gray-600" />
+              <span className="font-semibold text-gray-600">
+                {getTasksCountByStatus().cancelled}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Controles del calendario */}
@@ -286,13 +417,13 @@ export function TaskCalendar({
           </Select>
 
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={goToPreviousMonth}>
+            <Button variant="outline" size="sm" onClick={goToPreviousPeriod}>
               Anterior
             </Button>
             <Button variant="outline" size="sm" onClick={goToToday}>
               Hoy
             </Button>
-            <Button variant="outline" size="sm" onClick={goToNextMonth}>
+            <Button variant="outline" size="sm" onClick={goToNextPeriod}>
               Siguiente
             </Button>
           </div>

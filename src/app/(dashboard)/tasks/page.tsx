@@ -22,6 +22,10 @@ import {
   Clock,
   AlertCircle,
   Eye,
+  XCircle,
+  PlayCircle,
+  Target,
+  ListTodo,
 } from "lucide-react";
 import { TaskCalendar } from "./components/task-calendar";
 import { TaskModal } from "./components/task-modal";
@@ -333,7 +337,8 @@ export default function TasksPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
             <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-300 flex items-center gap-2">
+                  <ListTodo className="h-4 w-4" />
                   Total
                 </CardTitle>
               </CardHeader>
@@ -350,7 +355,7 @@ export default function TasksPage() {
             <Card className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-orange-700 dark:text-orange-300 flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
+                  <Target className="h-4 w-4" />
                   Programadas
                 </CardTitle>
               </CardHeader>
@@ -384,7 +389,7 @@ export default function TasksPage() {
             <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-300 flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4" />
+                  <PlayCircle className="h-4 w-4" />
                   En Progreso
                 </CardTitle>
               </CardHeader>
@@ -406,7 +411,7 @@ export default function TasksPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-900 dark:text-green-100">
+                <div className="text-2xl font-bold text-green-900 dark:text-blue-100">
                   {taskCounts.completed}
                 </div>
                 <p className="text-xs text-green-600 dark:text-green-400 mt-1">
@@ -417,7 +422,8 @@ export default function TasksPage() {
 
             <Card className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                  <XCircle className="h-4 w-4" />
                   Canceladas
                 </CardTitle>
               </CardHeader>
