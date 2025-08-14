@@ -83,16 +83,17 @@ export default function TasksPage() {
   const assignedToId = !isManagerRole
     ? currentUser?.id
     : showAllTasks
-      ? undefined // Mostrar todas las tareas
+      ? undefined // Mostrar todas las tareas según permisos
       : selectedSellerId || undefined;
 
   // Cargar tareas con el filtro de vendedor apropiado
   const { data: tasksData, isLoading: loadingTasks } = useTasks({
-    assignedToId,
+    assignedToId: showAllTasks ? undefined : assignedToId, // No filtrar por usuario si showAllTasks es true
     countryId:
       tasksScope === "team" && currentUser?.countryId && !showAllTasks
         ? currentUser?.countryId || undefined
         : undefined,
+    showAllTasks,
   });
 
   // Si es administrador, cargar la lista de vendedores según el scope
@@ -127,7 +128,7 @@ export default function TasksPage() {
 
   // Calcular contadores de tareas
   const taskCounts = {
-    total: tasksData?.length || 0,
+    total: tasksData?.length || 0, // Total real de tareas
     scheduled: tasksData?.filter((task) => task.scheduledFor).length || 0,
     pending: tasksData?.filter((task) => task.status === "PENDING").length || 0,
     inProgress:
@@ -137,6 +138,28 @@ export default function TasksPage() {
     cancelled:
       tasksData?.filter((task) => task.status === "CANCELLED").length || 0,
   };
+
+  // Verificar que la suma de estados coincida con el total (para debugging)
+  const totalByStatus =
+    taskCounts.pending +
+    taskCounts.inProgress +
+    taskCounts.completed +
+    taskCounts.cancelled;
+  const scheduledCount = taskCounts.scheduled;
+
+  // Mostrar en consola para debugging (se puede remover después)
+  if (tasksData && tasksData.length > 0) {
+    console.log("Debug - Conteos de tareas:", {
+      total: taskCounts.total,
+      totalByStatus,
+      scheduled: scheduledCount,
+      pending: taskCounts.pending,
+      inProgress: taskCounts.inProgress,
+      completed: taskCounts.completed,
+      cancelled: taskCounts.cancelled,
+      tasksDataLength: tasksData.length,
+    });
+  }
 
   // Cuando cambian las tareas o los filtros, aplicar filtrado
   useEffect(() => {
@@ -239,16 +262,31 @@ export default function TasksPage() {
         <Card className="mb-6">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">
-                Seleccione un vendedor para ver sus tareas
-              </h2>
+              <div>
+                <h2 className="text-xl font-semibold">
+                  Seleccione un vendedor para ver sus tareas
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  O use el botón de la derecha para{" "}
+                  {tasksScope === "all"
+                    ? "ver todas las tareas del sistema completo"
+                    : tasksScope === "team"
+                      ? "ver todas las tareas de tu equipo"
+                      : "ver todas las tareas disponibles"}{" "}
+                  según sus permisos
+                </p>
+              </div>
               <Button
                 variant="outline"
                 onClick={() => setShowAllTasks(true)}
                 className="bg-blue-50 hover:bg-blue-100 dark:bg-blue-950 dark:hover:bg-blue-900"
               >
                 <Eye className="mr-2 h-4 w-4" />
-                Ver todas las tareas
+                {tasksScope === "all"
+                  ? "Ver todas las tareas del sistema"
+                  : tasksScope === "team"
+                    ? "Ver todas las tareas del equipo"
+                    : "Ver todas las tareas disponibles"}
               </Button>
             </div>
             {loadingSellers ? (
@@ -304,7 +342,11 @@ export default function TasksPage() {
             <UserIcon className="mr-2 h-5 w-5 text-primary" />
             <h2 className="text-xl font-semibold">
               {showAllTasks
-                ? "Mostrando todas las tareas del sistema"
+                ? tasksScope === "all"
+                  ? "Mostrando todas las tareas del sistema completo"
+                  : tasksScope === "team"
+                    ? "Mostrando todas las tareas de tu equipo"
+                    : "Mostrando todas las tareas disponibles"
                 : `Mostrando tareas de: ${getSelectedSellerName()}`}
             </h2>
           </div>

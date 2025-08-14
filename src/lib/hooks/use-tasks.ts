@@ -5,15 +5,18 @@ import type { Task } from "@/types/lead";
 export const useTasks = ({
   assignedToId,
   countryId,
+  showAllTasks = false,
 }: {
   assignedToId?: string;
   countryId?: string;
+  showAllTasks?: boolean;
 } = {}) => {
   return useQuery<Task[]>({
-    queryKey: ["tasks", assignedToId, countryId],
+    queryKey: ["tasks", assignedToId, countryId, showAllTasks],
     queryFn: async () => {
       try {
-        let url = "/api/tasks/user";
+        // Determinar qué endpoint usar
+        let url = showAllTasks ? "/api/tasks/all" : "/api/tasks/user";
         const params = new URLSearchParams();
 
         // Si se proporciona assignedToId, agregar como parámetro
@@ -32,13 +35,23 @@ export const useTasks = ({
           url += `?${queryString}`;
         }
 
+        console.log("[useTasks] Llamando a:", url);
+        console.log("[useTasks] Parámetros:", {
+          assignedToId,
+          countryId,
+          showAllTasks,
+        });
+
         const response = await fetch(url);
 
         if (!response.ok) {
           throw new Error("Error al cargar tareas");
         }
 
-        return response.json();
+        const tasks = await response.json();
+        console.log("[useTasks] Tareas obtenidas:", tasks.length);
+
+        return tasks;
       } catch (error) {
         console.error("Error cargando tareas:", error);
         return [];

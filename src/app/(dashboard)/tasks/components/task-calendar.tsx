@@ -170,8 +170,18 @@ export function TaskCalendar({
   // Listener para detectar cambios de mes en el calendario
   const handleDatesSet = useCallback((dateInfo: any) => {
     // Actualizar el mes actual para cualquier vista
-    const newMonth = new Date(dateInfo.start);
-    setCurrentMonth(newMonth);
+    if (dateInfo && dateInfo.start) {
+      const newMonth = new Date(dateInfo.start);
+      setCurrentMonth(newMonth);
+
+      // Debug: mostrar la fecha que se está estableciendo
+      console.log("Calendar datesSet:", {
+        viewType: dateInfo.view?.type,
+        start: dateInfo.start,
+        end: dateInfo.end,
+        newMonth: newMonth.toISOString(),
+      });
+    }
   }, []);
 
   // Filtrar tareas por estado si se especifica - usar useMemo para evitar recálculos innecesarios
@@ -265,11 +275,16 @@ export function TaskCalendar({
         hour12: false,
       },
       datesSet: handleDatesSet, // Agregar el listener
+      initialDate: currentMonth, // Establecer la fecha inicial
     };
 
     const calendarInstance = new Calendar(calendarEl, options);
     calendarInstance.render();
     setCalendarApi(calendarInstance);
+
+    // Sincronizar el estado inicial con la vista del calendario
+    const initialDate = calendarInstance.getDate();
+    setCurrentMonth(initialDate);
 
     return () => {
       calendarInstance.destroy();
@@ -291,6 +306,20 @@ export function TaskCalendar({
       calendarApi.addEventSource(calendarEvents);
     }
   }, [calendarApi, calendarEvents]);
+
+  // Sincronizar el estado currentMonth cuando cambie la vista
+  useEffect(() => {
+    if (calendarApi) {
+      const currentDate = calendarApi.getDate();
+      setCurrentMonth(currentDate);
+    }
+  }, [calendarView, calendarApi]);
+
+  // Sincronizar el estado inicial cuando se monte el componente
+  useEffect(() => {
+    // Establecer la fecha actual como valor inicial
+    setCurrentMonth(new Date());
+  }, []);
 
   // Cambiar la vista del calendario
   const changeView = useCallback(
