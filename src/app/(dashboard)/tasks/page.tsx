@@ -21,6 +21,7 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
+  Eye,
 } from "lucide-react";
 import { TaskCalendar } from "./components/task-calendar";
 import { TaskModal } from "./components/task-modal";
@@ -66,20 +67,28 @@ export default function TasksPage() {
   // Estado para la selección de vendedor (solo para administradores)
   const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null);
 
+  // Estado para mostrar todas las tareas
+  const [showAllTasks, setShowAllTasks] = useState(false);
+
   // Calcular showSellerSelector directamente en lugar de usar estado
-  const showSellerSelector = isManagerRole && !selectedSellerId;
+  const showSellerSelector =
+    isManagerRole && !selectedSellerId && !showAllTasks;
 
   // Para vendedores, mostrar siempre sus propias tareas
   // Para administradores, mostrar tareas según el scope
   const assignedToId = !isManagerRole
     ? currentUser?.id
-    : selectedSellerId || undefined;
+    : showAllTasks
+      ? undefined // Mostrar todas las tareas
+      : selectedSellerId || undefined;
 
   // Cargar tareas con el filtro de vendedor apropiado
   const { data: tasksData, isLoading: loadingTasks } = useTasks({
     assignedToId,
     countryId:
-      tasksScope === "team" ? currentUser?.countryId || undefined : undefined,
+      tasksScope === "team" && currentUser?.countryId && !showAllTasks
+        ? currentUser?.countryId || undefined
+        : undefined,
   });
 
   // Si es administrador, cargar la lista de vendedores según el scope
@@ -188,6 +197,7 @@ export default function TasksPage() {
   // Manejador para volver a la selección de vendedores
   const handleBackToSelection = () => {
     setSelectedSellerId(null);
+    setShowAllTasks(false);
   };
 
   // Obtener el nombre del vendedor seleccionado
@@ -224,9 +234,19 @@ export default function TasksPage() {
       {isManagerRole && showSellerSelector && (
         <Card className="mb-6">
           <CardContent className="pt-6">
-            <h2 className="text-xl font-semibold mb-4">
-              Seleccione un vendedor para ver sus tareas
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">
+                Seleccione un vendedor para ver sus tareas
+              </h2>
+              <Button
+                variant="outline"
+                onClick={() => setShowAllTasks(true)}
+                className="bg-blue-50 hover:bg-blue-100 dark:bg-blue-950 dark:hover:bg-blue-900"
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                Ver todas las tareas
+              </Button>
+            </div>
             {loadingSellers ? (
               <div className="flex justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
@@ -273,18 +293,36 @@ export default function TasksPage() {
         </Card>
       )}
 
-      {/* Mostrar información del vendedor seleccionado */}
+      {/* Mostrar información del vendedor seleccionado o botón para volver */}
       {isManagerRole && !showSellerSelector && (
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center">
             <UserIcon className="mr-2 h-5 w-5 text-primary" />
             <h2 className="text-xl font-semibold">
-              Mostrando tareas de: {getSelectedSellerName()}
+              {showAllTasks
+                ? "Mostrando todas las tareas del sistema"
+                : `Mostrando tareas de: ${getSelectedSellerName()}`}
             </h2>
           </div>
-          <Button variant="outline" onClick={handleBackToSelection} size="sm">
-            Volver a selección
-          </Button>
+          <div className="flex gap-2">
+            {showAllTasks ? (
+              <Button
+                variant="outline"
+                onClick={() => setShowAllTasks(false)}
+                size="sm"
+              >
+                Volver a selección
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={handleBackToSelection}
+                size="sm"
+              >
+                Volver a selección
+              </Button>
+            )}
+          </div>
         </div>
       )}
 
@@ -303,6 +341,9 @@ export default function TasksPage() {
                 <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
                   {taskCounts.total}
                 </div>
+                <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                  Conteo global
+                </p>
               </CardContent>
             </Card>
 
@@ -317,6 +358,9 @@ export default function TasksPage() {
                 <div className="text-2xl font-bold text-orange-900 dark:text-orange-100">
                   {taskCounts.scheduled}
                 </div>
+                <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                  Conteo global
+                </p>
               </CardContent>
             </Card>
 
@@ -331,6 +375,9 @@ export default function TasksPage() {
                 <div className="text-2xl font-bold text-yellow-900 dark:text-yellow-100">
                   {taskCounts.pending}
                 </div>
+                <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+                  Conteo global
+                </p>
               </CardContent>
             </Card>
 
@@ -345,6 +392,9 @@ export default function TasksPage() {
                 <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
                   {taskCounts.inProgress}
                 </div>
+                <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                  Conteo global
+                </p>
               </CardContent>
             </Card>
 
@@ -359,6 +409,9 @@ export default function TasksPage() {
                 <div className="text-2xl font-bold text-green-900 dark:text-green-100">
                   {taskCounts.completed}
                 </div>
+                <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                  Conteo global
+                </p>
               </CardContent>
             </Card>
 
@@ -372,6 +425,9 @@ export default function TasksPage() {
                 <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                   {taskCounts.cancelled}
                 </div>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                  Conteo global
+                </p>
               </CardContent>
             </Card>
           </div>

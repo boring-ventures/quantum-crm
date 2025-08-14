@@ -38,6 +38,7 @@ export function TaskCalendar({
   const [calendarEl, setCalendarEl] = useState<HTMLDivElement | null>(null);
   const [calendarApi, setCalendarApi] = useState<Calendar | null>(null);
   const [calendarView, setCalendarView] = useState<string>("dayGridMonth");
+  const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const { theme } = useTheme();
 
   // Obtener color según estado con soporte para modo claro/oscuro
@@ -81,6 +82,32 @@ export function TaskCalendar({
     },
     [theme]
   );
+
+  // Calcular total de tareas del mes visible
+  const getTotalTasksForMonth = useCallback(() => {
+    const currentYear = currentMonth.getFullYear();
+    const currentMonthNum = currentMonth.getMonth();
+
+    return tasks.filter((task) => {
+      // Incluir tareas que tengan cualquier fecha (createdAt, scheduledFor, completedAt)
+      const taskDate = task.scheduledFor || task.createdAt;
+      if (!taskDate) return false;
+
+      const taskDateObj = new Date(taskDate);
+      return (
+        taskDateObj.getFullYear() === currentYear &&
+        taskDateObj.getMonth() === currentMonthNum
+      );
+    }).length;
+  }, [tasks, currentMonth]);
+
+  // Listener para detectar cambios de mes en el calendario
+  const handleDatesSet = useCallback((dateInfo: any) => {
+    if (dateInfo.view.type === "dayGridMonth") {
+      const newMonth = new Date(dateInfo.start);
+      setCurrentMonth(newMonth);
+    }
+  }, []);
 
   // Filtrar tareas por estado si se especifica - usar useMemo para evitar recálculos innecesarios
   const filteredTasks = useMemo(() => {
@@ -172,6 +199,7 @@ export function TaskCalendar({
         meridiem: false,
         hour12: false,
       },
+      datesSet: handleDatesSet, // Agregar el listener
     };
 
     const calendarInstance = new Calendar(calendarEl, options);
@@ -181,7 +209,7 @@ export function TaskCalendar({
     return () => {
       calendarInstance.destroy();
     };
-  }, [calendarEl, calendarView]); // Solo recrear cuando cambie el elemento o la vista
+  }, [calendarEl, calendarView, handleDatesSet]); // Solo recrear cuando cambie el elemento o la vista
 
   // Actualizar eventos cuando cambien las tareas
   useEffect(() => {
@@ -202,13 +230,45 @@ export function TaskCalendar({
     [calendarApi]
   );
 
+  // Navegar al mes anterior
+  const goToPreviousMonth = useCallback(() => {
+    if (calendarApi) {
+      calendarApi.prev();
+      const newDate = new Date(currentMonth);
+      newDate.setMonth(newDate.getMonth() - 1);
+      setCurrentMonth(newDate);
+    }
+  }, [calendarApi, currentMonth]);
+
+  // Navegar al mes siguiente
+  const goToNextMonth = useCallback(() => {
+    if (calendarApi) {
+      calendarApi.next();
+      const newDate = new Date(currentMonth);
+      newDate.setMonth(newDate.getMonth() + 1);
+      setCurrentMonth(newDate);
+    }
+  }, [calendarApi, currentMonth]);
+
+  // Ir al mes actual
+  const goToToday = useCallback(() => {
+    if (calendarApi) {
+      calendarApi.today();
+      setCurrentMonth(new Date());
+    }
+  }, [calendarApi]);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2 justify-between items-center mb-4">
-        {/* Contador de tareas programadas */}
+        {/* Contador de tareas del mes visible */}
         <div className="text-sm text-muted-foreground">
-          {filteredTasks.length} tarea{filteredTasks.length !== 1 ? "s" : ""}{" "}
-          programada{filteredTasks.length !== 1 ? "s" : ""}
+          {getTotalTasksForMonth()} tarea
+          {getTotalTasksForMonth() !== 1 ? "s" : ""} del mes de{" "}
+          {currentMonth.toLocaleDateString("es-ES", {
+            month: "long",
+            year: "numeric",
+          })}
         </div>
 
         {/* Controles del calendario */}
@@ -226,25 +286,13 @@ export function TaskCalendar({
           </Select>
 
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => calendarApi?.prev()}
-            >
+            <Button variant="outline" size="sm" onClick={goToPreviousMonth}>
               Anterior
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => calendarApi?.today()}
-            >
+            <Button variant="outline" size="sm" onClick={goToToday}>
               Hoy
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => calendarApi?.next()}
-            >
+            <Button variant="outline" size="sm" onClick={goToNextMonth}>
               Siguiente
             </Button>
           </div>
