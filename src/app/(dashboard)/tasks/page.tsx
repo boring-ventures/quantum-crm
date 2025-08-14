@@ -129,7 +129,6 @@ export default function TasksPage() {
   // Calcular contadores de tareas
   const taskCounts = {
     total: tasksData?.length || 0, // Total real de tareas
-    scheduled: tasksData?.filter((task) => task.scheduledFor).length || 0,
     pending: tasksData?.filter((task) => task.status === "PENDING").length || 0,
     inProgress:
       tasksData?.filter((task) => task.status === "IN_PROGRESS").length || 0,
@@ -145,19 +144,21 @@ export default function TasksPage() {
     taskCounts.inProgress +
     taskCounts.completed +
     taskCounts.cancelled;
-  const scheduledCount = taskCounts.scheduled;
 
   // Mostrar en consola para debugging (se puede remover después)
   if (tasksData && tasksData.length > 0) {
     console.log("Debug - Conteos de tareas:", {
       total: taskCounts.total,
       totalByStatus,
-      scheduled: scheduledCount,
       pending: taskCounts.pending,
       inProgress: taskCounts.inProgress,
       completed: taskCounts.completed,
       cancelled: taskCounts.cancelled,
       tasksDataLength: tasksData.length,
+      // Información adicional sobre fechas programadas
+      withScheduledDate: tasksData.filter((task) => task.scheduledFor).length,
+      withoutScheduledDate: tasksData.filter((task) => !task.scheduledFor)
+        .length,
     });
   }
 
@@ -180,14 +181,15 @@ export default function TasksPage() {
       );
     }
 
-    // Filtrar por estado
-    if (statusFilter !== "all") {
-      filtered = filtered.filter((task) => task.status === statusFilter);
-    }
+    // Filtrar por estado (esto se maneja en el calendario, no aquí)
+    // Removemos este filtro para que el calendario maneje el statusFilter
+    // if (statusFilter !== "all") {
+    //   filtered = filtered.filter((task) => task.status === statusFilter);
+    // }
 
     setFilteredTasks(filtered);
     setIsLoading(false);
-  }, [tasksData, searchQuery, statusFilter]);
+  }, [tasksData, searchQuery]); // Removemos statusFilter de las dependencias
 
   // Manejadores para la interfaz de usuario
   const handleOpenTask = (task: Task) => {
@@ -376,7 +378,7 @@ export default function TasksPage() {
       {(!isManagerRole || !showSellerSelector) && (
         <>
           {/* Contadores de tareas */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-300 flex items-center gap-2">
@@ -389,23 +391,6 @@ export default function TasksPage() {
                   {taskCounts.total}
                 </div>
                 <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                  Conteo global
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-orange-700 dark:text-orange-300 flex items-center gap-2">
-                  <Target className="h-4 w-4" />
-                  Programadas
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-orange-900 dark:text-orange-100">
-                  {taskCounts.scheduled}
-                </div>
-                <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
                   Conteo global
                 </p>
               </CardContent>
@@ -453,27 +438,10 @@ export default function TasksPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-900 dark:text-blue-100">
+                <div className="text-2xl font-bold text-green-900 dark:text-green-100">
                   {taskCounts.completed}
                 </div>
                 <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                  Conteo global
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                  <XCircle className="h-4 w-4" />
-                  Canceladas
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  {taskCounts.cancelled}
-                </div>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                   Conteo global
                 </p>
               </CardContent>
@@ -503,6 +471,23 @@ export default function TasksPage() {
                 <SelectItem value="CANCELLED">Canceladas</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Nota sobre filtrado */}
+          <div className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg">
+            <p>
+              <strong>Estados de tareas:</strong> Las tareas pueden estar en 4
+              estados:
+              <strong> Pendientes</strong> (nuevas),{" "}
+              <strong>En Progreso</strong> (trabajando),
+              <strong> Completadas</strong> (finalizadas) o{" "}
+              <strong>Canceladas</strong> (descartadas).
+            </p>
+            <p className="mt-2">
+              <strong>Filtrado:</strong> La búsqueda filtra por título y
+              descripción. El filtro de estado muestra solo las tareas del
+              estado seleccionado.
+            </p>
           </div>
 
           {/* Calendario */}

@@ -30,6 +30,9 @@ import {
   PlayCircle,
   CheckCircle,
   XCircle,
+  ChevronLeft,
+  ChevronRight,
+  Calendar as CalendarIcon,
 } from "lucide-react";
 
 interface TaskCalendarProps {
@@ -127,7 +130,6 @@ export function TaskCalendar({
 
     return {
       total: periodTasks.length,
-      scheduled: periodTasks.filter((task) => task.scheduledFor).length,
       pending: periodTasks.filter((task) => task.status === "PENDING").length,
       inProgress: periodTasks.filter((task) => task.status === "IN_PROGRESS")
         .length,
@@ -186,28 +188,44 @@ export function TaskCalendar({
 
   // Filtrar tareas por estado si se especifica - usar useMemo para evitar recálculos innecesarios
   const filteredTasks = useMemo(() => {
-    return statusFilter === "all"
-      ? tasks.filter((task) => task.scheduledFor) // Solo tareas programadas
-      : tasks.filter(
-          (task) => task.scheduledFor && task.status === statusFilter
-        );
+    console.log("[TaskCalendar] Filtrando tareas con status:", statusFilter);
+    const result =
+      statusFilter === "all"
+        ? tasks // Mostrar todas las tareas
+        : tasks.filter((task) => task.status === statusFilter);
+    console.log("[TaskCalendar] Tareas filtradas por status:", result.length);
+    return result;
   }, [tasks, statusFilter]);
 
   // Convertir tareas a formato de eventos para FullCalendar - usar useMemo
   const calendarEvents = useMemo(() => {
-    return filteredTasks
-      .filter((task) => task.scheduledFor) // Solo tareas programadas
-      .map((task) => ({
-        id: task.id,
-        title: task.title,
-        start: task.scheduledFor!, // Usar ! porque ya filtramos por scheduledFor
-        end: undefined, // No usar completedAt como fecha de fin
-        backgroundColor: getTaskColor(task),
-        borderColor: getTaskColor(task),
-        textColor: getTextColor(task),
-        extendedProps: { task },
-        allDay: false, // Las tareas no son de todo el día
-      }));
+    console.log("[TaskCalendar] Tareas filtradas:", filteredTasks.length);
+    console.log(
+      "[TaskCalendar] Tareas con fecha:",
+      filteredTasks.filter((task) => task.scheduledFor || task.createdAt).length
+    );
+
+    const events = filteredTasks
+      .filter((task) => task.scheduledFor || task.createdAt) // Solo tareas con fecha
+      .map((task) => {
+        // Usar scheduledFor si existe, sino usar createdAt como fallback
+        const eventDate = task.scheduledFor || task.createdAt;
+
+        return {
+          id: task.id,
+          title: task.title,
+          start: eventDate!,
+          end: undefined, // No usar completedAt como fecha de fin
+          backgroundColor: getTaskColor(task),
+          borderColor: getTaskColor(task),
+          textColor: getTextColor(task),
+          extendedProps: { task },
+          allDay: false, // Las tareas no son de todo el día
+        };
+      });
+
+    console.log("[TaskCalendar] Eventos del calendario:", events.length);
+    return events;
   }, [filteredTasks, getTaskColor, getTextColor]);
 
   // Manejar click en evento
@@ -256,8 +274,8 @@ export function TaskCalendar({
       plugins: [dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin],
       initialView: calendarView,
       headerToolbar: {
-        left: "prev,next today",
-        center: "title",
+        left: "",
+        center: "",
         right: "",
       },
       locale: "es",
@@ -380,16 +398,6 @@ export function TaskCalendar({
             </span>
           </div>
 
-          {/* Programadas */}
-          {getTasksCountByStatus().scheduled > 0 && (
-            <div className="flex items-center gap-1">
-              <Target className="h-4 w-4 text-orange-600" />
-              <span className="font-semibold text-orange-600">
-                {getTasksCountByStatus().scheduled}
-              </span>
-            </div>
-          )}
-
           {/* Pendientes */}
           {getTasksCountByStatus().pending > 0 && (
             <div className="flex items-center gap-1">
@@ -445,15 +453,36 @@ export function TaskCalendar({
             </SelectContent>
           </Select>
 
+          {/* Botones de navegación estéticos */}
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={goToPreviousPeriod}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToPreviousPeriod}
+              className="bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 dark:from-blue-950 dark:to-indigo-950 dark:hover:from-blue-900 dark:hover:to-indigo-900 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200 transition-all duration-200 shadow-sm hover:shadow-md"
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
               Anterior
             </Button>
-            <Button variant="outline" size="sm" onClick={goToToday}>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToToday}
+              className="bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 dark:from-green-950 dark:to-emerald-950 dark:hover:from-green-900 dark:hover:to-emerald-900 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 hover:text-green-800 dark:hover:text-green-200 transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+            >
+              <CalendarIcon className="h-4 w-4 mr-1" />
               Hoy
             </Button>
-            <Button variant="outline" size="sm" onClick={goToNextPeriod}>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToNextPeriod}
+              className="bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 dark:from-purple-950 dark:to-pink-950 dark:hover:from-purple-900 dark:hover:to-pink-900 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:text-purple-800 dark:hover:text-purple-200 transition-all duration-200 shadow-sm hover:shadow-md"
+            >
               Siguiente
+              <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           </div>
         </div>
