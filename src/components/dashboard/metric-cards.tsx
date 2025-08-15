@@ -11,6 +11,7 @@ import {
   FileText,
   DollarSign,
   CalendarCheck,
+  Clock,
 } from "lucide-react";
 import type {
   MetricCardData,
@@ -46,6 +47,14 @@ const METRIC_CARDS_CONFIG: Omit<MetricCardData, "value">[] = [
     href: "/tasks?status=pending",
     permissionKey: "tasks",
     description: "Tareas que requieren atención inmediata.",
+  },
+  {
+    id: "today-tasks",
+    title: "Tareas de Hoy",
+    icon: Clock,
+    href: "/tasks?filter=today",
+    permissionKey: "tasks",
+    description: "Tareas programadas para el día de hoy.",
   },
   {
     id: "quotations",
@@ -129,6 +138,9 @@ export function DashboardMetrics({ metrics }: DashboardMetricsProps) {
           break;
         case "pending-tasks":
           value = metrics.pendingTasks;
+          break;
+        case "today-tasks":
+          value = metrics.todayTasks;
           break;
         case "quotations":
           value = metrics.quotations;

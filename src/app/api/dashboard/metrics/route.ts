@@ -59,9 +59,16 @@ export async function POST(req: Request) {
       };
     }
 
-    // Filtros para tareas
+    // Filtros para tareas - solo contar tareas pendientes hasta hoy
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // Hasta el final del día de hoy
+    
     const taskFilters: any = {
       status: "PENDING",
+      OR: [
+        { scheduledFor: { lte: today } }, // Tareas programadas para hoy o antes
+        { scheduledFor: null } // Tareas sin fecha programada
+      ],
       lead: {
         isArchived: false,
         isClosed: false,
@@ -128,7 +135,34 @@ export async function POST(req: Request) {
       reservationFilters,
     });
 
-    let totalLeads, newLeads, pendingTasks, quotations, sales, reservations;
+    // Filtros adicionales para tareas de hoy
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const todayTaskFilters: any = {
+      status: "PENDING",
+      OR: [
+        { scheduledFor: { gte: todayStart, lte: todayEnd } },
+        { 
+          scheduledFor: null,
+          createdAt: { gte: todayStart, lte: todayEnd }
+        }
+      ],
+      lead: {
+        isArchived: false,
+        isClosed: false,
+      },
+    };
+
+    if (tasksScope === "self") {
+      todayTaskFilters.assignedToId = currentUser.id;
+    } else if (tasksScope === "team" && currentUser.countryId) {
+      todayTaskFilters.lead.assignedTo = { countryId: currentUser.countryId };
+    }
+
+    let totalLeads, newLeads, pendingTasks, todayTasks, quotations, sales, reservations;
 
     try {
       // Debug: contar todos los leads sin filtros para comparar
@@ -146,7 +180,7 @@ export async function POST(req: Request) {
         badLeadsCount,
       });
 
-      [totalLeads, newLeads, pendingTasks, quotations, sales, reservations] =
+      [totalLeads, newLeads, pendingTasks, todayTasks, quotations, sales, reservations] =
         await Promise.all([
           prisma.lead.count({
             where: leadFilters,
@@ -161,6 +195,9 @@ export async function POST(req: Request) {
           }),
           prisma.task.count({
             where: taskFilters,
+          }),
+          prisma.task.count({
+            where: todayTaskFilters,
           }),
           prisma.quotation.count({
             where: quotationFilters,
@@ -185,6 +222,7 @@ export async function POST(req: Request) {
       totalLeads,
       newLeads,
       pendingTasks,
+      todayTasks,
       quotations,
       sales,
       reservations,
@@ -194,6 +232,7 @@ export async function POST(req: Request) {
       totalLeads,
       newLeads,
       pendingTasks,
+      todayTasks,
       quotations,
       sales,
       reservations,

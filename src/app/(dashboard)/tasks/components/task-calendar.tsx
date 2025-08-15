@@ -294,6 +294,9 @@ export function TaskCalendar({
       },
       datesSet: handleDatesSet, // Agregar el listener
       initialDate: currentMonth, // Establecer la fecha inicial
+      fixedWeekCount: false, // No mostrar 6 semanas siempre
+      showNonCurrentDates: false, // No mostrar fechas de meses anteriores/siguientes
+      dayMaxEvents: true, // Mostrar "más" cuando hay muchos eventos
     };
 
     const calendarInstance = new Calendar(calendarEl, options);

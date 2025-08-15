@@ -477,12 +477,6 @@ export default function SalesPage() {
                 <span className="text-muted-foreground text-sm uppercase font-medium mr-2">
                   {firstProductNameForIcon} -
                 </span>
-                <span
-                  className="font-semibold uppercase truncate max-w-xs"
-                  title={productDisplay}
-                >
-                  {productDisplay}
-                </span>
                 <div className="flex gap-2 ml-3">
                   <Badge
                     variant={
@@ -515,7 +509,7 @@ export default function SalesPage() {
                     )}
                 </div>
               </div>
-              <h3 className="text-lg font-semibold mt-1">{productDisplay}</h3>
+              <h3 className="text-lg font-semibold mt-1">{clientName}</h3>
               <div className="mt-1 text-sm text-muted-foreground flex flex-wrap gap-x-3 gap-y-1">
                 <span className="font-medium text-foreground">
                   {clientName}
@@ -643,6 +637,7 @@ export default function SalesPage() {
         ? getRemainingDays(reservation.deliveryDate)
         : null;
     const currencyDisplay = formatCurrency(reservation.currency);
+    const clientName = `${reservation.lead?.firstName || ""} ${reservation.lead?.lastName || ""}`.trim() || "Cliente sin nombre";
 
     return (
       <Card key={reservation.id} className="mb-4">
@@ -653,12 +648,6 @@ export default function SalesPage() {
               <div className="flex items-center">
                 <span className="text-muted-foreground text-sm uppercase font-medium mr-2">
                   {firstProductNameForIcon} -
-                </span>
-                <span
-                  className="font-semibold uppercase truncate max-w-xs"
-                  title={productDisplay}
-                >
-                  {productDisplay}
                 </span>
                 <Badge
                   className="ml-3 text-xs"
@@ -673,7 +662,7 @@ export default function SalesPage() {
                   {reservation.status}
                 </Badge>
               </div>
-              <h3 className="text-lg font-semibold mt-1">{productDisplay}</h3>
+              <h3 className="text-lg font-semibold mt-1">{clientName}</h3>
               <div className="text-sm text-muted-foreground mt-1 flex items-center flex-wrap gap-1">
                 <span>
                   #{reservation.id.substring(0, 3)} | Cod. Int.{" "}
@@ -785,6 +774,7 @@ export default function SalesPage() {
         ? parseFloat(quotation.total)
         : 0;
     const currencyDisplay = formatCurrency(quotation.currency);
+    const clientName = `${quotation.lead?.firstName || ""} ${quotation.lead?.lastName || ""}`.trim() || "Cliente sin nombre";
 
     return (
       <Card key={quotation.id} className="mb-4">
@@ -796,17 +786,11 @@ export default function SalesPage() {
                 <span className="text-muted-foreground text-sm uppercase font-medium mr-2">
                   {firstProductNameForIcon} -
                 </span>
-                <span
-                  className="font-semibold uppercase truncate max-w-xs"
-                  title={productDisplay}
-                >
-                  {productDisplay}
-                </span>
                 <Badge className="ml-3" variant="outline">
                   COTIZACIÓN
                 </Badge>
               </div>
-              <h3 className="text-lg font-semibold mt-1">{productDisplay}</h3>
+              <h3 className="text-lg font-semibold mt-1">{clientName}</h3>
               <div className="text-sm text-muted-foreground mt-1 flex items-center flex-wrap gap-1">
                 <span>
                   #{quotation.id.substring(0, 3)} | Cod. Int.{" "}
@@ -909,7 +893,7 @@ export default function SalesPage() {
     const businessType = firstProductForSheet?.businessType?.name || "PRODUCTO";
 
     const clientName =
-      `${item.lead?.firstName || ""} ${item.lead?.lastName || ""}`.trim();
+      `${item.lead?.firstName || ""} ${item.lead?.lastName || ""}`.trim() || "Cliente sin nombre";
 
     return (
       <Sheet open={isDetailOpen} onOpenChange={setIsDetailOpen}>
@@ -923,7 +907,7 @@ export default function SalesPage() {
           <div className="mt-6 space-y-6">
             <div>
               <h3 className="text-lg font-semibold">{businessType}</h3>
-              <h2 className="text-2xl font-bold mt-1">{productDisplay}</h2>
+              <h2 className="text-2xl font-bold mt-1">{clientName}</h2>
               {productDetailsList}
               <div className="mt-2 text-sm text-gray-400">
                 {quotationProducts.length === 1
@@ -1004,19 +988,20 @@ export default function SalesPage() {
                 </div>
                 {(item as any).approvalStatus === "REJECTED" &&
                   (item as any).rejectionReason && (
-                    <div className="ml-0 pl-0 text-sm text-muted-foreground">
-                      <span className="text-muted-foreground">
+                    <div className="mt-3 p-3 bg-red-50 dark:bg-red-950/20 rounded-md border-l-4 border-red-500">
+                      <span className="text-red-700 dark:text-red-400 text-sm font-medium">
                         Motivo del rechazo:
-                      </span>{" "}
-                      <span className="text-muted-foreground">
-                        {(item as any).rejectionReason}
                       </span>
+                      <p className="text-red-800 dark:text-red-300 text-sm mt-1">
+                        {(item as any).rejectionReason}
+                      </p>
                     </div>
                   )}
               </div>
             </div>
 
-            {item.additionalNotes && (
+            {/* Solo mostrar notas adicionales si la venta NO está rechazada */}
+            {item.additionalNotes && (item as any).approvalStatus !== "REJECTED" && (
               <div>
                 <h3 className="font-medium mb-2">Notas Adicionales</h3>
                 <p className="text-sm text-black">{item.additionalNotes}</p>

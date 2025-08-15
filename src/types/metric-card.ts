@@ -12,6 +12,7 @@ export interface DashboardMetricsResponse {
   totalLeads: number;
   newLeads: number;
   pendingTasks: number;
+  todayTasks: number;
   quotations: number;
   sales: number;
   reservations: number;

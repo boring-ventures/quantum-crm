@@ -484,7 +484,20 @@ export function NewLeadDialog({
                               }
                             }}
                           >
-                            {source.name}
+                            <div className="flex items-center justify-between">
+                              <span>{source.name}</span>
+                              {source.category && (
+                                <div className="flex items-center ml-2">
+                                  <div
+                                    className="w-2 h-2 rounded-full mr-1"
+                                    style={{ backgroundColor: source.category.color || '#6B7280' }}
+                                  />
+                                  <span className="text-xs text-muted-foreground">
+                                    {source.category.name}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -494,6 +507,20 @@ export function NewLeadDialog({
                     <p className="text-red-500 text-xs">
                       {errors.sourceId.message}
                     </p>
+                  )}
+                  {selectedSource?.category && (
+                    <div className="mt-2 p-2 bg-muted/30 rounded-md">
+                      <div className="flex items-center text-sm">
+                        <span className="text-muted-foreground mr-2">Origen del lead:</span>
+                        <div className="flex items-center">
+                          <div
+                            className="w-2 h-2 rounded-full mr-2"
+                            style={{ backgroundColor: selectedSource.category.color || '#6B7280' }}
+                          />
+                          <span className="font-medium">{selectedSource.category.name}</span>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
 

@@ -910,7 +910,7 @@ export function LeadDetailPage({
                   <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-5">
                     Origen del Lead
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-y-6 gap-x-6">
                     <div>
                       <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">
                         Fuente
@@ -918,6 +918,26 @@ export function LeadDetailPage({
                       <p className="text-base text-gray-800 dark:text-gray-200">
                         {lead.source?.name || "Sin registro"}
                       </p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">
+                        Categoría de fuente
+                      </p>
+                      {lead.source?.category ? (
+                        <div className="flex items-center">
+                          <div
+                            className="w-3 h-3 rounded-full mr-2"
+                            style={{ backgroundColor: lead.source.category.color || '#6B7280' }}
+                          />
+                          <p className="text-base text-gray-800 dark:text-gray-200">
+                            {lead.source.category.name}
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-base text-gray-800 dark:text-gray-200">
+                          Sin registro
+                        </p>
+                      )}
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">
