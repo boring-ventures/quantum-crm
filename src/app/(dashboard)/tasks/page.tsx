@@ -126,16 +126,22 @@ export default function TasksPage() {
   // Filtrar tareas según los criterios de búsqueda y filtro
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
 
-  // Calcular contadores de tareas
+  // Calcular contadores de tareas hasta hoy
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+  
+  const tasksUpToToday = tasksData?.filter((task) => {
+    if (!task.scheduledFor) return true; // Incluir tareas sin fecha programada
+    const scheduledDate = new Date(task.scheduledFor);
+    return scheduledDate <= today;
+  }) || [];
+
   const taskCounts = {
-    total: tasksData?.length || 0, // Total real de tareas
-    pending: tasksData?.filter((task) => task.status === "PENDING").length || 0,
-    inProgress:
-      tasksData?.filter((task) => task.status === "IN_PROGRESS").length || 0,
-    completed:
-      tasksData?.filter((task) => task.status === "COMPLETED").length || 0,
-    cancelled:
-      tasksData?.filter((task) => task.status === "CANCELLED").length || 0,
+    total: tasksUpToToday.length, // Total de tareas hasta hoy
+    pending: tasksUpToToday.filter((task) => task.status === "PENDING").length,
+    inProgress: tasksUpToToday.filter((task) => task.status === "IN_PROGRESS").length,
+    completed: tasksUpToToday.filter((task) => task.status === "COMPLETED").length,
+    cancelled: tasksUpToToday.filter((task) => task.status === "CANCELLED").length,
   };
 
   // Verificar que la suma de estados coincida con el total (para debugging)
@@ -147,18 +153,18 @@ export default function TasksPage() {
 
   // Mostrar en consola para debugging (se puede remover después)
   if (tasksData && tasksData.length > 0) {
-    console.log("Debug - Conteos de tareas:", {
-      total: taskCounts.total,
+    console.log("Debug - Conteos de tareas hasta hoy:", {
+      totalUpToToday: taskCounts.total,
       totalByStatus,
       pending: taskCounts.pending,
       inProgress: taskCounts.inProgress,
       completed: taskCounts.completed,
       cancelled: taskCounts.cancelled,
-      tasksDataLength: tasksData.length,
+      originalTasksLength: tasksData.length,
+      tasksUpToTodayLength: tasksUpToToday.length,
       // Información adicional sobre fechas programadas
-      withScheduledDate: tasksData.filter((task) => task.scheduledFor).length,
-      withoutScheduledDate: tasksData.filter((task) => !task.scheduledFor)
-        .length,
+      withScheduledDate: tasksUpToToday.filter((task) => task.scheduledFor).length,
+      withoutScheduledDate: tasksUpToToday.filter((task) => !task.scheduledFor).length,
     });
   }
 
@@ -391,7 +397,7 @@ export default function TasksPage() {
                   {taskCounts.total}
                 </div>
                 <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                  Conteo global
+                  Conteo hasta hoy
                 </p>
               </CardContent>
             </Card>
@@ -408,7 +414,7 @@ export default function TasksPage() {
                   {taskCounts.pending}
                 </div>
                 <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
-                  Conteo global
+                  Conteo hasta hoy
                 </p>
               </CardContent>
             </Card>
@@ -425,7 +431,7 @@ export default function TasksPage() {
                   {taskCounts.inProgress}
                 </div>
                 <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                  Conteo global
+                  Conteo hasta hoy
                 </p>
               </CardContent>
             </Card>
@@ -442,7 +448,7 @@ export default function TasksPage() {
                   {taskCounts.completed}
                 </div>
                 <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                  Conteo global
+                  Conteo hasta hoy
                 </p>
               </CardContent>
             </Card>
