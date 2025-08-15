@@ -94,7 +94,11 @@ export async function GET(request: NextRequest) {
         take: pageSize,
         include: {
           status: true,
-          source: true,
+          source: {
+            include: {
+              category: true,
+            },
+          },
           assignedTo: {
             include: {
               country: true,

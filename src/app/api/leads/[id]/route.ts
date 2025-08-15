@@ -84,7 +84,11 @@ export async function GET(
       where: { id },
       include: {
         status: true,
-        source: true,
+        source: {
+          include: {
+            category: true,
+          },
+        },
         assignedTo: true,
         product: true,
         tasks: true,
@@ -249,7 +253,11 @@ export async function PUT(
         data,
         include: {
           status: true,
-          source: true,
+          source: {
+            include: {
+              category: true,
+            },
+          },
           assignedTo: true,
         },
       });
