@@ -40,22 +40,22 @@ const METRIC_CARDS_CONFIG: Omit<MetricCardData, "value">[] = [
     permissionKey: "leads",
     description: "Leads generados en los últimos 7 días.",
   },
-  // {
-  //   id: "pending-tasks",
-  //   title: "Tareas Pendientes",
-  //   icon: ClipboardList,
-  //   href: "/tasks?status=pending",
-  //   permissionKey: "tasks",
-  //   description: "Tareas que requieren atención inmediata.",
-  // },
   {
-    id: "today-tasks",
+    id: "pending-tasks",
     title: "Tareas Pendientes",
-    icon: Clock,
-    href: "/tasks?filter=today",
+    icon: ClipboardList,
+    href: "/tasks?status=pending",
     permissionKey: "tasks",
     description: "Tareas que requieren atención inmediata.",
   },
+  // {
+  //   id: "today-tasks",
+  //   title: "Tareas Pendientes",
+  //   icon: Clock,
+  //   href: "/tasks?filter=today",
+  //   permissionKey: "tasks",
+  //   description: "Tareas que requieren atención inmediata.",
+  // },
   {
     id: "quotations",
     title: "Cotizaciones",
@@ -136,12 +136,12 @@ export function DashboardMetrics({ metrics }: DashboardMetricsProps) {
         case "new-leads":
           value = metrics.newLeads;
           break;
-        // case "pending-tasks":
-        //   value = metrics.pendingTasks;
-        //   break;
-        case "today-tasks":
-          value = metrics.todayTasks;
+        case "pending-tasks":
+          value = metrics.pendingTasks;
           break;
+        // case "today-tasks":
+        //   value = metrics.todayTasks;
+        //   break;
         case "quotations":
           value = metrics.quotations;
           break;
