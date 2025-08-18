@@ -136,6 +136,7 @@ export interface LeadWithRelations extends Lead {
   status: LeadStatus;
   source: LeadSource;
   assignedTo?: User;
+  createdBy?: User;
   tags?: Tag[];
   tasks?: Task[];
   quotations?: Quotation[];

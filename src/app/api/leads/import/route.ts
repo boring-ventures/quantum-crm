@@ -227,6 +227,7 @@ export async function POST(req: Request) {
           statusId,
           sourceId,
           assignedToId: validUser.id,
+          createdById: validUser.id,
           productId: productId || null,
           qualification: "NOT_QUALIFIED" as const,
           qualityScore: cleanData.data.quality_score || 1,

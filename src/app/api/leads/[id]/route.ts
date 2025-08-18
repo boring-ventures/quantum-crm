@@ -90,6 +90,13 @@ export async function GET(
           },
         },
         assignedTo: true,
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
         product: true,
         tasks: true,
         quotations: true,

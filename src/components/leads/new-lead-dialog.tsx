@@ -28,7 +28,7 @@ import {
   useCreateLeadMutation,
 } from "@/lib/hooks";
 import { useProducts } from "@/lib/hooks/use-products";
-import { useAuth } from "@/providers/auth-provider";
+import { useUserStore } from "@/store/userStore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
@@ -69,7 +69,7 @@ export function NewLeadDialog({
   preassignedUserId,
 }: NewLeadDialogProps) {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user } = useUserStore();
   const [isPending, setIsPending] = useState(false);
   const [currentStep, setCurrentStep] = useState<
     "personal" | "contact" | "business"
@@ -163,6 +163,7 @@ export function NewLeadDialog({
         statusId: data.statusId,
         sourceId: data.sourceId,
         assignedToId: preassignedUserId || user?.id || "",
+        createdById: user?.id || "",
         qualityScore: data.interest ? parseInt(data.interest) : 1,
         isArchived: false,
         extraComments: data.extraComments || null,
@@ -490,7 +491,10 @@ export function NewLeadDialog({
                                 <div className="flex items-center ml-2">
                                   <div
                                     className="w-2 h-2 rounded-full mr-1"
-                                    style={{ backgroundColor: source.category.color || '#6B7280' }}
+                                    style={{
+                                      backgroundColor:
+                                        source.category.color || "#6B7280",
+                                    }}
                                   />
                                   <span className="text-xs text-muted-foreground">
                                     {source.category.name}
@@ -511,13 +515,20 @@ export function NewLeadDialog({
                   {selectedSource?.category && (
                     <div className="mt-2 p-2 bg-muted/30 rounded-md">
                       <div className="flex items-center text-sm">
-                        <span className="text-muted-foreground mr-2">Origen del lead:</span>
+                        <span className="text-muted-foreground mr-2">
+                          Origen del lead:
+                        </span>
                         <div className="flex items-center">
                           <div
                             className="w-2 h-2 rounded-full mr-2"
-                            style={{ backgroundColor: selectedSource.category.color || '#6B7280' }}
+                            style={{
+                              backgroundColor:
+                                selectedSource.category.color || "#6B7280",
+                            }}
                           />
-                          <span className="font-medium">{selectedSource.category.name}</span>
+                          <span className="font-medium">
+                            {selectedSource.category.name}
+                          </span>
                         </div>
                       </div>
                     </div>

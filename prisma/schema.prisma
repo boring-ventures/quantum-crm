@@ -112,6 +112,7 @@ model Lead {
   statusId         String             @map("status_id")
   sourceId         String             @map("source_id")
   assignedToId     String             @map("assigned_to_id")
+  createdById      String?            @map("created_by_id")
   lastContactedAt  DateTime?          @map("last_contacted_at")
   nextFollowUpDate DateTime?          @map("next_follow_up_date")
   convertedAt      DateTime?          @map("converted_at")
@@ -127,6 +128,7 @@ model Lead {
   favoriteAt       DateTime?          @map("favorite_at")
   documents        Document[]
   assignedTo       User               @relation(fields: [assignedToId], references: [id])
+  createdBy        User?              @relation("leadsCreated", fields: [createdById], references: [id], onUpdate: Cascade, onDelete: SetNull)
   product          Product?           @relation(fields: [productId], references: [id])
   source           LeadSource         @relation(fields: [sourceId], references: [id])
   status           LeadStatus         @relation(fields: [statusId], references: [id])
@@ -139,6 +141,7 @@ model Lead {
   @@index([statusId])
   @@index([sourceId])
   @@index([assignedToId])
+  @@index([createdById])
   @@index([productId])
   @@index([createdAt])
   @@index([qualityScore])
@@ -233,6 +236,7 @@ model User {
   reassignedFrom LeadReassignment[] @relation("reassignedFrom")
   reassignedTo   LeadReassignment[] @relation("reassignedTo")
   reassignedBy   LeadReassignment[] @relation("reassignedBy")
+  leadsCreated   Lead[]             @relation("leadsCreated")
 
   @@index([email])
   @@index([role])

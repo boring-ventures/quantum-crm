@@ -52,6 +52,7 @@ export async function GET(req: NextRequest) {
       where,
       include: {
         assignedTo: { select: { name: true, email: true } },
+        createdBy: { select: { name: true, email: true } },
         product: { select: { name: true, code: true } },
         source: { select: { name: true } },
         status: { select: { name: true } },
@@ -69,16 +70,20 @@ export async function GET(req: NextRequest) {
     });
 
     const dataForSheet = leads.map((lead) => {
-      // Determinar el creador original
+      // Determinar el creador usando el nuevo campo createdById
       let creatorName = "N/A";
       let creatorEmail = "N/A";
 
-      if (lead.reassignments.length > 0) {
-        // Si hay reasignaciones, el primer fromUser es el creador original
+      if (lead.createdBy) {
+        // Si existe el campo createdBy, usarlo directamente
+        creatorName = lead.createdBy.name;
+        creatorEmail = lead.createdBy.email;
+      } else if (lead.reassignments.length > 0) {
+        // Fallback: Si no hay createdBy pero hay reasignaciones, el primer fromUser es el creador original
         creatorName = lead.reassignments[0].fromUser.name;
         creatorEmail = lead.reassignments[0].fromUser.email;
       } else {
-        // Si no hay reasignaciones, el assignedTo actual es el creador
+        // Fallback: Si no hay reasignaciones, el assignedTo actual es el creador
         creatorName = lead.assignedTo.name;
         creatorEmail = lead.assignedTo.email;
       }

@@ -25,6 +25,7 @@ const createLeadSchema = z.object({
   qualityScore: z.number().min(1).max(3, "El puntaje debe estar entre 1 y 3"),
   productId: z.string().uuid("ID de producto inválido").optional().nullable(),
   assignedToId: z.string().uuid("ID de usuario inválido"),
+  createdById: z.string().uuid("ID de usuario creador inválido").optional(),
   isArchived: z.boolean().optional().default(false),
   extraComments: z.string().optional().nullable(),
 });
@@ -104,11 +105,46 @@ export async function GET(request: NextRequest) {
               country: true,
             },
           },
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
           product: true,
           tasks: true,
           quotations: true,
           reservations: true,
           sales: true,
+          reassignments: {
+            include: {
+              fromUser: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+              toUser: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+              reassignedByUser: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+            orderBy: {
+              createdAt: "asc",
+            },
+          },
         },
       }),
       prisma.lead.count({ where }),
@@ -257,6 +293,7 @@ export async function POST(request: NextRequest) {
             assignedToId: validatedData.assignedToId,
             isArchived: validatedData.isArchived || false,
             extraComments: validatedData.extraComments,
+            createdById: validatedData.createdById || currentUser.id,
           },
           include: {
             status: true,

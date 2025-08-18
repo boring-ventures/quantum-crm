@@ -63,14 +63,45 @@ export function LeadTimeline({ lead, isFavorite }: LeadTimelineProps) {
   const events = useMemo(() => {
     const allEvents: TimelineEvent[] = [];
 
-    // Añadir evento de creación del lead
-    allEvents.push({
-      id: `lead-creation-${lead.id}`,
-      type: "lead_created",
-      date: new Date(lead.createdAt),
-      title: "Lead creado",
-      description: `Lead asignado a ${lead.assignedTo?.name || "Sin asignar"}`,
-    });
+    // Añadir evento de creación del lead con el usuario creador
+    if (lead.createdBy) {
+      allEvents.push({
+        id: `lead-creation-${lead.id}`,
+        type: "lead_created",
+        date: new Date(lead.createdAt),
+        title: "Lead creado",
+        description: `Lead creado por ${lead.createdBy.name}`,
+        fromUser: lead.createdBy.name,
+      });
+    } else {
+      // Fallback si no hay createdBy
+      allEvents.push({
+        id: `lead-creation-${lead.id}`,
+        type: "lead_created",
+        date: new Date(lead.createdAt),
+        title: "Lead creado",
+        description: `Lead creado y asignado a ${lead.assignedTo?.name || "Sin asignar"}`,
+      });
+    }
+
+    // Añadir evento de asignación inicial del lead
+    // Si hay createdBy y es diferente del assignedTo, mostrar ambos
+    if (
+      lead.createdBy &&
+      lead.assignedTo &&
+      lead.createdBy.id !== lead.assignedTo.id
+    ) {
+      allEvents.push({
+        id: `lead-initial-assignment-${lead.id}`,
+        type: "lead_reassigned",
+        date: new Date(lead.createdAt), // Mismo tiempo que la creación
+        title: "Lead asignado inicialmente",
+        description: `Lead asignado inicialmente a ${lead.assignedTo.name}`,
+        fromUser: lead.createdBy.name,
+        toUser: lead.assignedTo.name,
+        reassignedBy: lead.createdBy.name,
+      });
+    }
 
     // Añadir eventos de tareas
     if (tasks && tasks.length > 0) {
@@ -316,6 +347,13 @@ export function LeadTimeline({ lead, isFavorite }: LeadTimelineProps) {
                         )
                       </span>
                     )}
+                  </div>
+                )}
+
+                {event.type === "lead_created" && event.fromUser && (
+                  <div className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                    <span className="font-medium">Creado por:</span>{" "}
+                    <span className="font-semibold">{event.fromUser}</span>
                   </div>
                 )}
 
