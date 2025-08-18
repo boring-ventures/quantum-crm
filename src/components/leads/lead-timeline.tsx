@@ -85,20 +85,37 @@ export function LeadTimeline({ lead, isFavorite }: LeadTimelineProps) {
     }
 
     // Añadir evento de asignación inicial del lead
-    // Si hay createdBy y es diferente del assignedTo, mostrar ambos
+    // Necesitamos verificar en las reasignaciones para encontrar el usuario original
+    let originalAssignedUser: any = null;
+
+    if (lead.reassignments && lead.reassignments.length > 0) {
+      // Ordenar por fecha de creación para encontrar la primera reasignación
+      const sortedReassignments = [...lead.reassignments].sort(
+        (a, b) =>
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+
+      // El primer fromUser en la primera reasignación es el usuario originalmente asignado
+      originalAssignedUser = sortedReassignments[0].fromUser;
+    } else if (lead.assignedTo) {
+      // Si no hay reasignaciones, el assignedTo actual es el original
+      originalAssignedUser = lead.assignedTo;
+    }
+
+    // Solo mostrar el evento de asignación inicial si hay createdBy y es diferente del usuario originalmente asignado
     if (
       lead.createdBy &&
-      lead.assignedTo &&
-      lead.createdBy.id !== lead.assignedTo.id
+      originalAssignedUser &&
+      lead.createdBy.id !== originalAssignedUser.id
     ) {
       allEvents.push({
         id: `lead-initial-assignment-${lead.id}`,
         type: "lead_reassigned",
         date: new Date(lead.createdAt), // Mismo tiempo que la creación
         title: "Lead asignado inicialmente",
-        description: `Lead asignado inicialmente a ${lead.assignedTo.name}`,
+        description: `Lead asignado inicialmente a ${originalAssignedUser.name}`,
         fromUser: lead.createdBy.name,
-        toUser: lead.assignedTo.name,
+        toUser: originalAssignedUser.name,
         reassignedBy: lead.createdBy.name,
       });
     }

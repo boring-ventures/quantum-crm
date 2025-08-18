@@ -88,6 +88,20 @@ export async function GET(req: NextRequest) {
         creatorEmail = lead.assignedTo.email;
       }
 
+      // Determinar el usuario originalmente asignado (no el actual)
+      let originalAssignedUser = lead.assignedTo; // Por defecto, el actual
+
+      if (lead.reassignments && lead.reassignments.length > 0) {
+        // Ordenar por fecha de creación para encontrar la primera reasignación
+        const sortedReassignments = [...lead.reassignments].sort(
+          (a, b) =>
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+
+        // El primer fromUser en la primera reasignación es el usuario originalmente asignado
+        originalAssignedUser = sortedReassignments[0].fromUser;
+      }
+
       return {
         Nombre: lead.firstName,
         Apellido: lead.lastName,
@@ -100,6 +114,8 @@ export async function GET(req: NextRequest) {
         Fuente: lead.source.name,
         "Asignado a": lead.assignedTo.name,
         "Email Asignado": lead.assignedTo.email,
+        "Asignado Originalmente": originalAssignedUser.name,
+        "Email Asignado Original": originalAssignedUser.email,
         Producto: lead.product?.name || "N/A",
         "Código de Producto": lead.product?.code || "N/A",
         "Puntuación de Calidad": lead.qualityScore,
