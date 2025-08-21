@@ -24,3 +24,6 @@ export {
   useUpdateTaskStatusMutation,
   useDeleteTaskMutation,
 };
+
+// Exportar los hooks de comentarios
+export * from "./use-lead-comments";

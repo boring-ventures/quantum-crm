@@ -207,7 +207,7 @@ export function EditLeadDialog({
         statusId: data.statusId,
         sourceId: data.sourceId,
         qualityScore: data.qualityScore ? parseInt(data.qualityScore) : null,
-        extraComments: data.extraComments || null,
+        // extraComments is now read-only and managed separately
       };
 
       await updateLeadMutation.mutateAsync({
@@ -670,14 +670,21 @@ export function EditLeadDialog({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="extraComments">Comentarios</Label>
+                <Label htmlFor="extraComments">
+                  Comentarios Anteriores (Solo Lectura)
+                </Label>
                 <Textarea
                   id="extraComments"
-                  placeholder="Agregar comentarios o notas importantes..."
-                  className="bg-input dark:bg-gray-800 dark:border-gray-700 min-h-[100px]"
-                  {...register("extraComments")}
-                  disabled={isPending}
+                  placeholder="No hay comentarios anteriores..."
+                  className="bg-gray-100 dark:bg-gray-700 dark:border-gray-600 min-h-[100px] cursor-not-allowed"
+                  value={lead.extraComments || ""}
+                  disabled={true}
                 />
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Los comentarios ahora se gestionan desde la página de detalles
+                  del lead. Este campo es de solo lectura para preservar
+                  comentarios anteriores.
+                </p>
               </div>
 
               <DialogFooter className="pt-4">

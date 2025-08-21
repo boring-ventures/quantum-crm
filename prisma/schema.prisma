@@ -137,6 +137,7 @@ model Lead {
   sales            Sale[]
   tasks            Task[]
   reassignments    LeadReassignment[] @relation("reassignedLead")
+  comments         LeadComment[]
 
   @@index([statusId])
   @@index([sourceId])
@@ -151,6 +152,43 @@ model Lead {
   @@index([favoriteAt])
   @@index([nextFollowUpDate])
   @@map("leads")
+}
+
+model LeadComment {
+  id        String           @id @default(uuid())
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+  content   String           @db.Text
+  leadId    String           @map("lead_id")
+  userId    String           @map("user_id")
+  isDeleted Boolean          @default(false) @map("is_deleted")
+  deletedAt DateTime?        @map("deleted_at")
+  lead      Lead             @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user      User             @relation(fields: [userId], references: [id])
+  history   CommentHistory[]
+
+  @@index([leadId])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([isDeleted])
+  @@map("lead_comments")
+}
+
+model CommentHistory {
+  id            String      @id @default(uuid())
+  createdAt     DateTime    @default(now()) @map("created_at")
+  commentId     String      @map("comment_id")
+  previousValue String      @map("previous_value") @db.Text
+  newValue      String      @map("new_value") @db.Text
+  editedById    String      @map("edited_by_id")
+  action        String
+  comment       LeadComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  editedBy      User        @relation("CommentHistoryEditedBy", fields: [editedById], references: [id])
+
+  @@index([commentId])
+  @@index([editedById])
+  @@index([createdAt])
+  @@map("comment_history")
 }
 
 model LeadStatus {
@@ -237,6 +275,8 @@ model User {
   reassignedTo   LeadReassignment[] @relation("reassignedTo")
   reassignedBy   LeadReassignment[] @relation("reassignedBy")
   leadsCreated   Lead[]             @relation("leadsCreated")
+  comments       LeadComment[]
+  editedComments CommentHistory[]   @relation("CommentHistoryEditedBy")
 
   @@index([email])
   @@index([role])

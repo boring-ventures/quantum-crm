@@ -76,6 +76,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { DocumentUploadDialog } from "@/components/leads/document-upload-dialog";
+import { CommentList } from "@/components/leads/comments/comment-list";
 
 interface LeadDetailPageProps {
   lead: LeadWithRelations;
@@ -221,12 +222,6 @@ export function LeadDetailPage({
 }: LeadDetailPageProps) {
   const [activeTab, setActiveTab] = useState("informacion");
   const [isFavorite, setIsFavorite] = useState(lead.isFavorite || false);
-  const [comments, setComments] = useState(lead.extraComments || "");
-  const [isEditing, setIsEditing] = useState(false);
-  const [originalComments, setOriginalComments] = useState(
-    lead.extraComments || ""
-  );
-  const [hasChanges, setHasChanges] = useState(false);
   const [salesProcess, setSalesProcess] = useState({
     quotation: false,
     reservation: false,
@@ -277,8 +272,6 @@ export function LeadDetailPage({
   useEffect(() => {
     if (updatedLeadData) {
       setIsFavorite(updatedLeadData.isFavorite || false);
-      setComments(updatedLeadData.extraComments || "");
-      setOriginalComments(updatedLeadData.extraComments || "");
     }
   }, [updatedLeadData]);
 
@@ -348,57 +341,6 @@ export function LeadDetailPage({
       </div>
     );
   }
-
-  // Manejar la edición de comentarios
-  const handleEditComments = () => {
-    if (!canEditLeads) return;
-    setIsEditing(true);
-    setOriginalComments(comments);
-  };
-
-  // Manejar cambios en el textarea
-  const handleCommentsChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    if (!canEditLeads) return;
-    setComments(e.target.value);
-    setHasChanges(e.target.value !== originalComments);
-  };
-
-  // Cancelar edición
-  const handleCancelEdit = () => {
-    setComments(originalComments);
-    setIsEditing(false);
-    setHasChanges(false);
-  };
-
-  // Guardar comentarios
-  const handleSaveComments = async () => {
-    if (!canEditLeads) return;
-    try {
-      await updateLeadMutation.mutateAsync({
-        id: lead.id,
-        data: {
-          extraComments: comments,
-        },
-      });
-
-      setOriginalComments(comments);
-      setIsEditing(false);
-      setHasChanges(false);
-
-      toast({
-        title: "Comentarios guardados",
-        description: "Los comentarios se han guardado correctamente",
-        variant: "default",
-      });
-    } catch (error) {
-      console.error("Error al guardar comentarios:", error);
-      toast({
-        title: "Error al guardar",
-        description: "No se pudieron guardar los comentarios",
-        variant: "destructive",
-      });
-    }
-  };
 
   // Obtener color del badge para interés según qualityScore
   const getInterestBadgeStyle = (score?: number) => {
@@ -927,7 +869,10 @@ export function LeadDetailPage({
                         <div className="flex items-center">
                           <div
                             className="w-3 h-3 rounded-full mr-2"
-                            style={{ backgroundColor: lead.source.category.color || '#6B7280' }}
+                            style={{
+                              backgroundColor:
+                                lead.source.category.color || "#6B7280",
+                            }}
                           />
                           <p className="text-base text-gray-800 dark:text-gray-200">
                             {lead.source.category.name}
@@ -956,53 +901,17 @@ export function LeadDetailPage({
                   </div>
                 </div>
 
-                {/* Comentarios Extras */}
+                {/* Sistema de Comentarios */}
                 <div>
-                  <div className="flex items-center justify-between mb-5">
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                      Comentarios Extras
-                    </h3>
-                    {!isEditing && canEditLeads && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={handleEditComments}
-                      >
-                        <PenLine className="h-4 w-4 mr-2" />
-                        Editar
-                      </Button>
-                    )}
-                  </div>
-                  <Textarea
-                    placeholder="Añadir comentarios adicionales sobre este lead..."
-                    className="min-h-[120px] resize-none text-gray-800 dark:text-gray-200"
-                    value={comments}
-                    onChange={handleCommentsChange}
-                    disabled={!isEditing || !canEditLeads}
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-5">
+                    Comentarios
+                  </h3>
+                  <CommentList
+                    leadId={lead.id}
+                    leadAssignedToId={lead.assignedToId || ""}
+                    currentUser={currentUser}
+                    extraComments={lead.extraComments}
                   />
-                  {isEditing && canEditLeads && (
-                    <div className="flex justify-end mt-3 gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={handleCancelEdit}
-                      >
-                        <X className="h-4 w-4 mr-2" />
-                        Cancelar
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                        onClick={handleSaveComments}
-                        disabled={!hasChanges || updateLeadMutation.isPending}
-                      >
-                        {updateLeadMutation.isPending && (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        )}
-                        Guardar comentarios
-                      </Button>
-                    </div>
-                  )}
                 </div>
               </TabsContent>
 
