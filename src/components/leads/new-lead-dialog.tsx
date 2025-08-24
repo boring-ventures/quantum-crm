@@ -41,6 +41,7 @@ import {
   Plus,
 } from "lucide-react";
 import { DuplicateConfirmationDialog } from "./duplicate-confirmation-dialog";
+import { PulsatingButton } from "@/components/magicui/pulsating-button";
 
 // Esquema de validación para el formulario
 const newLeadSchema = z.object({
@@ -778,13 +779,15 @@ export function NewLeadDialog({
                 Cancelar
               </Button>
 
-              <Button
+              <PulsatingButton
                 type="submit"
                 className="h-10 px-6 bg-primary hover:bg-primary/90"
                 disabled={isPending}
+                pulseColor="hsl(var(--primary))"
+                duration="2s"
               >
                 {isPending ? "Creando..." : "Crear Lead"}
-              </Button>
+              </PulsatingButton>
             </DialogFooter>
           </form>
         </DialogContent>

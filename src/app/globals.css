@@ -107,6 +107,9 @@ body {
     --sidebar-border: 220 40% 15%;
     --sidebar-ring: 217 90% 60%;
   }
+  .theme {
+    --animate-pulse: pulse var(--duration) ease-out infinite;
+  }
 }
 
 @layer base {
@@ -124,5 +127,16 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@theme inline {
+  @keyframes pulse {
+  0%, 100% {
+    boxShadow: 0 0 0 0 var(--pulse-color);
+    }
+  50% {
+    boxShadow: 0 0 0 8px var(--pulse-color);
+    }
   }
 }
