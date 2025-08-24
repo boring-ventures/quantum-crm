@@ -39,6 +39,9 @@ import {
   Phone,
   Building2,
   Plus,
+  Thermometer,
+  ThermometerSun,
+  Flame,
 } from "lucide-react";
 import { DuplicateConfirmationDialog } from "./duplicate-confirmation-dialog";
 import { PulsatingButton } from "@/components/magicui/pulsating-button";
@@ -741,12 +744,47 @@ export function NewLeadDialog({
                       onValueChange={(value) => setValue("interest", value)}
                     >
                       <SelectTrigger className="h-10 bg-background border-border focus:ring-2 focus:ring-primary/20">
-                        <SelectValue placeholder="Seleccionar grado de interés" />
+                        <SelectValue placeholder="Seleccionar grado de interés">
+                          {watch("interest") && (
+                            <div className="flex items-center gap-2">
+                              {watch("interest") === "3" && (
+                                <Flame className="h-4 w-4 text-orange-500" />
+                              )}
+                              {watch("interest") === "2" && (
+                                <ThermometerSun className="h-4 w-4 text-yellow-500" />
+                              )}
+                              {watch("interest") === "1" && (
+                                <Thermometer className="h-4 w-4 text-blue-500" />
+                              )}
+                              {watch("interest") === "3" && "Caliente"}
+                              {watch("interest") === "2" && "Tibio"}
+                              {watch("interest") === "1" && "Frío"}
+                            </div>
+                          )}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent className="bg-background border-border">
-                        <SelectItem value="3">Alto</SelectItem>
-                        <SelectItem value="2">Medio</SelectItem>
-                        <SelectItem value="1">Bajo</SelectItem>
+                        <SelectItem
+                          value="3"
+                          className="flex items-center gap-2"
+                        >
+                          <Flame className="h-4 w-4 text-orange-500" />
+                          Caliente
+                        </SelectItem>
+                        <SelectItem
+                          value="2"
+                          className="flex items-center gap-2"
+                        >
+                          <ThermometerSun className="h-4 w-4 text-yellow-500" />
+                          Tibio
+                        </SelectItem>
+                        <SelectItem
+                          value="1"
+                          className="flex items-center gap-2"
+                        >
+                          <Thermometer className="h-4 w-4 text-blue-500" />
+                          Frío
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
