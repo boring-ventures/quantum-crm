@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -29,11 +29,17 @@ import {
 } from "@/lib/hooks";
 import { useProducts } from "@/lib/hooks/use-products";
 import { useAuth } from "@/providers/auth-provider";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import type { CreateLeadPayload, Product } from "@/types/lead";
-import { Search } from "lucide-react";
+import {
+  Search,
+  ChevronDown,
+  ChevronRight,
+  User,
+  Phone,
+  Building2,
+  Plus,
+} from "lucide-react";
 import { DuplicateConfirmationDialog } from "./duplicate-confirmation-dialog";
 
 // Esquema de validación para el formulario
@@ -60,7 +66,7 @@ type FormData = z.infer<typeof newLeadSchema>;
 interface NewLeadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  preassignedUserId?: string; // ID de vendedor pre-asignado (para administradores)
+  preassignedUserId?: string;
 }
 
 export function NewLeadDialog({
@@ -71,11 +77,15 @@ export function NewLeadDialog({
   const { toast } = useToast();
   const { user } = useAuth();
   const [isPending, setIsPending] = useState(false);
-  const [currentStep, setCurrentStep] = useState<
-    "personal" | "contact" | "business"
-  >("personal");
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [pendingFormData, setPendingFormData] = useState<FormData | null>(null);
+
+  // Collapsible sections state
+  const [expandedSections, setExpandedSections] = useState({
+    personal: true,
+    contact: true,
+    business: true,
+  });
 
   // Búsqueda para dropdowns
   const [searchProduct, setSearchProduct] = useState("");
@@ -122,7 +132,6 @@ export function NewLeadDialog({
   const watchedStatusId = watch("statusId");
   const watchedSourceId = watch("sourceId");
   const watchedProductId = watch("productId");
-  const watchedCellphone = watch("cellphone");
 
   // Estado para almacenar leads duplicados encontrados
   const [duplicateLeads, setDuplicateLeads] = useState<any[]>([]);
@@ -175,9 +184,8 @@ export function NewLeadDialog({
         description: "El lead se ha creado correctamente.",
       });
 
-      reset(); // Limpiar el formulario
-      setCurrentStep("personal"); // Reiniciar al primer paso
-      onOpenChange(false); // Cerrar el diálogo
+      reset();
+      onOpenChange(false);
     } catch (error: any) {
       console.error("Error creating lead:", error);
       toast({
@@ -239,18 +247,6 @@ export function NewLeadDialog({
     await createLead(data);
   };
 
-  // Manejar la navegación entre pasos
-  const handleNextStep = () => {
-    if (currentStep === "personal") setCurrentStep("contact");
-    else if (currentStep === "contact") setCurrentStep("business");
-  };
-
-  // Manejar la navegación hacia atrás
-  const handlePrevStep = () => {
-    if (currentStep === "business") setCurrentStep("contact");
-    else if (currentStep === "contact") setCurrentStep("personal");
-  };
-
   // Manejar la confirmación de crear lead duplicado
   const handleConfirmDuplicate = async () => {
     if (!pendingFormData) return;
@@ -264,7 +260,6 @@ export function NewLeadDialog({
   const handleCancelDuplicate = () => {
     setShowDuplicateDialog(false);
     setPendingFormData(null);
-    // No hacer nada más, el usuario vuelve al dialog principal
   };
 
   const [sourceDropdownOpen, setSourceDropdownOpen] = useState(false);
@@ -272,441 +267,524 @@ export function NewLeadDialog({
   const [productDropdownOpen, setProductDropdownOpen] = useState(false);
 
   // Para cada autocomplete, usar un estado para el texto de búsqueda y mostrar el nombre seleccionado cuando el dropdown está cerrado
-  // Fuente
   const selectedSource = sources?.find((s) => s.id === watchedSourceId);
   const sourceInputValue = sourceDropdownOpen
     ? searchSource
     : selectedSource?.name || "";
-  // Estado
+
   const selectedStatus = statuses?.find((s) => s.id === watchedStatusId);
   const statusInputValue = statusDropdownOpen
     ? searchStatus
     : selectedStatus?.name || "";
-  // Producto
+
   const selectedProduct = products?.find((p) => p.id === watchedProductId);
   const productInputValue = productDropdownOpen
     ? searchProduct
     : selectedProduct?.name || "";
 
+  // Toggle section expansion
+  const toggleSection = (section: keyof typeof expandedSections) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
+
+  // Toggle dropdown functions with proper toggle behavior
+  const toggleSourceDropdown = () => {
+    setSourceDropdownOpen(!sourceDropdownOpen);
+    if (sourceDropdownOpen) {
+      setSearchSource("");
+    }
+  };
+
+  const toggleStatusDropdown = () => {
+    setStatusDropdownOpen(!statusDropdownOpen);
+    if (statusDropdownOpen) {
+      setSearchStatus("");
+    }
+  };
+
+  const toggleProductDropdown = () => {
+    setProductDropdownOpen(!productDropdownOpen);
+    if (productDropdownOpen) {
+      setSearchProduct("");
+    }
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[600px] bg-background border-border dark:bg-gray-900 dark:border-gray-800">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-semibold text-foreground dark:text-gray-100">
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto bg-background border-border">
+          <DialogHeader className="pb-4">
+            <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
+              <Plus className="h-7 w-7 text-primary" />
               Nuevo Lead
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-4">
-            <div className="flex w-full border-b border-border dark:border-gray-800">
-              <div
-                className={`py-2 px-4 cursor-pointer font-medium ${
-                  currentStep === "personal"
-                    ? "border-b-2 border-primary text-primary"
-                    : "text-muted-foreground"
-                }`}
-                onClick={() => setCurrentStep("personal")}
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            {/* Personal Information Section */}
+            <div className="space-y-4">
+              <button
+                type="button"
+                onClick={() => toggleSection("personal")}
+                className="flex items-center justify-between w-full text-left text-lg font-bold text-foreground hover:text-primary transition-colors"
               >
-                Información Personal
-              </div>
-              <div
-                className={`py-2 px-4 cursor-pointer font-medium ${
-                  currentStep === "contact"
-                    ? "border-b-2 border-primary text-primary"
-                    : "text-muted-foreground"
-                }`}
-                onClick={() => setCurrentStep("contact")}
-              >
-                Contacto
-              </div>
-              <div
-                className={`py-2 px-4 cursor-pointer font-medium ${
-                  currentStep === "business"
-                    ? "border-b-2 border-primary text-primary"
-                    : "text-muted-foreground"
-                }`}
-                onClick={() => setCurrentStep("business")}
-              >
-                Negocio
-              </div>
-            </div>
-
-            {/* Paso 1: Información Personal */}
-            {currentStep === "personal" && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="firstName">Nombre</Label>
-                    <Input
-                      id="firstName"
-                      placeholder="Nombre"
-                      className="bg-input dark:bg-gray-800 dark:border-gray-700"
-                      {...register("firstName")}
-                    />
-                    {errors.firstName && (
-                      <p className="text-red-500 text-xs">
-                        {errors.firstName.message}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName">Apellido</Label>
-                    <Input
-                      id="lastName"
-                      placeholder="Apellido paterno"
-                      className="bg-input dark:bg-gray-800 dark:border-gray-700"
-                      {...register("lastName")}
-                    />
-                    {errors.lastName && (
-                      <p className="text-red-500 text-xs">
-                        {errors.lastName.message}
-                      </p>
-                    )}
-                  </div>
+                <div className="flex items-center gap-3">
+                  <User className="h-5 w-5 text-muted-foreground" />
+                  Información Personal
                 </div>
+                {expandedSections.personal ? (
+                  <ChevronDown className="h-5 w-5" />
+                ) : (
+                  <ChevronRight className="h-5 w-5" />
+                )}
+              </button>
 
-                <div className="space-y-2">
-                  <Label htmlFor="maternalLastName">Apellido materno</Label>
-                  <Input
-                    id="maternalLastName"
-                    placeholder="Apellido materno"
-                    className="bg-input dark:bg-gray-800 dark:border-gray-700"
-                    {...register("maternalLastName")}
-                  />
-                </div>
+              {expandedSections.personal && (
+                <div className="space-y-4 pl-4 border-l-2 border-muted">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="firstName"
+                        className="text-sm font-semibold text-foreground"
+                      >
+                        Nombre
+                      </Label>
+                      <Input
+                        id="firstName"
+                        placeholder="Nombre"
+                        className="h-10 bg-background border-border focus:ring-2 focus:ring-primary/20"
+                        {...register("firstName")}
+                      />
+                    </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Teléfono</Label>
-                    <Input
-                      id="phone"
-                      placeholder="Teléfono fijo"
-                      className="bg-input dark:bg-gray-800 dark:border-gray-700"
-                      {...register("phone")}
-                    />
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="lastName"
+                        className="text-sm font-semibold text-foreground"
+                      >
+                        Apellido
+                      </Label>
+                      <Input
+                        id="lastName"
+                        placeholder="Apellido paterno"
+                        className="h-10 bg-background border-border focus:ring-2 focus:ring-primary/20"
+                        {...register("lastName")}
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="cellphone">
-                      Celular <span className="text-red-500">*</span>
+                    <Label
+                      htmlFor="maternalLastName"
+                      className="text-sm font-semibold text-foreground"
+                    >
+                      Apellido materno
                     </Label>
                     <Input
-                      id="cellphone"
-                      placeholder="Celular"
-                      className="bg-input dark:bg-gray-800 dark:border-gray-700"
-                      {...register("cellphone")}
+                      id="maternalLastName"
+                      placeholder="Apellido materno"
+                      className="h-10 bg-background border-border focus:ring-2 focus:ring-primary/20"
+                      {...register("maternalLastName")}
                     />
-                    {errors.cellphone && (
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="phone"
+                        className="text-sm font-semibold text-foreground"
+                      >
+                        Teléfono
+                      </Label>
+                      <Input
+                        id="phone"
+                        placeholder="Teléfono fijo"
+                        className="h-10 bg-background border-border focus:ring-2 focus:ring-primary/20"
+                        {...register("phone")}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="cellphone"
+                        className="text-sm font-semibold text-foreground"
+                      >
+                        Celular <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="cellphone"
+                        placeholder="Celular"
+                        className="h-10 bg-background border-border focus:ring-2 focus:ring-primary/20"
+                        {...register("cellphone")}
+                      />
+                      {errors.cellphone && (
+                        <p className="text-red-500 text-xs">
+                          {errors.cellphone.message}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="email"
+                      className="text-sm font-semibold text-foreground"
+                    >
+                      Email
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="correo@ejemplo.com"
+                      className="h-10 bg-background border-border focus:ring-2 focus:ring-primary/20"
+                      {...register("email")}
+                    />
+                    {errors.email && (
                       <p className="text-red-500 text-xs">
-                        {errors.cellphone.message}
+                        {errors.email.message}
                       </p>
                     )}
                   </div>
                 </div>
+              )}
+            </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="correo@ejemplo.com"
-                    className="bg-input dark:bg-gray-800 dark:border-gray-700"
-                    {...register("email")}
-                  />
-                  {errors.email && (
-                    <p className="text-red-500 text-xs">
-                      {errors.email.message}
-                    </p>
-                  )}
+            {/* Contact Information Section */}
+            <div className="space-y-4">
+              <button
+                type="button"
+                onClick={() => toggleSection("contact")}
+                className="flex items-center justify-between w-full text-left text-lg font-bold text-foreground hover:text-primary transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <Phone className="h-5 w-5 text-muted-foreground" />
+                  Información de Contacto
                 </div>
-              </div>
-            )}
+                {expandedSections.contact ? (
+                  <ChevronDown className="h-5 w-5" />
+                ) : (
+                  <ChevronRight className="h-5 w-5" />
+                )}
+              </button>
 
-            {/* Paso 2: Contacto */}
-            {currentStep === "contact" && (
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="sourceId">
-                    Fuente <span className="text-red-500">*</span>
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      placeholder="Buscar fuente..."
-                      value={sourceInputValue}
-                      onChange={(e) => {
-                        setSearchSource(e.target.value);
-                        setSourceDropdownOpen(true);
-                        if (e.target.value === "") setValue("sourceId", "");
-                      }}
-                      className="bg-input dark:bg-gray-800 dark:border-gray-700 mb-2 pl-8"
-                      aria-label="Buscar fuente"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          if (searchSource && filteredSources?.length === 1) {
-                            setValue("sourceId", filteredSources[0].id);
-                            setSearchSource("");
-                            setSourceDropdownOpen(false);
-                            e.preventDefault();
-                          } else if (!searchSource) {
-                            setSourceDropdownOpen(true);
-                          }
-                        }
-                        if (e.key === "ArrowDown") setSourceDropdownOpen(true);
-                      }}
-                      onFocus={() => setSourceDropdownOpen(true)}
-                      autoComplete="off"
-                    />
-                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
-                    {sourceDropdownOpen && (
-                      <div className="absolute z-20 w-full bg-white dark:bg-gray-800 border rounded shadow max-h-96 overflow-auto">
-                        {(filteredSources || []).length === 0 && (
-                          <div className="px-3 py-2 text-muted-foreground text-sm">
-                            No hay coincidencias
-                          </div>
-                        )}
-                        {(filteredSources || []).map((source) => (
-                          <div
-                            key={source.id}
-                            className="cursor-pointer px-3 py-2 hover:bg-muted dark:hover:bg-gray-700"
-                            onClick={() => {
-                              setValue("sourceId", source.id);
+              {expandedSections.contact && (
+                <div className="space-y-4 pl-4 border-l-2 border-muted">
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="sourceId"
+                      className="text-sm font-semibold text-foreground"
+                    >
+                      Fuente <span className="text-red-500">*</span>
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        placeholder="Buscar fuente..."
+                        value={sourceInputValue}
+                        onChange={(e) => {
+                          setSearchSource(e.target.value);
+                          setSourceDropdownOpen(true);
+                          if (e.target.value === "") setValue("sourceId", "");
+                        }}
+                        className="h-10 bg-background border-border focus:ring-2 focus:ring-primary/20 pl-8 cursor-pointer"
+                        aria-label="Buscar fuente"
+                        onClick={toggleSourceDropdown}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            if (searchSource && filteredSources?.length === 1) {
+                              setValue("sourceId", filteredSources[0].id);
                               setSearchSource("");
                               setSourceDropdownOpen(false);
-                            }}
-                            tabIndex={0}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
+                              e.preventDefault();
+                            } else if (!searchSource) {
+                              setSourceDropdownOpen(true);
+                            }
+                          }
+                          if (e.key === "ArrowDown")
+                            setSourceDropdownOpen(true);
+                        }}
+                        onFocus={() => setSourceDropdownOpen(true)}
+                        autoComplete="off"
+                        readOnly
+                      />
+                      <Search className="absolute left-2 top-3 h-4 w-4 text-muted-foreground pointer-events-none" />
+                      {sourceDropdownOpen && (
+                        <div className="absolute z-20 w-full bg-background border rounded-lg shadow-lg max-h-48 overflow-auto">
+                          {(filteredSources || []).length === 0 && (
+                            <div className="px-3 py-2 text-muted-foreground text-sm">
+                              No hay coincidencias
+                            </div>
+                          )}
+                          {(filteredSources || []).map((source) => (
+                            <div
+                              key={source.id}
+                              className="cursor-pointer px-3 py-2 hover:bg-muted transition-colors"
+                              onClick={() => {
                                 setValue("sourceId", source.id);
                                 setSearchSource("");
                                 setSourceDropdownOpen(false);
-                              }
-                            }}
-                          >
-                            {source.name}
-                          </div>
-                        ))}
-                      </div>
+                              }}
+                              tabIndex={0}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  setValue("sourceId", source.id);
+                                  setSearchSource("");
+                                  setSourceDropdownOpen(false);
+                                }
+                              }}
+                            >
+                              {source.name}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {errors.sourceId && (
+                      <p className="text-red-500 text-xs">
+                        {errors.sourceId.message}
+                      </p>
                     )}
                   </div>
-                  {errors.sourceId && (
-                    <p className="text-red-500 text-xs">
-                      {errors.sourceId.message}
-                    </p>
-                  )}
-                </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="status">
-                    Estado <span className="text-red-500">*</span>
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      placeholder="Buscar estado..."
-                      value={statusInputValue}
-                      onChange={(e) => {
-                        setSearchStatus(e.target.value);
-                        setStatusDropdownOpen(true);
-                        if (e.target.value === "") setValue("statusId", "");
-                      }}
-                      className="bg-input dark:bg-gray-800 dark:border-gray-700 mb-2 pl-8"
-                      aria-label="Buscar estado"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          if (searchStatus && filteredStatuses?.length === 1) {
-                            setValue("statusId", filteredStatuses[0].id);
-                            setSearchStatus("");
-                            setStatusDropdownOpen(false);
-                            e.preventDefault();
-                          } else if (!searchStatus) {
-                            setStatusDropdownOpen(true);
-                          }
-                        }
-                        if (e.key === "ArrowDown") setStatusDropdownOpen(true);
-                      }}
-                      onFocus={() => setStatusDropdownOpen(true)}
-                      autoComplete="off"
-                    />
-                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
-                    {statusDropdownOpen && (
-                      <div className="absolute z-20 w-full bg-white dark:bg-gray-800 border rounded shadow max-h-96 overflow-auto">
-                        {(filteredStatuses || []).length === 0 && (
-                          <div className="px-3 py-2 text-muted-foreground text-sm">
-                            No hay coincidencias
-                          </div>
-                        )}
-                        {(filteredStatuses || []).map((status) => (
-                          <div
-                            key={status.id}
-                            className="cursor-pointer px-3 py-2 hover:bg-muted dark:hover:bg-gray-700 flex items-center"
-                            onClick={() => {
-                              setValue("statusId", status.id);
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="status"
+                      className="text-sm font-semibold text-foreground"
+                    >
+                      Estado <span className="text-red-500">*</span>
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        placeholder="Buscar estado..."
+                        value={statusInputValue}
+                        onChange={(e) => {
+                          setSearchStatus(e.target.value);
+                          setStatusDropdownOpen(true);
+                          if (e.target.value === "") setValue("statusId", "");
+                        }}
+                        className="h-10 bg-background border-border focus:ring-2 focus:ring-primary/20 pl-8 cursor-pointer"
+                        aria-label="Buscar estado"
+                        onClick={toggleStatusDropdown}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            if (
+                              searchStatus &&
+                              filteredStatuses?.length === 1
+                            ) {
+                              setValue("statusId", filteredStatuses[0].id);
                               setSearchStatus("");
                               setStatusDropdownOpen(false);
-                            }}
-                            tabIndex={0}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
+                              e.preventDefault();
+                            } else if (!searchStatus) {
+                              setStatusDropdownOpen(true);
+                            }
+                          }
+                          if (e.key === "ArrowDown")
+                            setStatusDropdownOpen(true);
+                        }}
+                        onFocus={() => setStatusDropdownOpen(true)}
+                        autoComplete="off"
+                        readOnly
+                      />
+                      <Search className="absolute left-2 top-3 h-4 w-4 text-muted-foreground pointer-events-none" />
+                      {statusDropdownOpen && (
+                        <div className="absolute z-20 w-full bg-background border rounded-lg shadow-lg max-h-48 overflow-auto">
+                          {(filteredStatuses || []).length === 0 && (
+                            <div className="px-3 py-2 text-muted-foreground text-sm">
+                              No hay coincidencias
+                            </div>
+                          )}
+                          {(filteredStatuses || []).map((status) => (
+                            <div
+                              key={status.id}
+                              className="cursor-pointer px-3 py-2 hover:bg-muted transition-colors flex items-center"
+                              onClick={() => {
                                 setValue("statusId", status.id);
                                 setSearchStatus("");
                                 setStatusDropdownOpen(false);
-                              }
-                            }}
-                          >
-                            <div
-                              className="w-2 h-2 rounded-full mr-2"
-                              style={{ backgroundColor: status.color }}
-                            />
-                            {status.name}
-                          </div>
-                        ))}
-                      </div>
+                              }}
+                              tabIndex={0}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  setValue("statusId", status.id);
+                                  setSearchStatus("");
+                                  setStatusDropdownOpen(false);
+                                }
+                              }}
+                            >
+                              <div
+                                className="w-2 h-2 rounded-full mr-2"
+                                style={{ backgroundColor: status.color }}
+                              />
+                              {status.name}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {errors.statusId && (
+                      <p className="text-red-500 text-xs">
+                        {errors.statusId.message}
+                      </p>
                     )}
                   </div>
-                  {errors.statusId && (
-                    <p className="text-red-500 text-xs">
-                      {errors.statusId.message}
-                    </p>
-                  )}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
-            {/* Paso 3: Negocio */}
-            {currentStep === "business" && (
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="productId">Producto de interés</Label>
-                  <div className="relative">
-                    <Input
-                      placeholder="Buscar producto..."
-                      value={productInputValue}
-                      onChange={(e) => {
-                        setSearchProduct(e.target.value);
-                        setProductDropdownOpen(true);
-                        if (e.target.value === "") setValue("productId", "");
-                      }}
-                      className="bg-input dark:bg-gray-800 dark:border-gray-700 mb-2 pl-8"
-                      aria-label="Buscar producto"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          if (searchProduct && filteredProducts?.length === 1) {
-                            setValue("productId", filteredProducts[0].id);
-                            setSearchProduct("");
-                            setProductDropdownOpen(false);
-                            e.preventDefault();
-                          } else if (!searchProduct) {
-                            setProductDropdownOpen(true);
-                          }
-                        }
-                        if (e.key === "ArrowDown") setProductDropdownOpen(true);
-                      }}
-                      onFocus={() => setProductDropdownOpen(true)}
-                      autoComplete="off"
-                    />
-                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
-                    {productDropdownOpen && (
-                      <div className="absolute z-20 w-full bg-white dark:bg-gray-800 border rounded shadow max-h-96 overflow-auto">
-                        {(filteredProducts || []).length === 0 && (
-                          <div className="px-3 py-2 text-muted-foreground text-sm">
-                            No hay coincidencias
-                          </div>
-                        )}
-                        {(filteredProducts || []).map((product) => (
-                          <div
-                            key={product.id}
-                            className="cursor-pointer px-3 py-2 hover:bg-muted dark:hover:bg-gray-700"
-                            onClick={() => {
-                              setValue("productId", product.id);
+            {/* Business Information Section */}
+            <div className="space-y-4">
+              <button
+                type="button"
+                onClick={() => toggleSection("business")}
+                className="flex items-center justify-between w-full text-left text-lg font-bold text-foreground hover:text-primary transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <Building2 className="h-5 w-5 text-muted-foreground" />
+                  Información de Negocio
+                </div>
+                {expandedSections.business ? (
+                  <ChevronDown className="h-5 w-5" />
+                ) : (
+                  <ChevronRight className="h-5 w-5" />
+                )}
+              </button>
+
+              {expandedSections.business && (
+                <div className="space-y-4 pl-4 border-l-2 border-muted">
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="productId"
+                      className="text-sm font-semibold text-foreground"
+                    >
+                      Producto de interés
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        placeholder="Buscar producto..."
+                        value={productInputValue}
+                        onChange={(e) => {
+                          setSearchProduct(e.target.value);
+                          setProductDropdownOpen(true);
+                          if (e.target.value === "") setValue("productId", "");
+                        }}
+                        className="h-10 bg-background border-border focus:ring-2 focus:ring-primary/20 pl-8 cursor-pointer"
+                        aria-label="Buscar producto"
+                        onClick={toggleProductDropdown}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            if (
+                              searchProduct &&
+                              filteredProducts?.length === 1
+                            ) {
+                              setValue("productId", filteredProducts[0].id);
                               setSearchProduct("");
                               setProductDropdownOpen(false);
-                            }}
-                            tabIndex={0}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
+                              e.preventDefault();
+                            } else if (!searchProduct) {
+                              setProductDropdownOpen(true);
+                            }
+                          }
+                          if (e.key === "ArrowDown")
+                            setProductDropdownOpen(true);
+                        }}
+                        onFocus={() => setProductDropdownOpen(true)}
+                        autoComplete="off"
+                        readOnly
+                      />
+                      <Search className="absolute left-2 top-3 h-4 w-4 text-muted-foreground pointer-events-none" />
+                      {productDropdownOpen && (
+                        <div className="absolute z-20 w-full bg-background border rounded-lg shadow-lg max-h-48 overflow-auto">
+                          {(filteredProducts || []).length === 0 && (
+                            <div className="px-3 py-2 text-muted-foreground text-sm">
+                              No hay coincidencias
+                            </div>
+                          )}
+                          {(filteredProducts || []).map((product) => (
+                            <div
+                              key={product.id}
+                              className="cursor-pointer px-3 py-2 hover:bg-muted transition-colors"
+                              onClick={() => {
                                 setValue("productId", product.id);
                                 setSearchProduct("");
                                 setProductDropdownOpen(false);
-                              }
-                            }}
-                          >
-                            {product.name}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                              }}
+                              tabIndex={0}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  setValue("productId", product.id);
+                                  setSearchProduct("");
+                                  setProductDropdownOpen(false);
+                                }
+                              }}
+                            >
+                              {product.name}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="interest"
+                      className="text-sm font-semibold text-foreground"
+                    >
+                      Grado de interés
+                    </Label>
+                    <Select
+                      value={watch("interest") || ""}
+                      onValueChange={(value) => setValue("interest", value)}
+                    >
+                      <SelectTrigger className="h-10 bg-background border-border focus:ring-2 focus:ring-primary/20">
+                        <SelectValue placeholder="Seleccionar grado de interés" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background border-border">
+                        <SelectItem value="3">Alto</SelectItem>
+                        <SelectItem value="2">Medio</SelectItem>
+                        <SelectItem value="1">Bajo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="extraComments"
+                      className="text-sm font-semibold text-foreground"
+                    >
+                      Comentarios
+                    </Label>
+                    <Textarea
+                      id="extraComments"
+                      placeholder="Agregar comentarios o notas importantes..."
+                      className="min-h-[100px] bg-background border-border focus:ring-2 focus:ring-primary/20 resize-none"
+                      {...register("extraComments")}
+                    />
                   </div>
                 </div>
+              )}
+            </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="interest">Grado de interés</Label>
-                  <Select
-                    value={watch("interest") || ""}
-                    onValueChange={(value) => setValue("interest", value)}
-                  >
-                    <SelectTrigger className="bg-input dark:bg-gray-800 dark:border-gray-700">
-                      <SelectValue placeholder="Seleccionar grado de interés" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-background dark:bg-gray-800 dark:border-gray-700">
-                      <SelectItem value="3">Alto</SelectItem>
-                      <SelectItem value="2">Medio</SelectItem>
-                      <SelectItem value="1">Bajo</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="extraComments">Comentarios</Label>
-                  <Textarea
-                    id="extraComments"
-                    placeholder="Agregar comentarios o notas importantes..."
-                    className="bg-input dark:bg-gray-800 dark:border-gray-700 min-h-[100px]"
-                    {...register("extraComments")}
-                  />
-                </div>
-              </div>
-            )}
-
-            <DialogFooter className="mt-6">
+            <DialogFooter className="pt-6 border-t border-border">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                className="bg-transparent dark:bg-gray-800 dark:border-gray-700"
+                className="h-10 px-6"
               >
                 Cancelar
               </Button>
 
-              {currentStep === "personal" && (
-                <Button
-                  type="button"
-                  onClick={handleNextStep}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  Siguiente
-                </Button>
-              )}
-
-              {currentStep === "contact" && (
-                <Button
-                  type="button"
-                  onClick={handleNextStep}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  Siguiente
-                </Button>
-              )}
-
-              {currentStep === "business" && (
-                <Button
-                  type="submit"
-                  className="bg-blue-600 hover:bg-blue-700"
-                  disabled={isPending}
-                >
-                  {isPending ? "Creando..." : "Crear Lead"}
-                </Button>
-              )}
+              <Button
+                type="submit"
+                className="h-10 px-6 bg-primary hover:bg-primary/90"
+                disabled={isPending}
+              >
+                {isPending ? "Creando..." : "Crear Lead"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
