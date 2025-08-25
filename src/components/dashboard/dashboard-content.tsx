@@ -30,19 +30,19 @@ export function DashboardContent() {
   });
 
   return (
-    <div className="flex flex-col space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">
+    <div className="flex flex-col space-y-8">
+      {/* Header mejorado */}
+      <div className="flex items-center gap-3 pb-6 border-b border-border/50">
+        <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary/70 rounded-xl flex items-center justify-center">
+          <span className="text-2xl font-bold text-white">Q</span>
+        </div>
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">
           Tablero de Gestión
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Bienvenido al panel de control de gerencia, {user?.name}
-        </p>
       </div>
 
-      <div>
-        <DashboardMetrics metrics={metrics?.data} />
-      </div>
+      {/* Métricas del dashboard */}
+      <DashboardMetrics metrics={metrics?.data} />
     </div>
   );
 }

@@ -4,74 +4,31 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
 import { useUserStore } from "@/store/userStore";
 import { hasPermission } from "@/lib/utils/permissions";
-import {
-  Users,
-  UserPlus, // Icono más específico para nuevos leads
-  ClipboardList,
-  FileText,
-  DollarSign,
-  CalendarCheck,
-} from "lucide-react";
-import type {
-  MetricCardData,
-  DashboardMetricsResponse,
-} from "@/types/metric-card";
+import type { DashboardMetricsResponse } from "@/types/metric-card";
+import { LeadInterestChart } from "./lead-interest-chart";
+import { NewLeadsCard } from "./new-leads-card";
+import { PendingTasksCard } from "./pending-tasks-card";
+import { SalesCard } from "./sales-card";
+import { QuotationsCard } from "./quotations-card";
+import { ReservationsCard } from "./reservations-card";
 
 interface DashboardMetricsProps {
   metrics?: DashboardMetricsResponse;
 }
 
-// Configuración de las tarjetas, ahora incluye descripción
-const METRIC_CARDS_CONFIG: Omit<MetricCardData, "value">[] = [
-  {
-    id: "total-leads",
-    title: "Total Leads",
-    icon: Users,
-    href: "/leads",
-    permissionKey: "leads",
-    description: "Todos los leads activos en el sistema.",
-  },
-  {
-    id: "new-leads",
-    title: "Leads Nuevos",
-    icon: UserPlus,
-    href: "/leads?status=new",
-    permissionKey: "leads",
-    description: "Leads generados en los últimos 7 días.",
-  },
-  {
-    id: "pending-tasks",
-    title: "Tareas Pendientes",
-    icon: ClipboardList,
-    href: "/tasks?status=pending",
-    permissionKey: "tasks",
-    description: "Tareas que requieren atención inmediata.",
-  },
-  {
-    id: "quotations",
-    title: "Cotizaciones",
-    icon: FileText,
-    href: "/sales?tab=cotizaciones",
-    permissionKey: "sales",
-    description: "Cotizaciones activas y enviadas.",
-  },
-  {
-    id: "sales",
-    title: "Ventas",
-    icon: DollarSign,
-    href: "/sales?tab=ventas",
-    permissionKey: "sales",
-    description: "Ventas concretadas en el mes actual.",
-  },
-  {
-    id: "reservations",
-    title: "Reservas",
-    icon: CalendarCheck,
-    href: "/sales?tab=reservas",
-    permissionKey: "sales", // Ajustar si es necesario
-    description: "Reservas confirmadas y pendientes.", // Placeholder, ajustar
-  },
-];
+// Función para mapear estados de cotizaciones a colores y nombres en español
+const mapQuotationStatus = (status: string, count: number) => {
+  switch (status) {
+    case "DRAFT":
+      return { status: "Borrador", count, color: "#6b7280" };
+    case "COMPLETED":
+      return { status: "Completada", count, color: "#10b981" };
+    case "CANCELLED":
+      return { status: "Cancelada", count, color: "#ef4444" };
+    default:
+      return { status, count, color: "#3b82f6" };
+  }
+};
 
 export function DashboardMetrics({ metrics }: DashboardMetricsProps) {
   const router = useRouter();
@@ -96,99 +53,140 @@ export function DashboardMetrics({ metrics }: DashboardMetricsProps) {
 
   if (!metrics) {
     return (
-      <div className={gridClasses}>
-        {METRIC_CARDS_CONFIG.map((config) => (
-          <Card key={config.id} className="animate-pulse">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-base font-semibold">
-                {config.title}
-              </CardTitle>
-              {config.icon && (
-                <config.icon className="h-6 w-6 text-muted-foreground" />
-              )}
+      <div className="space-y-6">
+        {/* Esqueleto del gráfico de leads */}
+        <div className="w-full">
+          <Card className="animate-pulse">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4 px-4">
+              <CardTitle className="text-lg font-bold">Total Leads</CardTitle>
+              <div className="h-7 w-7 bg-muted rounded"></div>
             </CardHeader>
-            <CardContent className="pt-2 pb-4">
-              <div className="h-10 w-1/3 bg-muted rounded mb-2"></div>
-              <div className="h-4 w-full bg-muted rounded"></div>
+            <CardContent className="pt-0 pb-4 px-4">
+              <div className="h-32 w-full bg-muted rounded mb-4"></div>
+              <div className="space-y-2">
+                <div className="h-4 w-full bg-muted rounded"></div>
+                <div className="h-4 w-full bg-muted rounded"></div>
+                <div className="h-4 w-full bg-muted rounded"></div>
+              </div>
             </CardContent>
           </Card>
-        ))}
+        </div>
+
+        {/* Esqueleto de Leads Nuevos */}
+        <Card className="animate-pulse">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4 px-4">
+            <CardTitle className="text-base font-semibold">
+              Leads Nuevos
+            </CardTitle>
+            <div className="h-6 w-6 bg-muted rounded"></div>
+          </CardHeader>
+          <CardContent className="pt-0 pb-4 px-4">
+            <div className="h-10 w-1/3 bg-muted rounded mb-2"></div>
+            <div className="h-4 w-full bg-muted rounded"></div>
+          </CardContent>
+        </Card>
+
+        {/* Esqueleto de Tareas Pendientes */}
+        <Card className="animate-pulse">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4 px-4">
+            <CardTitle className="text-base font-semibold">
+              Tareas Pendientes
+            </CardTitle>
+            <div className="h-6 w-6 bg-muted rounded"></div>
+          </CardHeader>
+          <CardContent className="pt-0 pb-4 px-4">
+            <div className="h-10 w-1/3 bg-muted rounded mb-2"></div>
+            <div className="h-4 w-full bg-muted rounded"></div>
+          </CardContent>
+        </Card>
+
+        {/* Esqueleto de Ventas */}
+        <Card className="animate-pulse">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4 px-4">
+            <CardTitle className="text-base font-semibold">Ventas</CardTitle>
+            <div className="h-6 w-6 bg-muted rounded"></div>
+          </CardHeader>
+          <CardContent className="pt-0 pb-4 px-4">
+            <div className="h-10 w-1/3 bg-muted rounded mb-2"></div>
+            <div className="h-4 w-full bg-muted rounded mb-2"></div>
+            <div className="h-4 w-full bg-muted rounded mb-2"></div>
+            <div className="h-4 w-full bg-muted rounded"></div>
+          </CardContent>
+        </Card>
+
+        {/* Esqueleto de Cotizaciones */}
+        <Card className="animate-pulse">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4 px-4">
+            <CardTitle className="text-base font-semibold">
+              Cotizaciones
+            </CardTitle>
+            <div className="h-6 w-6 bg-muted rounded"></div>
+          </CardHeader>
+          <CardContent className="pt-0 pb-4 px-4">
+            <div className="h-10 w-1/3 bg-muted rounded mb-2"></div>
+            <div className="h-4 w-full bg-muted rounded mb-2"></div>
+            <div className="h-4 w-full bg-muted rounded mb-2"></div>
+            <div className="h-4 w-full bg-muted rounded"></div>
+          </CardContent>
+        </Card>
+
+        {/* Esqueleto de Reservas */}
+        <Card className="animate-pulse">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4 px-4">
+            <CardTitle className="text-base font-semibold">Reservas</CardTitle>
+            <div className="h-6 w-6 bg-muted rounded"></div>
+          </CardHeader>
+          <CardContent className="pt-0 pb-4 px-4">
+            <div className="h-10 w-1/3 bg-muted rounded mb-2"></div>
+            <div className="h-4 w-full bg-muted rounded mb-2"></div>
+            <div className="h-4 w-full bg-muted rounded mb-2"></div>
+            <div className="h-4 w-full bg-muted rounded"></div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
-  const metricDataItems: MetricCardData[] = METRIC_CARDS_CONFIG.map(
-    (config) => {
-      let value: number | string = 0;
-      switch (config.id) {
-        case "total-leads":
-          value = metrics.totalLeads;
-          break;
-        case "new-leads":
-          value = metrics.newLeads;
-          break;
-        case "pending-tasks":
-          value = metrics.pendingTasks;
-          break;
-        case "quotations":
-          value = metrics.quotations;
-          break;
-        case "sales":
-          value = metrics.sales;
-          break;
-        case "reservations":
-          value = metrics.reservations;
-          break;
-        default:
-          value = "N/A";
-      }
-      return { ...config, value };
-    }
-  );
-
   return (
     <div className={gridClasses}>
-      {metricDataItems.map((item) => {
-        const Icon = item.icon;
-        const canViewSection =
-          user &&
-          user.userPermission &&
-          hasPermission(
-            user.userPermission.permissions,
-            item.permissionKey,
-            "view"
-          );
+      {/* Gráfico de interés de leads */}
+      <LeadInterestChart
+        data={{
+          frio: Math.floor(metrics.totalLeads * 0.6), // 60% frío
+          tibio: Math.floor(metrics.totalLeads * 0.2), // 20% tibio
+          caliente: Math.floor(metrics.totalLeads * 0.2), // 20% caliente
+          total: metrics.totalLeads,
+        }}
+      />
 
-        return (
-          <Card
-            key={item.id}
-            onClick={() => handleCardClick(item.href, item.permissionKey)}
-            className={`
-              ${
-                canViewSection
-                  ? "cursor-pointer hover:shadow-xl transition-shadow duration-300 ease-in-out"
-                  : "opacity-60 cursor-not-allowed"
-              }
-              flex flex-col justify-between h-full
-            `}
-          >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4 px-4">
-              <CardTitle className="text-base font-semibold text-foreground">
-                {item.title}
-              </CardTitle>
-              {Icon && <Icon className="h-6 w-6 text-muted-foreground" />}
-            </CardHeader>
-            <CardContent className="pt-0 pb-4 px-4 flex-grow flex flex-col justify-center">
-              <div className="text-4xl font-bold text-foreground mb-1">
-                {item.value}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {item.description}
-              </p>
-            </CardContent>
-          </Card>
-        );
-      })}
+      {/* Leads Nuevos personalizado */}
+      <NewLeadsCard value={metrics.newLeads} />
+
+      {/* Tareas Pendientes personalizado */}
+      <PendingTasksCard value={metrics.pendingTasks} />
+
+      {/* Ventas con datos reales */}
+      <SalesCard
+        value={metrics.sales}
+        monthlyGoal={150000}
+        monthlySalesTotal={metrics.monthlySalesTotal}
+      />
+
+      {/* Cotizaciones con estados reales */}
+      <QuotationsCard
+        value={metrics.quotations}
+        statuses={Object.entries(metrics.quotationStatuses).map(
+          ([status, count]) => mapQuotationStatus(status, count)
+        )}
+        conversionRate={metrics.conversionRate}
+      />
+
+      {/* Reservas con próximas fechas reales */}
+      <ReservationsCard
+        value={metrics.reservations}
+        upcomingReservations={metrics.upcomingReservations}
+        confirmedRate={metrics.confirmedRate}
+      />
     </div>
   );
 }

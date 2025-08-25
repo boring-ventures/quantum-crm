@@ -129,6 +129,7 @@ export async function POST(req: Request) {
     });
 
     let totalLeads, newLeads, pendingTasks, quotations, sales, reservations;
+    let quotationStatuses, salesData, reservationData;
 
     try {
       // Debug: contar todos los leads sin filtros para comparar
@@ -146,6 +147,7 @@ export async function POST(req: Request) {
         badLeadsCount,
       });
 
+      // Consultas básicas
       [totalLeads, newLeads, pendingTasks, quotations, sales, reservations] =
         await Promise.all([
           prisma.lead.count({
@@ -172,6 +174,46 @@ export async function POST(req: Request) {
             where: reservationFilters,
           }),
         ]);
+
+      // Datos adicionales para métricas dinámicas
+      [quotationStatuses, salesData, reservationData] = await Promise.all([
+        // Estados de cotizaciones
+        prisma.quotation.groupBy({
+          by: ["status"],
+          where: quotationFilters,
+          _count: { status: true },
+        }),
+        // Datos de ventas con montos
+        prisma.sale.aggregate({
+          where: saleFilters,
+          _sum: { amount: true },
+          _count: { id: true },
+        }),
+        // Próximas reservas (próximos 7 días)
+        prisma.reservation.findMany({
+          where: {
+            ...reservationFilters,
+            deliveryDate: {
+              gte: new Date(),
+              lte: new Date(new Date().setDate(new Date().getDate() + 7)),
+            },
+          },
+          select: {
+            id: true,
+            deliveryDate: true,
+            amount: true,
+            status: true,
+            lead: {
+              select: {
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+          orderBy: { deliveryDate: "asc" },
+          take: 5,
+        }),
+      ]);
     } catch (dbError) {
       console.log("[DASHBOARD_METRICS] Error en consultas de base de datos:");
       console.log(
@@ -190,13 +232,62 @@ export async function POST(req: Request) {
       reservations,
     });
 
+    // Procesar datos de cotizaciones
+    const quotationStatusCounts = quotationStatuses.reduce(
+      (acc, item) => {
+        acc[item.status] = item._count.status;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
+
+    // Calcular tasa de conversión (COMPLETED / total)
+    const conversionRate =
+      quotations > 0
+        ? Math.round(
+            ((quotationStatusCounts.COMPLETED || 0) / quotations) * 100
+          )
+        : 0;
+
+    // Calcular total de ventas del mes
+    const monthlySalesTotal = salesData._sum.amount || 0;
+    const monthlySalesCount = salesData._count.id || 0;
+
+    // Calcular tasa de confirmación de reservas
+    const confirmedReservations = reservationData.filter(
+      (r) => r.status === "COMPLETED"
+    ).length;
+    const confirmedRate =
+      reservations > 0
+        ? Math.round((confirmedReservations / reservations) * 100)
+        : 0;
+
     const responseData: DashboardMetricsResponse = {
       totalLeads,
       newLeads,
       pendingTasks,
       quotations,
-      sales,
+      sales: monthlySalesCount,
       reservations,
+      // Datos adicionales para métricas dinámicas
+      quotationStatuses: quotationStatusCounts,
+      conversionRate,
+      monthlySalesTotal: Number(monthlySalesTotal),
+      upcomingReservations: reservationData.map((r) => ({
+        id: r.id,
+        clientName:
+          `${r.lead.firstName || ""} ${r.lead.lastName || ""}`.trim() ||
+          "Cliente",
+        date: r.deliveryDate.toISOString(),
+        time: r.deliveryDate.toLocaleTimeString("es-ES", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        guests: 1, // Placeholder, no hay campo específico
+        status: r.status.toLowerCase() as "completed" | "draft" | "cancelled",
+        amount: Number(r.amount),
+      })),
+      confirmedRate,
     };
 
     console.log("[DASHBOARD_METRICS] Retornando respuesta exitosa");
