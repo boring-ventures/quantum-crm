@@ -3,15 +3,17 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { CalendarIcon, CheckCircle2, Clock } from "lucide-react";
+import { CalendarIcon, CheckCircle2, Clock, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
   useLeadTasks,
   useCreateTaskMutation,
   useUpdateTaskStatusMutation,
+  useUpdateTaskCompletionNotesMutation,
 } from "@/lib/hooks";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/components/ui/use-toast";
@@ -21,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Popover,
@@ -40,10 +43,15 @@ export function LeadTasks({ leadId }: LeadTasksProps) {
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [showCompletionNotesDialog, setShowCompletionNotesDialog] =
+    useState(false);
+  const [completionNotes, setCompletionNotes] = useState("");
+  const [taskToComplete, setTaskToComplete] = useState<any>(null);
 
   const { data: tasks, isLoading } = useLeadTasks(leadId);
   const createTaskMutation = useCreateTaskMutation();
   const updateTaskStatusMutation = useUpdateTaskStatusMutation();
+  const updateCompletionNotesMutation = useUpdateTaskCompletionNotesMutation();
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -99,6 +107,48 @@ export function LeadTasks({ leadId }: LeadTasksProps) {
       });
     } catch (error) {
       console.error("Error al actualizar estado de tarea:", error);
+    }
+  };
+
+  const handleCompleteTask = (task: any) => {
+    setTaskToComplete(task);
+    setShowCompletionNotesDialog(true);
+  };
+
+  const handleConfirmCompleteTask = async () => {
+    if (!taskToComplete || !completionNotes.trim()) return;
+
+    try {
+      // Primero actualizar el estado de la tarea
+      await updateTaskStatusMutation.mutateAsync({
+        taskId: taskToComplete.id,
+        leadId,
+        status: "COMPLETED",
+      });
+
+      // Luego actualizar las notas de finalización
+      await updateCompletionNotesMutation.mutateAsync({
+        taskId: taskToComplete.id,
+        leadId,
+        completionNotes: completionNotes.trim(),
+      });
+
+      toast({
+        title: "Tarea completada",
+        description:
+          "La tarea se ha completado correctamente con las notas de finalización",
+      });
+
+      setShowCompletionNotesDialog(false);
+      setCompletionNotes("");
+      setTaskToComplete(null);
+    } catch (error) {
+      console.error("Error al completar tarea:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo completar la tarea. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -219,9 +269,26 @@ export function LeadTasks({ leadId }: LeadTasksProps) {
                       {getPriorityBadge(task.priority)}
                     </div>
                     {task.description && (
-                      <p className="text-sm text-muted-foreground">
-                        {task.description}
-                      </p>
+                      <div className="space-y-2">
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded border-l-4 border-blue-500">
+                          <p className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-1">
+                            Notas al crear la tarea:
+                          </p>
+                          <p className="text-sm text-blue-800 dark:text-blue-200">
+                            {task.description}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    {task.completionNotes && (
+                      <div className="bg-green-50 dark:bg-green-900/20 p-2 rounded border-l-4 border-green-500">
+                        <p className="text-xs font-medium text-green-700 dark:text-green-300 mb-1">
+                          Notas de finalización:
+                        </p>
+                        <p className="text-sm text-green-800 dark:text-green-200">
+                          {task.completionNotes}
+                        </p>
+                      </div>
                     )}
                     <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
                       <div className="flex items-center gap-1">
@@ -244,7 +311,7 @@ export function LeadTasks({ leadId }: LeadTasksProps) {
                         variant="ghost"
                         size="sm"
                         className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                        onClick={() => handleStatusChange(task.id, "COMPLETED")}
+                        onClick={() => handleCompleteTask(task)}
                       >
                         <CheckCircle2 className="h-4 w-4 mr-1" />
                         Completar
@@ -263,6 +330,58 @@ export function LeadTasks({ leadId }: LeadTasksProps) {
           ))
         )}
       </div>
+
+      {/* Diálogo para notas de finalización */}
+      <Dialog
+        open={showCompletionNotesDialog}
+        onOpenChange={setShowCompletionNotesDialog}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Completar Tarea</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="completionNotes">
+                Notas de finalización <span className="text-red-500">*</span>
+              </Label>
+              <Textarea
+                id="completionNotes"
+                placeholder="Describe cómo se completó la tarea o agrega notas adicionales..."
+                value={completionNotes}
+                onChange={(e) => setCompletionNotes(e.target.value)}
+                className="min-h-[100px] resize-none"
+                required
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowCompletionNotesDialog(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleConfirmCompleteTask}
+              disabled={
+                !completionNotes.trim() ||
+                updateTaskStatusMutation.isPending ||
+                updateCompletionNotesMutation.isPending
+              }
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {updateTaskStatusMutation.isPending ||
+              updateCompletionNotesMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+              )}
+              Completar Tarea
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

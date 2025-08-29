@@ -75,6 +75,7 @@ export interface Task {
   assignedToId: string;
   completedAt?: string | null;
   description?: string;
+  completionNotes?: string;
   scheduledFor?: string | null;
 }
 

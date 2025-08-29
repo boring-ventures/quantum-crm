@@ -17,7 +17,7 @@ import { es } from "date-fns/locale";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { EditLeadDialog } from "@/components/leads/edit-lead-dialog";
-import { hasPermission } from "@/lib/utils/permissions";
+import { hasPermission, getScope } from "@/lib/utils/permissions";
 
 // Tipo para lead basado en el modelo de Prisma
 export type Lead = {
@@ -53,6 +53,8 @@ interface LeadCardProps {
 function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
   const canReadLeads = hasPermission(currentUser, "leads", "view");
   const canUpdateLeads = hasPermission(currentUser, "leads", "edit");
+  const leadsScope = getScope(currentUser, "leads", "edit");
+  const canEditLeads = canUpdateLeads && leadsScope === "all";
 
   // Verificar si el lead está cerrado
   const isLeadClosed = lead.isClosed || lead.isArchived;
@@ -311,7 +313,7 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
                       Abrir en nueva pestaña
                     </button>
                   </li>
-                  {canUpdateLeads && !isLeadClosed && (
+                  {canEditLeads && !isLeadClosed && (
                     <>
                       <li>
                         <button

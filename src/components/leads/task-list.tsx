@@ -22,6 +22,7 @@ import {
   useLeadTasks,
   useUpdateTaskStatusMutation,
   useDeleteTaskMutation,
+  useUpdateTaskCompletionNotesMutation,
 } from "@/lib/hooks";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -57,36 +58,62 @@ function TaskListItem({
   const { toast } = useToast();
   const updateTaskStatusMutation = useUpdateTaskStatusMutation();
   const deleteTaskMutation = useDeleteTaskMutation();
+  const updateCompletionNotesMutation = useUpdateTaskCompletionNotesMutation();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
+  const [showCompletionNotesDialog, setShowCompletionNotesDialog] =
+    useState(false);
+  const [completionNotes, setCompletionNotes] = useState("");
+  const [taskToComplete, setTaskToComplete] = useState<Task | null>(null);
 
   const [openNewTaskDialog, setOpenNewTaskDialog] = useState(false);
 
   const handleComplete = async () => {
     if (!isSeller) return;
 
+    setTaskToComplete(task);
+    setShowCompletionNotesDialog(true);
+  };
+
+  const handleConfirmCompleteTask = async () => {
+    if (!taskToComplete || !completionNotes.trim()) return;
+
     setIsUpdating(true);
     try {
+      // Primero actualizar el estado de la tarea
       await updateTaskStatusMutation.mutateAsync({
-        taskId: task.id,
-        leadId: task.leadId,
+        taskId: taskToComplete.id,
+        leadId: taskToComplete.leadId,
         status: "COMPLETED",
+      });
+
+      // Luego actualizar las notas de finalización
+      await updateCompletionNotesMutation.mutateAsync({
+        taskId: taskToComplete.id,
+        leadId: taskToComplete.leadId,
+        completionNotes: completionNotes.trim(),
       });
 
       toast({
         title: "Tarea completada",
-        description: "La tarea ha sido marcada como completada",
+        description:
+          "La tarea se ha completado correctamente con las notas de finalización",
       });
+
+      setShowCompletionNotesDialog(false);
+      setCompletionNotes("");
+      setTaskToComplete(null);
 
       onUpdate();
 
+      // Mostrar el diálogo para crear nueva tarea
       handleOpenNewTaskDialog(true);
     } catch (error) {
-      console.error("Error al actualizar tarea:", error);
+      console.error("Error al completar tarea:", error);
       toast({
         title: "Error",
-        description: "No se pudo actualizar el estado de la tarea",
+        description: "No se pudo completar la tarea. Inténtalo de nuevo.",
         variant: "destructive",
       });
     } finally {
@@ -156,8 +183,25 @@ function TaskListItem({
             </div>
           )}
           {task.description && (
-            <div className="mt-2 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 p-2 rounded-md">
-              {task.description}
+            <div className="mt-2 space-y-2">
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded-md border-l-4 border-blue-500">
+                <p className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-1">
+                  Notas al crear la tarea:
+                </p>
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  {task.description}
+                </p>
+              </div>
+            </div>
+          )}
+          {task.completionNotes && (
+            <div className="mt-2 bg-green-50 dark:bg-green-900/20 p-2 rounded-md border-l-4 border-green-500">
+              <p className="text-xs font-medium text-green-700 dark:text-green-300 mb-1">
+                Notas de finalización:
+              </p>
+              <p className="text-sm text-green-800 dark:text-green-200">
+                {task.completionNotes}
+              </p>
             </div>
           )}
         </div>
@@ -254,6 +298,58 @@ function TaskListItem({
         onOpenChange={setOpenNewTaskDialog}
         leadId={task.leadId}
       />
+
+      {/* Diálogo para notas de finalización */}
+      <Dialog
+        open={showCompletionNotesDialog}
+        onOpenChange={setShowCompletionNotesDialog}
+      >
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Completar Tarea</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="completionNotes" className="text-sm font-medium">
+                Notas de finalización <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                id="completionNotes"
+                placeholder="Describe cómo se completó la tarea o agrega notas adicionales..."
+                value={completionNotes}
+                onChange={(e) => setCompletionNotes(e.target.value)}
+                className="min-h-[100px] w-full resize-none rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                required
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowCompletionNotesDialog(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleConfirmCompleteTask}
+              disabled={
+                !completionNotes.trim() ||
+                updateTaskStatusMutation.isPending ||
+                updateCompletionNotesMutation.isPending
+              }
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {updateTaskStatusMutation.isPending ||
+              updateCompletionNotesMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <CheckCircle className="h-4 w-4 mr-2" />
+              )}
+              Completar Tarea
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

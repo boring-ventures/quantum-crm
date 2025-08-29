@@ -203,6 +203,48 @@ export const useDeleteTaskMutation = () => {
   });
 };
 
+// Actualizar las notas de finalización de una tarea
+export const useUpdateTaskCompletionNotesMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      taskId,
+      leadId,
+      completionNotes,
+    }: {
+      taskId: string;
+      leadId: string;
+      completionNotes: string;
+    }) => {
+      const response = await fetch(`/api/tasks/${taskId}/completion-notes`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ completionNotes }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message ||
+            errorData.error ||
+            "Error al actualizar notas de finalización"
+        );
+      }
+
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["leadTasks", variables.leadId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["tasks"],
+      });
+    },
+  });
+};
+
 // Obtener tareas de test drive del equipo para el calendario
 export const useTeamTestDriveTasks = (startDate?: Date, endDate?: Date) => {
   const queryParams = new URLSearchParams();

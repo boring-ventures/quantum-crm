@@ -293,7 +293,7 @@ export function TaskTypeDialog({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="description">
-                  Notas adicionales (opcional)
+                  Notas adicionales <span className="text-red-500">*</span>
                 </Label>
                 <Textarea
                   id="description"
@@ -301,6 +301,7 @@ export function TaskTypeDialog({
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="h-32 bg-gray-50 dark:bg-gray-800"
+                  required
                 />
               </div>
 
@@ -335,7 +336,7 @@ export function TaskTypeDialog({
                 Atrás
               </Button>
               <Button
-                disabled={createTaskMutation.isPending}
+                disabled={createTaskMutation.isPending || !description.trim()}
                 onClick={handleCreateTask}
                 className="bg-blue-600 hover:bg-blue-700 text-white"
               >

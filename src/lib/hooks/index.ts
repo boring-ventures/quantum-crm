@@ -16,6 +16,7 @@ import {
   useCreateTaskMutation,
   useUpdateTaskStatusMutation,
   useDeleteTaskMutation,
+  useUpdateTaskCompletionNotesMutation,
 } from "./use-tasks";
 
 export {
@@ -23,6 +24,7 @@ export {
   useCreateTaskMutation,
   useUpdateTaskStatusMutation,
   useDeleteTaskMutation,
+  useUpdateTaskCompletionNotesMutation,
 };
 
 // Exportar los hooks de comentarios

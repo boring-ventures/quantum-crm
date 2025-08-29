@@ -46,11 +46,12 @@ export function CloseLeadAction({
 
   const handleCloseLead = async () => {
     try {
-      // Determinar el motivo final basado en la selección
-      const finalReason =
-        selectedReason === "other"
-          ? customReason
-          : CLOSE_REASONS.find((r) => r.id === selectedReason)?.label || "";
+      // Construir el motivo final combinando la opción seleccionada con los detalles adicionales
+      const selectedReasonLabel =
+        CLOSE_REASONS.find((r) => r.id === selectedReason)?.label || "";
+      const finalReason = customReason.trim()
+        ? `${selectedReasonLabel}: ${customReason.trim()}`
+        : selectedReasonLabel;
 
       await updateLeadMutation.mutateAsync({
         id: leadId,
@@ -92,7 +93,7 @@ export function CloseLeadAction({
         <div className="py-4">
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
             Esta acción marcará el lead como cerrado. Selecciona un motivo para
-            el cierre.
+            el cierre y especifica detalles adicionales.
           </p>
 
           <RadioGroup
@@ -110,9 +111,9 @@ export function CloseLeadAction({
             ))}
           </RadioGroup>
 
-          {selectedReason === "other" && (
+          {selectedReason && (
             <Textarea
-              placeholder="Especifica el motivo del cierre..."
+              placeholder="Especifica detalles adicionales sobre el motivo del cierre..."
               value={customReason}
               onChange={(e) => setCustomReason(e.target.value)}
               className="min-h-[100px] resize-none mt-4"
@@ -131,7 +132,7 @@ export function CloseLeadAction({
             disabled={
               updateLeadMutation.isPending ||
               !selectedReason ||
-              (selectedReason === "other" && !customReason.trim())
+              !customReason.trim()
             }
           >
             {updateLeadMutation.isPending ? (
