@@ -21,6 +21,8 @@ interface CloseLeadActionProps {
   leadId: string;
   open: boolean;
   onClose: () => void;
+  leadData?: any; // Para poder acceder al nombre del lead
+  onLeadClosed?: () => void; // Callback cuando se cierra exitosamente
 }
 
 // Motivos predefinidos de cierre
@@ -37,6 +39,8 @@ export function CloseLeadAction({
   leadId,
   open,
   onClose,
+  leadData,
+  onLeadClosed,
 }: CloseLeadActionProps) {
   const [selectedReason, setSelectedReason] = useState("");
   const [customReason, setCustomReason] = useState("");
@@ -62,16 +66,31 @@ export function CloseLeadAction({
         },
       });
 
-      toast({
-        title: "Lead cerrado",
-        description: "El lead ha sido cerrado correctamente",
-      });
-
       // Invalidar consultas para actualizar la UI
       queryClient.invalidateQueries({ queryKey: ["leads", leadId] });
       queryClient.invalidateQueries({ queryKey: ["leads"] });
 
+      // Mostrar nombre o código del lead
+      const leadName = leadData?.firstName && leadData?.lastName 
+        ? `${leadData.firstName} ${leadData.lastName}`
+        : leadData?.firstName || leadData?.lastName || `Sin nombre - ${leadId.slice(-4)}`;
+
+      toast({
+        title: "Lead cerrado exitosamente",
+        description: `El lead '${leadName}' ha sido cerrado.`,
+      });
+
       onClose();
+      
+      // Ejecutar callback si existe
+      if (onLeadClosed) {
+        onLeadClosed();
+      }
+      
+      // Cerrar la pestaña si está en una nueva
+      if (window.opener) {
+        setTimeout(() => window.close(), 500);
+      }
     } catch (error) {
       console.error("Error al cerrar el lead:", error);
       toast({

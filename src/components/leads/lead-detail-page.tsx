@@ -625,13 +625,27 @@ export function LeadDetailPage({
         },
       });
 
+      // Invalidar las consultas para actualizar la lista principal
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["leads", lead.id] });
+
+      // Mostrar nombre o código del lead
+      const leadName = lead.firstName && lead.lastName 
+        ? `${lead.firstName} ${lead.lastName}`
+        : lead.firstName || lead.lastName || `Sin nombre - ${lead.id.slice(-4)}`;
+
       toast({
-        title: "Lead archivado",
-        description: "El lead ha sido archivado correctamente.",
+        title: "Lead archivado exitosamente",
+        description: `El lead '${leadName}' ha sido archivado.`,
       });
 
-      // Redirigir de vuelta a la lista de leads
-      onBack();
+      // Cerrar la pestaña actual si está en una nueva pestaña
+      if (window.opener) {
+        window.close();
+      } else {
+        // Redirigir de vuelta a la lista de leads
+        onBack();
+      }
     } catch (error: any) {
       console.error("Error al archivar el lead:", error);
       toast({
@@ -1363,6 +1377,14 @@ export function LeadDetailPage({
         leadId={lead.id}
         open={showCloseLeadDialog}
         onClose={() => setShowCloseLeadDialog(false)}
+        leadData={lead}
+        onLeadClosed={() => {
+          if (window.opener) {
+            window.close();
+          } else {
+            onBack();
+          }
+        }}
       />
 
       {/* Diálogo de detalles de tarea */}

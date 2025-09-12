@@ -55,6 +55,10 @@ export const useLeadsQuery = (filters: LeadsFilter = {}) => {
     // Siempre permitimos la ejecución de la consulta para soportar casos donde
     // se desea obtener todos los leads (sin filtros de vendedor o país).
     enabled: true,
+    // Refrescar automáticamente cada 10 segundos para detectar cambios
+    refetchInterval: 10000,
+    // Refrescar cuando la ventana recupera el foco
+    refetchOnWindowFocus: true,
   });
 };
 

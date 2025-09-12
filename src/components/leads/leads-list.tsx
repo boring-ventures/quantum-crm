@@ -150,9 +150,13 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
     }
   };
 
-  const handleCardClick = () => {
-    // Siempre navegar al detalle del lead
-    router.push(`/leads/${lead.id}`);
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Prevenir comportamiento por defecto
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Abrir el lead en una nueva pestaña
+    window.open(`/leads/${lead.id}`, '_blank');
   };
 
   const handleToggleFavorite = async (e: React.MouseEvent) => {
@@ -204,7 +208,7 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
             ? "border-red-500 dark:border-red-400"
             : "border-gray-200 dark:border-gray-700"
         }`}
-        onClick={handleCardClick}
+        onClick={(e) => handleCardClick(e)}
       >
         {isLoadingUpdatedLead && (
           <div className="absolute inset-0 flex items-center justify-center">
@@ -233,7 +237,7 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
                       ? lead.firstName
                       : lead.lastName
                         ? lead.lastName
-                        : "Lead sin nombre"}
+                        : `Sin nombre - ${lead.id.slice(-4)}`}
                 </h3>
                 <Star
                   className={`h-5 w-5 ml-2 ${
@@ -294,25 +298,13 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
                         onClick={(e) => {
                           e.stopPropagation();
                           setShowDropdown(false);
-                          handleCardClick();
+                          window.open(`/leads/${lead.id}`, "_blank");
                         }}
                       >
                         Ver detalles
                       </button>
                     </li>
                   )}
-                  <li>
-                    <button
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowDropdown(false);
-                        window.open(`/leads/${lead.id}`, "_blank");
-                      }}
-                    >
-                      Abrir en nueva pestaña
-                    </button>
-                  </li>
                   {canEditLeads && !isLeadClosed && (
                     <>
                       <li>
@@ -694,11 +686,24 @@ export function LeadsList({
   if (searchTerm) {
     const search = searchTerm.toLowerCase();
     filteredLeads = filteredLeads.filter(
-      (lead) =>
-        lead.firstName.toLowerCase().includes(search) ||
-        lead.lastName.toLowerCase().includes(search) ||
-        (lead.email && lead.email.toLowerCase().includes(search)) ||
-        (lead.cellphone && lead.cellphone.toLowerCase().includes(search))
+      (lead) => {
+        // Buscar por nombre y apellido
+        if (lead.firstName && lead.firstName.toLowerCase().includes(search)) return true;
+        if (lead.lastName && lead.lastName.toLowerCase().includes(search)) return true;
+        
+        // Buscar por email y celular
+        if (lead.email && lead.email.toLowerCase().includes(search)) return true;
+        if (lead.cellphone && lead.cellphone.toLowerCase().includes(search)) return true;
+        
+        // Buscar por código (últimos 4 dígitos del ID) para leads sin nombre
+        const leadCode = lead.id.slice(-4);
+        if (leadCode.toLowerCase().includes(search)) return true;
+        
+        // Si no tiene nombre, buscar por el texto "sin nombre"
+        if (!lead.firstName && !lead.lastName && "sin nombre".includes(search)) return true;
+        
+        return false;
+      }
     );
   }
 
