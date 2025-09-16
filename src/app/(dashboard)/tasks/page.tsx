@@ -26,6 +26,7 @@ import {
   PlayCircle,
   Target,
   ListTodo,
+  Download,
 } from "lucide-react";
 import { TaskCalendar } from "./components/task-calendar";
 import { TaskModal } from "./components/task-modal";
@@ -52,6 +53,7 @@ export default function TasksPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isQuickViewModalOpen, setIsQuickViewModalOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
 
   // Obtener el usuario actual y sus permisos
@@ -235,6 +237,78 @@ export default function TasksPage() {
     setShowAllTasks(false);
   };
 
+  // Función para exportar tareas a Excel
+  const handleExportTasks = async () => {
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams();
+
+      // Agregar parámetros de búsqueda y filtros
+      if (searchQuery) {
+        params.append("search", searchQuery);
+      }
+
+      if (statusFilter !== "all") {
+        params.append("status", statusFilter);
+      }
+
+      // Aplicar filtros según el scope y selección actual
+      if (showAllTasks) {
+        params.append("showAllTasks", "true");
+        if (tasksScope === "team" && currentUser?.countryId) {
+          params.append("countryId", currentUser.countryId);
+        }
+      } else if (selectedSellerId) {
+        params.append("assignedToId", selectedSellerId);
+      } else if (assignedToId) {
+        params.append("assignedToId", assignedToId);
+      } else if (tasksScope === "team" && currentUser?.countryId) {
+        params.append("countryId", currentUser.countryId);
+      }
+
+      const response = await fetch(`/api/tasks/export?${params.toString()}`);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Error al exportar las tareas");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+
+      const contentDisposition = response.headers.get("content-disposition");
+      let filename = "tareas.xlsx";
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+        if (filenameMatch && filenameMatch.length > 1) {
+          filename = filenameMatch[1];
+        }
+      }
+
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Exportación completada",
+        description: "El archivo de tareas se ha descargado exitosamente.",
+      });
+    } catch (err: any) {
+      console.error("Error exportando tareas:", err);
+      toast({
+        title: "Error en la exportación",
+        description: err.message || "Ha ocurrido un error al exportar las tareas.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   // Obtener el nombre del vendedor seleccionado
   const getSelectedSellerName = () => {
     if (!sellersData?.users || !selectedSellerId) return "Desconocido";
@@ -254,15 +328,31 @@ export default function TasksPage() {
             Gestiona y visualiza todas tus tareas programadas
           </p>
         </div>
-        {canCreateTasks && (
-          <Button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Nueva Tarea
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {canViewTasks && (
+            <Button
+              variant="outline"
+              onClick={handleExportTasks}
+              disabled={isExporting || isLoading}
+            >
+              {isExporting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="mr-2 h-4 w-4" />
+              )}
+              Exportar
+            </Button>
+          )}
+          {canCreateTasks && (
+            <Button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Nueva Tarea
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Selector de vendedor para administradores */}
