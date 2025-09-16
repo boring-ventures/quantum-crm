@@ -189,10 +189,28 @@ export function TaskCalendar({
   // Filtrar tareas por estado si se especifica - usar useMemo para evitar recálculos innecesarios
   const filteredTasks = useMemo(() => {
     console.log("[TaskCalendar] Filtrando tareas con status:", statusFilter);
-    const result =
-      statusFilter === "all"
-        ? tasks // Mostrar todas las tareas
-        : tasks.filter((task) => task.status === statusFilter);
+    
+    let result: Task[];
+    if (statusFilter === "all") {
+      // Mostrar todas las tareas con ordenamiento por prioridad de estado
+      result = [...tasks].sort((a, b) => {
+        const statusOrder = { "PENDING": 0, "IN_PROGRESS": 1, "COMPLETED": 2, "CANCELLED": 3 };
+        const statusA = statusOrder[a.status as keyof typeof statusOrder] ?? 4;
+        const statusB = statusOrder[b.status as keyof typeof statusOrder] ?? 4;
+        
+        // Primero ordenar por estado, luego por fecha de creación (más reciente primero)
+        if (statusA !== statusB) {
+          return statusA - statusB;
+        }
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+    } else {
+      // Filtrar por estado específico y ordenar por fecha de creación
+      result = tasks
+        .filter((task) => task.status === statusFilter)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
+    
     console.log("[TaskCalendar] Tareas filtradas por status:", result.length);
     return result;
   }, [tasks, statusFilter]);

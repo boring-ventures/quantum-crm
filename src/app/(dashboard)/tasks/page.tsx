@@ -49,7 +49,7 @@ import { Badge } from "@/components/ui/badge";
 export default function TasksPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("PENDING");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isQuickViewModalOpen, setIsQuickViewModalOpen] = useState(false);
