@@ -937,6 +937,30 @@ export default function SalesPage() {
               </div>
             </div>
 
+            <div className="py-4 border-t border-b border-gray-800">
+              <h3 className="font-medium mb-3">Información de Facturación</h3>
+              <div className="space-y-2">
+                <div>
+                  <span className="text-gray-400 text-sm">Nombre:</span>
+                  <span className="ml-2 font-medium">
+                    {item.lead?.firstName || "No disponible"} {item.lead?.lastName || ""}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-400 text-sm">Email:</span>
+                  <span className="ml-2">
+                    {item.lead?.email || "No disponible"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-400 text-sm">Carnet/NIT:</span>
+                  <span className="ml-2">
+                    {item.lead?.nitCarnet || "No disponible"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
             <div className="py-4 border-b border-gray-800">
               <h3 className="font-medium mb-3">
                 Detalles de {isSale ? "Venta" : "Reserva"}

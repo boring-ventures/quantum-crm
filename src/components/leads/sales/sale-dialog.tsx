@@ -27,6 +27,7 @@ import {
   useLeadReservation,
   useCreateDocumentMutation,
   useLeadQuotation,
+  useUpdateLeadMutation,
 } from "@/lib/hooks";
 import { uploadDocument } from "@/lib/supabase/upload-document";
 
@@ -51,6 +52,7 @@ export function SaleDialog({
   const { data: existingQuotation } = useLeadQuotation(leadId);
   const createSaleMutation = useCreateSaleMutation();
   const createDocumentMutation = useCreateDocumentMutation();
+  const updateLeadMutation = useUpdateLeadMutation();
 
   // Estado para datos de venta
   const [saldo, setSaldo] = useState("");
@@ -71,6 +73,12 @@ export function SaleDialog({
 
   const [notes, setNotes] = useState("");
 
+  // Estado para información de facturación
+  const [billingFirstName, setBillingFirstName] = useState("");
+  const [billingLastName, setBillingLastName] = useState("");
+  const [billingEmail, setBillingEmail] = useState("");
+  const [billingNitCarnet, setBillingNitCarnet] = useState("");
+
   // Estado para carga
   const [isUploading, setIsUploading] = useState(false);
 
@@ -80,6 +88,18 @@ export function SaleDialog({
       setPaymentMethod(existingReservation.paymentMethod || "");
     }
   }, [open, existingQuotation, existingReservation]);
+
+  // Poblar información de facturación desde los datos del lead
+  useEffect(() => {
+    if (open && leadName) {
+      // Extraer información del lead para precompletar los campos de facturación
+      const leadData = window.leadData || {};
+      setBillingFirstName(leadData.firstName || "");
+      setBillingLastName(leadData.lastName || "");
+      setBillingEmail(leadData.email || "");
+      setBillingNitCarnet(leadData.nitCarnet || "");
+    }
+  }, [open, leadName]);
 
   // Comprobar si ya hay una venta existente para saltar este paso
   useEffect(() => {
@@ -155,7 +175,11 @@ export function SaleDialog({
     parseFloat(saldo) >= 0 &&
     paymentMethod &&
     invoice &&
-    paymentReceipt;
+    paymentReceipt &&
+    billingFirstName.trim() &&
+    billingLastName.trim() &&
+    billingEmail.trim() &&
+    billingNitCarnet.trim();
 
   // Manejar envío del formulario
   const handleSubmit = async () => {
@@ -164,12 +188,21 @@ export function SaleDialog({
     setIsUploading(true);
 
     try {
-      // 1. Subir documentos
+      // 1. Actualizar información de facturación del lead
+      await updateLeadMutation.mutateAsync({
+        id: leadId,
+        firstName: billingFirstName,
+        lastName: billingLastName,
+        email: billingEmail,
+        nitCarnet: billingNitCarnet,
+      });
+
+      // 2. Subir documentos
       let saleContractUrl: string | undefined;
       let invoiceUrl: string | undefined;
       let paymentReceiptUrl: string | undefined;
 
-      // 1.1 Subir el contrato de venta (opcional)
+      // 2.1 Subir el contrato de venta (opcional)
       if (saleContract) {
         const contractData = await uploadDocument(
           saleContract,
@@ -189,7 +222,7 @@ export function SaleDialog({
         });
       }
 
-      // 1.2 Subir la factura (opcional)
+      // 2.2 Subir la factura (opcional)
       if (invoice) {
         const invoiceData = await uploadDocument(invoice, leadId, "invoice");
 
@@ -205,7 +238,7 @@ export function SaleDialog({
         });
       }
 
-      // 1.3 Subir el comprobante de pago (opcional)
+      // 2.3 Subir el comprobante de pago (opcional)
       if (paymentReceipt) {
         const receiptData = await uploadDocument(
           paymentReceipt,
@@ -225,7 +258,7 @@ export function SaleDialog({
         });
       }
 
-      // 2. Crear la venta
+      // 3. Crear la venta
       await createSaleMutation.mutateAsync({
         leadId,
         reservationId: existingReservation?.id,
@@ -238,7 +271,7 @@ export function SaleDialog({
         currency,
       });
 
-      // 3. Mostrar mensaje de éxito
+      // 4. Mostrar mensaje de éxito
       toast({
         title: "Venta registrada",
         description:
@@ -246,12 +279,12 @@ export function SaleDialog({
         variant: "default",
       });
 
-      // 4. Completar el proceso
+      // 5. Completar el proceso
       if (onComplete) {
         onComplete();
       }
 
-      // 5. Cerrar el diálogo
+      // 6. Cerrar el diálogo
       onClose();
     } catch (error) {
       console.error("Error al crear la venta:", error);
@@ -339,6 +372,50 @@ export function SaleDialog({
                     <SelectItem value="CHECK">Cheque</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Información de facturación */}
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-4">
+                <h3 className="text-lg font-medium">
+                  Información de Facturación <span className="text-red-500">*</span>
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Nombre <span className="text-red-500">*</span></Label>
+                    <Input
+                      value={billingFirstName}
+                      onChange={(e) => setBillingFirstName(e.target.value)}
+                      placeholder="Nombre para facturación"
+                    />
+                  </div>
+                  <div>
+                    <Label>Apellido <span className="text-red-500">*</span></Label>
+                    <Input
+                      value={billingLastName}
+                      onChange={(e) => setBillingLastName(e.target.value)}
+                      placeholder="Apellido para facturación"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Correo <span className="text-red-500">*</span></Label>
+                    <Input
+                      type="email"
+                      value={billingEmail}
+                      onChange={(e) => setBillingEmail(e.target.value)}
+                      placeholder="correo@ejemplo.com"
+                    />
+                  </div>
+                  <div>
+                    <Label>Carnet/NIT <span className="text-red-500">*</span></Label>
+                    <Input
+                      value={billingNitCarnet}
+                      onChange={(e) => setBillingNitCarnet(e.target.value)}
+                      placeholder="Número de carnet o NIT"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Factura - ahora obligatorio */}

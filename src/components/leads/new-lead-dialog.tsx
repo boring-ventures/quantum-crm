@@ -48,6 +48,7 @@ const newLeadSchema = z.object({
     .or(z.string().email("Email inválido")),
   phone: z.string().optional().nullable(),
   cellphone: z.string().min(1, "El celular es requerido"),
+  nitCarnet: z.string().optional().nullable(),
   productId: z.string().optional().nullable(),
   statusId: z.string().min(1, "El estado es requerido"),
   sourceId: z.string().min(1, "La fuente es requerida"),
@@ -98,6 +99,7 @@ export function NewLeadDialog({
     email: "",
     phone: "",
     cellphone: "",
+    nitCarnet: "",
     productId: "",
     interest: "",
     statusId: "",
@@ -159,6 +161,7 @@ export function NewLeadDialog({
         phone: data.phone || null,
         cellphone: data.cellphone,
         maternalLastName: data.maternalLastName || null,
+        nitCarnet: data.nitCarnet || null,
         productId: data.productId === "none" ? null : data.productId || null,
         statusId: data.statusId,
         sourceId: data.sourceId,
@@ -368,14 +371,31 @@ export function NewLeadDialog({
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="maternalLastName">Apellido materno</Label>
-                  <Input
-                    id="maternalLastName"
-                    placeholder="Apellido materno"
-                    className="bg-input dark:bg-gray-800 dark:border-gray-700"
-                    {...register("maternalLastName")}
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="maternalLastName">Apellido materno</Label>
+                    <Input
+                      id="maternalLastName"
+                      placeholder="Apellido materno"
+                      className="bg-input dark:bg-gray-800 dark:border-gray-700"
+                      {...register("maternalLastName")}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="nitCarnet">Carnet/NIT</Label>
+                    <Input
+                      id="nitCarnet"
+                      placeholder="Número de carnet o NIT"
+                      className="bg-input dark:bg-gray-800 dark:border-gray-700"
+                      {...register("nitCarnet")}
+                    />
+                    {errors.nitCarnet && (
+                      <p className="text-red-500 text-xs">
+                        {errors.nitCarnet.message}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

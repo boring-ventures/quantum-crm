@@ -126,6 +126,8 @@ model Lead {
   qualification    LeadQualification  @default(NOT_QUALIFIED) @map("qualification")
   isFavorite       Boolean            @default(false) @map("is_favorite")
   favoriteAt       DateTime?          @map("favorite_at")
+  nitCarnet        String?            @map("nit_carnet")
+  maternalLastName String?            @map("maternal_last_name")
   documents        Document[]
   assignedTo       User               @relation(fields: [assignedToId], references: [id])
   createdBy        User?              @relation("leadsCreated", fields: [createdById], references: [id], onUpdate: Cascade, onDelete: SetNull)

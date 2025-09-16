@@ -36,6 +36,7 @@ import {
   useLeadQuotation,
   useQuotationProducts,
   useCreateDocumentMutation,
+  useUpdateLeadMutation,
 } from "@/lib/hooks";
 import { uploadDocument } from "@/lib/supabase/upload-document";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,6 +64,7 @@ export function ReservationDialog({
     useQuotationProducts(existingQuotation?.id || "");
   const createReservationMutation = useCreateReservationMutation();
   const createDocumentMutation = useCreateDocumentMutation();
+  const updateLeadMutation = useUpdateLeadMutation();
 
   // Estado para datos de reserva
   const [reservationAmount, setReservationAmount] = useState("");
@@ -72,6 +74,12 @@ export function ReservationDialog({
   const [vehicleDetails, setVehicleDetails] = useState("");
   const [notes, setNotes] = useState("");
   const [currency, setCurrency] = useState("BOB");
+
+  // Estado para información de facturación
+  const [billingFirstName, setBillingFirstName] = useState("");
+  const [billingLastName, setBillingLastName] = useState("");
+  const [billingEmail, setBillingEmail] = useState("");
+  const [billingNitCarnet, setBillingNitCarnet] = useState("");
 
   // Estado para productos modificados
   const [modifiedProducts, setModifiedProducts] = useState<{
@@ -96,6 +104,18 @@ export function ReservationDialog({
 
   // Estado para carga
   const [isUploading, setIsUploading] = useState(false);
+
+  // Poblar información de facturación desde los datos del lead
+  useEffect(() => {
+    if (open && leadName) {
+      // Extraer información del lead para precompletar los campos de facturación
+      const leadData = window.leadData || {};
+      setBillingFirstName(leadData.firstName || "");
+      setBillingLastName(leadData.lastName || "");
+      setBillingEmail(leadData.email || "");
+      setBillingNitCarnet(leadData.nitCarnet || "");
+    }
+  }, [open, leadName]);
 
   const handlePriceChange = (productId: string, newPrice: number) => {
     setModifiedProducts((prev) => ({ ...prev, [productId]: newPrice }));
@@ -179,7 +199,11 @@ export function ReservationDialog({
     paymentMethod &&
     deliveryDate &&
     formDocument &&
-    depositDocument;
+    depositDocument &&
+    billingFirstName.trim() &&
+    billingLastName.trim() &&
+    billingEmail.trim() &&
+    billingNitCarnet.trim();
 
   // Manejar envío del formulario
   const handleSubmit = async () => {
@@ -188,12 +212,21 @@ export function ReservationDialog({
     setIsUploading(true);
 
     try {
+      // 1. Actualizar información de facturación del lead
+      await updateLeadMutation.mutateAsync({
+        id: leadId,
+        firstName: billingFirstName,
+        lastName: billingLastName,
+        email: billingEmail,
+        nitCarnet: billingNitCarnet,
+      });
+
       // Variables para almacenar las URLs de los documentos
       let reservationFormUrl = "";
       let depositReceiptUrl = "";
       let reservationContractUrl = "";
 
-      // 1. Subir documentos
+      // 2. Subir documentos
       if (formDocument) {
         const formDocUpload = await uploadDocument(
           formDocument,
@@ -248,7 +281,7 @@ export function ReservationDialog({
         });
       }
 
-      // 2. Crear la reserva
+      // 3. Crear la reserva
       await createReservationMutation.mutateAsync({
         leadId,
         quotationId: existingQuotation?.id || "",
@@ -268,18 +301,18 @@ export function ReservationDialog({
         currency,
       });
 
-      // 3. Mostrar mensaje de éxito
+      // 4. Mostrar mensaje de éxito
       toast({
         title: "Reserva creada",
         description: "La reserva se ha creado correctamente",
       });
 
-      // 4. Completar el proceso
+      // 5. Completar el proceso
       if (onComplete) {
         onComplete();
       }
 
-      // 5. Cerrar el diálogo
+      // 6. Cerrar el diálogo
       onClose();
     } catch (error) {
       console.error("Error al crear la reserva:", error);
@@ -319,6 +352,54 @@ export function ReservationDialog({
               No hay productos en la cotización
             </div>
           )}
+
+          {/* Información de facturación */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg font-medium">
+                Información de Facturación <span className="text-red-500">*</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Nombre <span className="text-red-500">*</span></Label>
+                  <Input
+                    value={billingFirstName}
+                    onChange={(e) => setBillingFirstName(e.target.value)}
+                    placeholder="Nombre para facturación"
+                  />
+                </div>
+                <div>
+                  <Label>Apellido <span className="text-red-500">*</span></Label>
+                  <Input
+                    value={billingLastName}
+                    onChange={(e) => setBillingLastName(e.target.value)}
+                    placeholder="Apellido para facturación"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Correo <span className="text-red-500">*</span></Label>
+                  <Input
+                    type="email"
+                    value={billingEmail}
+                    onChange={(e) => setBillingEmail(e.target.value)}
+                    placeholder="correo@ejemplo.com"
+                  />
+                </div>
+                <div>
+                  <Label>Carnet/NIT <span className="text-red-500">*</span></Label>
+                  <Input
+                    value={billingNitCarnet}
+                    onChange={(e) => setBillingNitCarnet(e.target.value)}
+                    placeholder="Número de carnet o NIT"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Detalles de la reserva */}
           <Card>

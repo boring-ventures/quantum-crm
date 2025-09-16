@@ -26,6 +26,7 @@ import {
   useCreateQuotationMutation,
   useCreateDocumentMutation,
   useLeadQuotation,
+  useUpdateLeadMutation,
 } from "@/lib/hooks";
 import { uploadDocument } from "@/lib/supabase/upload-document";
 
@@ -50,6 +51,7 @@ export function QuotationDialog({
     useLeadQuotation(leadId);
   const createQuotationMutation = useCreateQuotationMutation();
   const createDocumentMutation = useCreateDocumentMutation();
+  const updateLeadMutation = useUpdateLeadMutation();
   const { toast } = useToast();
 
   // Estado para productos añadidos
@@ -73,8 +75,26 @@ export function QuotationDialog({
   );
   const [currency, setCurrency] = useState("BOB");
 
+  // Estado para información de facturación
+  const [billingFirstName, setBillingFirstName] = useState("");
+  const [billingLastName, setBillingLastName] = useState("");
+  const [billingEmail, setBillingEmail] = useState("");
+  const [billingNitCarnet, setBillingNitCarnet] = useState("");
+
   // Estados para carga
   const [isUploading, setIsUploading] = useState(false);
+
+  // Poblar información de facturación desde los datos del lead
+  useEffect(() => {
+    if (open && leadName) {
+      // Extraer información del lead para precompletar los campos de facturación
+      const leadData = window.leadData || {};
+      setBillingFirstName(leadData.firstName || "");
+      setBillingLastName(leadData.lastName || "");
+      setBillingEmail(leadData.email || "");
+      setBillingNitCarnet(leadData.nitCarnet || "");
+    }
+  }, [open, leadName]);
 
   // Calcular total
   const total = productList.reduce(
@@ -144,7 +164,8 @@ export function QuotationDialog({
   };
 
   // Validar el formulario
-  const isFormValid = productList.length > 0 && total > 0 && proformaDoc;
+  const isFormValid = productList.length > 0 && total > 0 && proformaDoc && 
+    billingFirstName.trim() && billingLastName.trim() && billingEmail.trim() && billingNitCarnet.trim();
 
   // Comprobar si ya hay una cotización existente para saltar este paso
   // Si la hay, cerrar el diálogo y completar el paso automáticamente
@@ -166,14 +187,23 @@ export function QuotationDialog({
     setIsUploading(true);
 
     try {
-      // 1. Subir el documento a Supabase
+      // 1. Actualizar información de facturación del lead
+      await updateLeadMutation.mutateAsync({
+        id: leadId,
+        firstName: billingFirstName,
+        lastName: billingLastName,
+        email: billingEmail,
+        nitCarnet: billingNitCarnet,
+      });
+
+      // 2. Subir el documento a Supabase
       const documentData = await uploadDocument(
         proformaDoc,
         leadId,
         "proforma"
       );
 
-      // 2. Crear el registro del documento
+      // 3. Crear el registro del documento
       await createDocumentMutation.mutateAsync({
         leadId,
         name: proformaDoc.name,
@@ -182,7 +212,7 @@ export function QuotationDialog({
         url: documentData.url,
       });
 
-      // 3. Crear la cotización
+      // 4. Crear la cotización
       await createQuotationMutation.mutateAsync({
         leadId,
         totalAmount: total,
@@ -197,19 +227,19 @@ export function QuotationDialog({
         currency,
       });
 
-      // 4. Mostrar mensaje de éxito
+      // 5. Mostrar mensaje de éxito
       toast({
         title: "Cotización creada",
         description: "La cotización se ha creado correctamente",
         variant: "default",
       });
 
-      // 5. Completar el proceso
+      // 6. Completar el proceso
       if (onComplete) {
         onComplete();
       }
 
-      // 6. Cerrar el diálogo
+      // 7. Cerrar el diálogo
       onClose();
     } catch (error) {
       console.error("Error al crear cotización:", error);
@@ -377,6 +407,50 @@ export function QuotationDialog({
                 onChange={(e) => setNotes(e.target.value)}
                 className="min-h-[100px]"
               />
+            </div>
+
+            {/* Información de facturación */}
+            <div>
+              <Label className="block mb-4 text-lg font-medium">
+                Información de Facturación <span className="text-red-500">*</span>
+              </Label>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <Label>Nombre <span className="text-red-500">*</span></Label>
+                  <Input
+                    value={billingFirstName}
+                    onChange={(e) => setBillingFirstName(e.target.value)}
+                    placeholder="Nombre para facturación"
+                  />
+                </div>
+                <div>
+                  <Label>Apellido <span className="text-red-500">*</span></Label>
+                  <Input
+                    value={billingLastName}
+                    onChange={(e) => setBillingLastName(e.target.value)}
+                    placeholder="Apellido para facturación"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Correo <span className="text-red-500">*</span></Label>
+                  <Input
+                    type="email"
+                    value={billingEmail}
+                    onChange={(e) => setBillingEmail(e.target.value)}
+                    placeholder="correo@ejemplo.com"
+                  />
+                </div>
+                <div>
+                  <Label>Carnet/NIT <span className="text-red-500">*</span></Label>
+                  <Input
+                    value={billingNitCarnet}
+                    onChange={(e) => setBillingNitCarnet(e.target.value)}
+                    placeholder="Número de carnet o NIT"
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Documento de proforma */}

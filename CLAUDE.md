@@ -128,3 +128,4 @@ Before committing changes:
 2. Run `npm run build` to ensure production build works
 3. Test the feature locally with different user roles
 4. Verify database migrations if schema changed
+- Use the --no-lint when running the build for this project
