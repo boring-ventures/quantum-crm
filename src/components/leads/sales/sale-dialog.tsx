@@ -28,6 +28,7 @@ import {
   useCreateDocumentMutation,
   useLeadQuotation,
   useUpdateLeadMutation,
+  useLeadQuery,
 } from "@/lib/hooks";
 import { uploadDocument } from "@/lib/supabase/upload-document";
 
@@ -50,6 +51,7 @@ export function SaleDialog({
   const { data: existingSale, isLoading: saleLoading } = useLeadSale(leadId);
   const { data: existingReservation } = useLeadReservation(leadId);
   const { data: existingQuotation } = useLeadQuotation(leadId);
+  const { data: leadData } = useLeadQuery(leadId);
   const createSaleMutation = useCreateSaleMutation();
   const createDocumentMutation = useCreateDocumentMutation();
   const updateLeadMutation = useUpdateLeadMutation();
@@ -91,15 +93,13 @@ export function SaleDialog({
 
   // Poblar información de facturación desde los datos del lead
   useEffect(() => {
-    if (open && leadName) {
-      // Extraer información del lead para precompletar los campos de facturación
-      const leadData = window.leadData || {};
+    if (open && leadData) {
       setBillingFirstName(leadData.firstName || "");
       setBillingLastName(leadData.lastName || "");
       setBillingEmail(leadData.email || "");
       setBillingNitCarnet(leadData.nitCarnet || "");
     }
-  }, [open, leadName]);
+  }, [open, leadData]);
 
   // Comprobar si ya hay una venta existente para saltar este paso
   useEffect(() => {
@@ -191,10 +191,12 @@ export function SaleDialog({
       // 1. Actualizar información de facturación del lead
       await updateLeadMutation.mutateAsync({
         id: leadId,
-        firstName: billingFirstName,
-        lastName: billingLastName,
-        email: billingEmail,
-        nitCarnet: billingNitCarnet,
+        data: {
+          firstName: billingFirstName,
+          lastName: billingLastName,
+          email: billingEmail,
+          nitCarnet: billingNitCarnet,
+        }
       });
 
       // 2. Subir documentos

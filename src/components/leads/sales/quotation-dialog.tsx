@@ -27,6 +27,7 @@ import {
   useCreateDocumentMutation,
   useLeadQuotation,
   useUpdateLeadMutation,
+  useLeadQuery,
 } from "@/lib/hooks";
 import { uploadDocument } from "@/lib/supabase/upload-document";
 
@@ -49,6 +50,7 @@ export function QuotationDialog({
   const { data: products, isLoading: productsLoading } = useProducts();
   const { data: existingQuotation, isLoading: quotationLoading } =
     useLeadQuotation(leadId);
+  const { data: leadData } = useLeadQuery(leadId);
   const createQuotationMutation = useCreateQuotationMutation();
   const createDocumentMutation = useCreateDocumentMutation();
   const updateLeadMutation = useUpdateLeadMutation();
@@ -86,15 +88,13 @@ export function QuotationDialog({
 
   // Poblar información de facturación desde los datos del lead
   useEffect(() => {
-    if (open && leadName) {
-      // Extraer información del lead para precompletar los campos de facturación
-      const leadData = window.leadData || {};
+    if (open && leadData) {
       setBillingFirstName(leadData.firstName || "");
       setBillingLastName(leadData.lastName || "");
       setBillingEmail(leadData.email || "");
       setBillingNitCarnet(leadData.nitCarnet || "");
     }
-  }, [open, leadName]);
+  }, [open, leadData]);
 
   // Calcular total
   const total = productList.reduce(
@@ -190,10 +190,12 @@ export function QuotationDialog({
       // 1. Actualizar información de facturación del lead
       await updateLeadMutation.mutateAsync({
         id: leadId,
-        firstName: billingFirstName,
-        lastName: billingLastName,
-        email: billingEmail,
-        nitCarnet: billingNitCarnet,
+        data: {
+          firstName: billingFirstName,
+          lastName: billingLastName,
+          email: billingEmail,
+          nitCarnet: billingNitCarnet,
+        }
       });
 
       // 2. Subir el documento a Supabase

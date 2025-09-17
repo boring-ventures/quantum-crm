@@ -7,6 +7,8 @@ import { z } from "zod";
 const updateLeadSchema = z.object({
   firstName: z.string().optional().nullable(),
   lastName: z.string().optional().nullable(),
+  maternalLastName: z.string().optional().nullable(),
+  nitCarnet: z.string().optional().nullable(),
   email: z
     .string()
     .optional()
@@ -190,6 +192,10 @@ export async function PUT(
         data.firstName = normalizeEmptyStringToNull(validatedData.firstName);
       if (validatedData.lastName !== undefined)
         data.lastName = normalizeEmptyStringToNull(validatedData.lastName);
+      if (validatedData.maternalLastName !== undefined)
+        data.maternalLastName = normalizeEmptyStringToNull(validatedData.maternalLastName);
+      if (validatedData.nitCarnet !== undefined)
+        data.nitCarnet = normalizeEmptyStringToNull(validatedData.nitCarnet);
       if (validatedData.email !== undefined)
         data.email = normalizeEmptyStringToNull(validatedData.email);
       if (validatedData.phone !== undefined)
