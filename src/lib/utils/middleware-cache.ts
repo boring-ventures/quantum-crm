@@ -1,4 +1,5 @@
 import { getUserStoreSnapshot, isStoreAvailable } from "@/store/userStore";
+import { authCircuitBreaker, authBackoff } from "./circuit-breaker";
 
 // Tipos para el middleware (compatible con estructura original)
 interface MiddlewareProfile {
@@ -81,13 +82,19 @@ export async function getUserForMiddleware(
     );
   }
 
-  // 2. Fallback: Obtener desde API HTTP (compatible con Edge Runtime)
+  // 2. Fallback: Obtener desde API HTTP con circuit breaker y timeout
   console.log(
     `🔄 [MIDDLEWARE-CACHE] Fetching desde API para usuario: ${userId}`
   );
 
   try {
-    const apiResponse = await fetchUserFromAPI(userId, request);
+    // Usar circuit breaker y exponential backoff para la llamada API
+    const apiResponse = await authCircuitBreaker.call(async () => {
+      return await authBackoff.execute(
+        () => fetchUserFromAPIWithTimeout(userId, request, 10000), // 10s timeout
+        `fetch-user-${userId}`
+      );
+    });
 
     if (!apiResponse) {
       console.log(
@@ -158,20 +165,26 @@ export async function getUserForMiddleware(
 }
 
 /**
- * Fetch desde API HTTP (compatible con Edge Runtime)
+ * Fetch desde API HTTP con timeout (compatible con Edge Runtime)
  * Devuelve estructura compatible con middleware original
  */
-async function fetchUserFromAPI(
+async function fetchUserFromAPIWithTimeout(
   userId: string,
-  request?: Request
+  request?: Request,
+  timeoutMs: number = 10000
 ): Promise<{ profile: MiddlewareProfile } | null> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
     // Construir URL del API endpoint
     const protocol = request?.headers?.get("x-forwarded-proto") || "http";
     const host = request?.headers?.get("host") || "localhost:3000";
     const apiUrl = `${protocol}://${host}/api/users/${userId}?requireAuth=false`;
 
-    // Hacer fetch con headers apropiados
+    console.log(`🌐 [MIDDLEWARE-CACHE] API call: ${apiUrl} (timeout: ${timeoutMs}ms)`);
+
+    // Hacer fetch con headers apropiados y timeout
     const response = await fetch(apiUrl, {
       headers: {
         "Content-Type": "application/json",
@@ -179,9 +192,16 @@ async function fetchUserFromAPI(
           ? { Cookie: request.headers.get("cookie")! }
           : {}),
       },
+      signal: controller.signal,
     });
 
+    clearTimeout(timeoutId);
+
     if (!response.ok) {
+      // Distinguir entre errores de auth (403) y otros errores
+      if (response.status === 403) {
+        throw new Error(`AUTH_FORBIDDEN: ${response.status} ${response.statusText}`);
+      }
       throw new Error(
         `API returned ${response.status}: ${response.statusText}`
       );
@@ -193,10 +213,25 @@ async function fetchUserFromAPI(
       return null;
     }
 
+    console.log(`✅ [MIDDLEWARE-CACHE] API success for user: ${userId}`);
     // El API endpoint ya devuelve la estructura correcta con profile.permissions
     return data;
   } catch (error) {
-    console.error("[MIDDLEWARE-CACHE] Error fetching from API:", error);
+    clearTimeout(timeoutId);
+
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        console.error(`⏱️ [MIDDLEWARE-CACHE] API timeout (${timeoutMs}ms) for user: ${userId}`);
+        throw new Error(`API_TIMEOUT: Request timed out after ${timeoutMs}ms`);
+      }
+
+      if (error.message.includes('AUTH_FORBIDDEN')) {
+        console.error(`🚫 [MIDDLEWARE-CACHE] Auth forbidden for user: ${userId}`);
+        throw new Error('AUTH_FORBIDDEN: Authentication failed');
+      }
+    }
+
+    console.error(`❌ [MIDDLEWARE-CACHE] API error for user ${userId}:`, error);
     throw error;
   }
 }

@@ -1,4 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { leadsCircuitBreaker, apiBackoff } from "@/lib/utils/circuit-breaker";
+import { useAuthErrorHandler } from "@/hooks/use-auth-error-handler";
 import type {
   LeadWithRelations,
   CreateLeadPayload,
@@ -23,6 +25,7 @@ interface LeadsFilter {
 
 // Consulta de leads con filtros
 export const useLeadsQuery = (filters: LeadsFilter = {}) => {
+  const { handleAuthError } = useAuthErrorHandler();
   const queryParams = new URLSearchParams();
 
   // Agregar filtros a los parámetros de consulta
@@ -46,19 +49,38 @@ export const useLeadsQuery = (filters: LeadsFilter = {}) => {
   return useQuery<LeadsResponse>({
     queryKey: ["leads", filters],
     queryFn: async () => {
-      const response = await fetch(`/api/leads?${queryParams.toString()}`);
-      if (!response.ok) {
-        throw new Error("Error fetching leads");
-      }
-      return response.json();
+      return await leadsCircuitBreaker.call(async () => {
+        return await apiBackoff.execute(async () => {
+          const response = await fetch(`/api/leads?${queryParams.toString()}`);
+
+          if (!response.ok) {
+            if (response.status === 403) {
+              throw new Error("AUTH_EXPIRED: Session expired or insufficient permissions");
+            }
+            throw new Error(`Error fetching leads: ${response.status} ${response.statusText}`);
+          }
+
+          return response.json();
+        }, `fetch-leads-${JSON.stringify(filters)}`);
+      });
     },
-    // Siempre permitimos la ejecución de la consulta para soportar casos donde
-    // se desea obtener todos los leads (sin filtros de vendedor o país).
     enabled: true,
-    // Refrescar automáticamente cada 10 segundos para detectar cambios
-    refetchInterval: 10000,
-    // Refrescar cuando la ventana recupera el foco
-    refetchOnWindowFocus: true,
+    // Reducir la frecuencia de refetch para evitar avalanchas
+    refetchInterval: 30000, // 30 segundos en lugar de 10
+    refetchOnWindowFocus: false, // Deshabilitar para evitar requests masivos
+    retry: (failureCount, error) => {
+      // Intentar manejar el error de autenticación
+      const handled = handleAuthError(error);
+
+      // No reintentar si es un error de autenticación
+      if (handled) {
+        return false;
+      }
+
+      // Máximo 2 reintentos para otros errores
+      return failureCount < 2;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000), // Exponential backoff
   });
 };
 

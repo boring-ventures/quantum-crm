@@ -44,7 +44,7 @@ export function CacheDebugInfo() {
         setStats({
           storeStats,
           timestamp: new Date().toLocaleTimeString(),
-          uptime: Math.floor((Date.now() - performance.now()) / 1000) + "s",
+          uptime: Math.floor(performance.now() / 1000) + "s", // Tiempo desde que se cargó la página
         });
       } catch (error) {
         console.error("Error getting cache stats:", error);

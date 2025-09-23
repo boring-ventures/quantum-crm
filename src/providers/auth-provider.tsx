@@ -5,6 +5,8 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import type { User, Session } from "@supabase/auth-helpers-nextjs";
 import { useRouter } from "next/navigation";
 import type { User as AppUser } from "@/types/user";
+import { ReauthenticationModal } from "@/components/auth/reauthentication-modal";
+import { authCircuitBreaker, authBackoff } from "@/lib/utils/circuit-breaker";
 
 type AuthContextType = {
   user: User | null;
@@ -14,6 +16,7 @@ type AuthContextType = {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  showReauthModal: (reason?: "expired" | "forbidden" | "invalid") => void;
 };
 
 const AuthContext = createContext<AuthContextType>({
@@ -24,6 +27,7 @@ const AuthContext = createContext<AuthContextType>({
   signIn: async () => {},
   signUp: async () => {},
   signOut: async () => {},
+  showReauthModal: () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -31,31 +35,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showReauth, setShowReauth] = useState(false);
+  const [reauthReason, setReauthReason] = useState<"expired" | "forbidden" | "invalid">("expired");
   const router = useRouter();
   const supabase = createClientComponentClient();
 
-  // Fetch user function con manejo optimizado de errores y reintentos
+  // Función para mostrar el modal de reautenticación
+  const showReauthModal = (reason: "expired" | "forbidden" | "invalid" = "expired") => {
+    setReauthReason(reason);
+    setShowReauth(true);
+  };
+
+  // Fetch user function con circuit breaker y manejo de errores 403
   const fetchUser = async (
     userId: string,
     retryCount = 0
   ): Promise<AppUser | null> => {
     try {
-      const response = await fetch(`/api/users/${userId}?requireAuth=false`);
-      if (!response.ok) {
-        if (response.status === 429 && retryCount < 3) {
-          // Esperar tiempo exponencial en caso de rate limit
-          const delay = Math.pow(2, retryCount) * 1000;
-          await new Promise((resolve) => setTimeout(resolve, delay));
-          return fetchUser(userId, retryCount + 1);
-        }
-        throw new Error(
-          `Error al obtener datos de usuario: ${response.status}`
-        );
-      }
-      const data = await response.json();
-      return data.profile;
+      return await authCircuitBreaker.call(async () => {
+        return await authBackoff.execute(async () => {
+          const response = await fetch(`/api/users/${userId}?requireAuth=false`);
+
+          if (!response.ok) {
+            if (response.status === 403) {
+              // Mostrar modal de reautenticación en lugar de lanzar error
+              showReauthModal("forbidden");
+              return null;
+            }
+
+            if (response.status === 401) {
+              showReauthModal("expired");
+              return null;
+            }
+
+            throw new Error(
+              `Error al obtener datos de usuario: ${response.status}`
+            );
+          }
+
+          const data = await response.json();
+          return data.profile;
+        }, `fetch-user-${userId}`);
+      });
     } catch (error) {
       console.error("Error al cargar datos de usuario:", error);
+
+      // Si es un error de circuit breaker, mostrar modal
+      if (error instanceof Error && error.message.includes('Circuit breaker')) {
+        showReauthModal("invalid");
+      }
+
       return null;
     }
   };
@@ -266,9 +295,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signIn,
         signUp,
         signOut,
+        showReauthModal,
       }}
     >
       {children}
+
+      <ReauthenticationModal
+        isOpen={showReauth}
+        onClose={() => setShowReauth(false)}
+        reason={reauthReason}
+        lastEmail={user?.email || ""}
+      />
     </AuthContext.Provider>
   );
 }
