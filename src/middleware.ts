@@ -24,7 +24,16 @@ const publicRoutes = [
 
 // Función para comprobar si una ruta es pública
 function isPublicRoute(pathname: string): boolean {
+  // Caso especial para la ruta raíz
+  if (pathname === "/") {
+    return true;
+  }
+
   return publicRoutes.some((route) => {
+    // No usar la ruta raíz "/" para comparaciones con startsWith
+    if (route === "/") {
+      return false;
+    }
     return pathname === route || pathname.startsWith(route);
   });
 }
