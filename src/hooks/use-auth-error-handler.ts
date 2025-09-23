@@ -1,22 +1,44 @@
 import { useAuth } from "@/providers/auth-provider";
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 
 export function useAuthErrorHandler() {
   const { showReauthModal } = useAuth();
+  const lastErrorTime = useRef<number>(0);
+  const errorCount = useRef<number>(0);
 
-  const handleAuthError = useCallback((error: any) => {
+  const handleAuthError = useCallback((error: any, shouldShowModal: boolean = true) => {
     if (!error) return false;
 
     const errorMessage = error.message || error.toString();
+    const now = Date.now();
 
-    // Errores de autenticación expirada
+    // Resetear contador si han pasado más de 30 segundos desde el último error
+    if (now - lastErrorTime.current > 30000) {
+      errorCount.current = 0;
+    }
+
+    lastErrorTime.current = now;
+    errorCount.current++;
+
+    // Solo mostrar modal después de múltiples errores seguidos o errores críticos
+    const shouldTriggerModal = shouldShowModal && (
+      errorCount.current >= 3 || // 3 errores en 30 segundos
+      errorMessage.includes('AUTH_EXPIRED') ||
+      errorMessage.includes('Session expired') ||
+      errorMessage.includes('Token expired') ||
+      errorMessage.includes('jwt expired')
+    );
+
+    // Errores de autenticación expirada (críticos)
     if (
       errorMessage.includes('AUTH_EXPIRED') ||
       errorMessage.includes('Session expired') ||
       errorMessage.includes('Token expired') ||
       errorMessage.includes('jwt expired')
     ) {
-      showReauthModal('expired');
+      if (shouldTriggerModal) {
+        showReauthModal('expired');
+      }
       return true;
     }
 
@@ -27,24 +49,31 @@ export function useAuthErrorHandler() {
       errorMessage.includes('insufficient permissions') ||
       error.status === 403
     ) {
-      showReauthModal('forbidden');
+      if (shouldTriggerModal) {
+        showReauthModal('forbidden');
+      }
       return true;
     }
 
-    // Errores de autenticación inválida
+    // Errores de autenticación inválida (solo después de múltiples fallos)
     if (
       errorMessage.includes('AUTH_INVALID') ||
       errorMessage.includes('Invalid credentials') ||
       errorMessage.includes('Unauthorized') ||
       error.status === 401
     ) {
-      showReauthModal('invalid');
+      if (shouldTriggerModal) {
+        console.warn(`[AUTH] Error 401 detectado (${errorCount.current}/3). ${errorCount.current >= 3 ? 'Activando modal...' : 'Esperando más errores...'}`);
+        showReauthModal('invalid');
+      }
       return true;
     }
 
     // Error de circuit breaker
     if (errorMessage.includes('Circuit breaker is OPEN')) {
-      showReauthModal('invalid');
+      if (shouldTriggerModal) {
+        showReauthModal('invalid');
+      }
       return true;
     }
 
