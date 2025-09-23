@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -14,13 +15,8 @@ if (!supabaseServiceRoleKey) {
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    storageKey: "app-token",
-    storage: typeof window !== "undefined" ? window.localStorage : undefined,
-  },
-});
+// Cliente para componentes cliente que sincroniza sesión vía cookies con el middleware
+export const supabase = createClientComponentClient();
 
 export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
   auth: {
