@@ -5,12 +5,7 @@ import { Star, Package, CheckCircle2, XCircle, HelpCircle } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  useLeadsQuery,
-  useToggleFavoriteMutation,
-  useLeadTasks,
-  useLeadQuery,
-} from "@/lib/hooks";
+import { useLeadsQuery, useToggleFavoriteMutation } from "@/lib/hooks";
 import type { LeadWithRelations } from "@/types/lead";
 import { formatDistanceToNow, format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -59,24 +54,19 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
   // Verificar si el lead está cerrado
   const isLeadClosed = lead.isClosed || lead.isArchived;
 
-  const { data: updatedLead, isLoading: isLoadingUpdatedLead } = useLeadQuery(
-    lead.id
-  );
+  // Ya tenemos toda la información de la tarjeta desde la lista.
+  const isLoadingUpdatedLead = false;
   const [isFavorite, setIsFavorite] = useState(lead.isFavorite || false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const toggleFavoriteMutation = useToggleFavoriteMutation();
-  const { data: tasks } = useLeadTasks(lead.id);
+  // Usar las tareas incluidas en el objeto lead para evitar llamadas adicionales
+  const tasks = lead.tasks || [];
   const queryClient = useQueryClient();
 
-  // Actualizar el estado local cuando cambia la información del lead
-  useEffect(() => {
-    if (updatedLead) {
-      setIsFavorite(updatedLead.isFavorite || false);
-    }
-  }, [updatedLead]);
+  // Mantener favorito solo por estado local y mutación; no hay fetch por tarjeta
 
   // Encontrar la próxima tarea pendiente
   const nextTask = useMemo(() => {
@@ -154,9 +144,9 @@ function LeadCard({ lead, onLeadUpdated, currentUser }: LeadCardProps) {
     // Prevenir comportamiento por defecto
     e.preventDefault();
     e.stopPropagation();
-    
+
     // Abrir el lead en una nueva pestaña
-    window.open(`/leads/${lead.id}`, '_blank');
+    window.open(`/leads/${lead.id}`, "_blank");
   };
 
   const handleToggleFavorite = async (e: React.MouseEvent) => {
@@ -685,26 +675,28 @@ export function LeadsList({
   // Paso 5: Aplicar filtro de búsqueda por texto
   if (searchTerm) {
     const search = searchTerm.toLowerCase();
-    filteredLeads = filteredLeads.filter(
-      (lead) => {
-        // Buscar por nombre y apellido
-        if (lead.firstName && lead.firstName.toLowerCase().includes(search)) return true;
-        if (lead.lastName && lead.lastName.toLowerCase().includes(search)) return true;
-        
-        // Buscar por email y celular
-        if (lead.email && lead.email.toLowerCase().includes(search)) return true;
-        if (lead.cellphone && lead.cellphone.toLowerCase().includes(search)) return true;
-        
-        // Buscar por código (últimos 4 dígitos del ID) para leads sin nombre
-        const leadCode = lead.id.slice(-4);
-        if (leadCode.toLowerCase().includes(search)) return true;
-        
-        // Si no tiene nombre, buscar por el texto "sin nombre"
-        if (!lead.firstName && !lead.lastName && "sin nombre".includes(search)) return true;
-        
-        return false;
-      }
-    );
+    filteredLeads = filteredLeads.filter((lead) => {
+      // Buscar por nombre y apellido
+      if (lead.firstName && lead.firstName.toLowerCase().includes(search))
+        return true;
+      if (lead.lastName && lead.lastName.toLowerCase().includes(search))
+        return true;
+
+      // Buscar por email y celular
+      if (lead.email && lead.email.toLowerCase().includes(search)) return true;
+      if (lead.cellphone && lead.cellphone.toLowerCase().includes(search))
+        return true;
+
+      // Buscar por código (últimos 4 dígitos del ID) para leads sin nombre
+      const leadCode = lead.id.slice(-4);
+      if (leadCode.toLowerCase().includes(search)) return true;
+
+      // Si no tiene nombre, buscar por el texto "sin nombre"
+      if (!lead.firstName && !lead.lastName && "sin nombre".includes(search))
+        return true;
+
+      return false;
+    });
   }
 
   if (filteredLeads.length === 0) {

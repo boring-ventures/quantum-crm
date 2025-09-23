@@ -66,7 +66,7 @@ export default function LeadsPage() {
   const [activeTab, setActiveTab] = useState("active");
   const [canSelectLeads, setCanSelectLeads] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 100;
+  const pageSize = 50;
 
   const { toast } = useToast();
   const { user: currentUser, isLoading: isLoadingCurrentUser } = useUserStore();
