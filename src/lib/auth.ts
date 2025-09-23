@@ -75,8 +75,10 @@ async function _authImplementation(): Promise<Session | null> {
       // Seleccionar URL base según el entorno
       let baseUrl: string | URL | undefined;
       if (isProduction) {
-        // En producción, usar dominio principal
-        baseUrl = "https://quantum-crm-leads.vercel.app";
+        // En producción, usar dominio actual o fallback
+        baseUrl = process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}`
+          : "https://www.aurantis.lat";
       } else {
         // En desarrollo local, usar localhost
         baseUrl = "http://localhost:3000";
