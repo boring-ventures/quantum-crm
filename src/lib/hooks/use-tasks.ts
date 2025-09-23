@@ -1,7 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Task } from "@/types/lead";
-import { leadsCircuitBreaker, apiBackoff } from "@/lib/utils/circuit-breaker";
-import { useAuthErrorHandler } from "@/hooks/use-auth-error-handler";
 
 // Obtener todas las tareas con filtros opcionales
 export const useTasks = ({
@@ -13,72 +11,52 @@ export const useTasks = ({
   countryId?: string;
   showAllTasks?: boolean;
 } = {}) => {
-  const { handleAuthError } = useAuthErrorHandler();
-
   return useQuery<Task[]>({
     queryKey: ["tasks", assignedToId, countryId, showAllTasks],
     queryFn: async () => {
-      return await leadsCircuitBreaker.call(async () => {
-        return await apiBackoff.execute(async () => {
-          // Determinar qué endpoint usar
-          let url = showAllTasks ? "/api/tasks/all" : "/api/tasks/user";
-          const params = new URLSearchParams();
+      try {
+        // Determinar qué endpoint usar
+        let url = showAllTasks ? "/api/tasks/all" : "/api/tasks/user";
+        const params = new URLSearchParams();
 
-          // Si se proporciona assignedToId, agregar como parámetro
-          if (assignedToId) {
-            params.append("assignedToId", assignedToId);
-          }
+        // Si se proporciona assignedToId, agregar como parámetro
+        if (assignedToId) {
+          params.append("assignedToId", assignedToId);
+        }
 
-          // Si se proporciona countryId, agregar como parámetro
-          if (countryId) {
-            params.append("countryId", countryId);
-          }
+        // Si se proporciona countryId, agregar como parámetro
+        if (countryId) {
+          params.append("countryId", countryId);
+        }
 
-          // Agregar parámetros a la URL si existen
-          const queryString = params.toString();
-          if (queryString) {
-            url += `?${queryString}`;
-          }
+        // Agregar parámetros a la URL si existen
+        const queryString = params.toString();
+        if (queryString) {
+          url += `?${queryString}`;
+        }
 
-          console.log("[useTasks] Llamando a:", url);
-          console.log("[useTasks] Parámetros:", {
-            assignedToId,
-            countryId,
-            showAllTasks,
-          });
+        console.log("[useTasks] Llamando a:", url);
+        console.log("[useTasks] Parámetros:", {
+          assignedToId,
+          countryId,
+          showAllTasks,
+        });
 
-          const response = await fetch(url);
+        const response = await fetch(url);
 
-          if (!response.ok) {
-            if (response.status === 401) {
-              throw new Error("AUTH_INVALID: Session may be expired");
-            }
-            if (response.status === 403) {
-              throw new Error("AUTH_FORBIDDEN: Insufficient permissions for tasks");
-            }
-            throw new Error(`Error al cargar tareas: ${response.status} ${response.statusText}`);
-          }
+        if (!response.ok) {
+          throw new Error("Error al cargar tareas");
+        }
 
-          const tasks = await response.json();
-          console.log("[useTasks] Tareas obtenidas:", tasks.length);
+        const tasks = await response.json();
+        console.log("[useTasks] Tareas obtenidas:", tasks.length);
 
-          return tasks;
-        }, `fetch-tasks-${assignedToId || 'all'}`);
-      });
-    },
-    retry: (failureCount, error) => {
-      // Intentar manejar el error de autenticación (sin forzar modal inmediatamente)
-      const handled = handleAuthError(error, failureCount >= 2); // Solo mostrar modal en el 3er intento
-
-      // No reintentar si es un error de autenticación
-      if (handled) {
-        return false;
+        return tasks;
+      } catch (error) {
+        console.error("Error cargando tareas:", error);
+        return [];
       }
-
-      // Máximo 2 reintentos para otros errores
-      return failureCount < 2;
     },
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000), // Exponential backoff
   });
 };
 
