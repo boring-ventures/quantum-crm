@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/utils/auth-utils";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 
@@ -46,12 +46,6 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Verificar autenticación
-    const session = await auth();
-    if (!session) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
-
     // Obtener el ID del lead desde los parámetros de ruta
     const { id } = await params;
 
@@ -60,25 +54,21 @@ export async function GET(
     const scopeCheck = searchParams.get("scopeCheck");
 
     if (scopeCheck === "true") {
-      // Para scope check, solo verificar que el lead existe y el usuario puede acceder
-      console.log(`[SCOPE CHECK] Verificando lead: ${id}`);
-      const leadExists = await prisma.lead.count({
-        where: { id },
-      });
-
-      console.log(`[SCOPE CHECK] Lead count: ${leadExists}`);
-
+      // Para scope check, NO requerimos sesión; solo verificamos existencia
+      const leadExists = await prisma.lead.count({ where: { id } });
       if (leadExists === 0) {
-        console.log(`[SCOPE CHECK] Lead no encontrado: ${id}`);
         return NextResponse.json(
           { error: "Lead no encontrado" },
           { status: 404 }
         );
       }
-
-      console.log(`[SCOPE CHECK] Lead existe, retornando success`);
-      // Retornar success para el scope check
       return NextResponse.json({ success: true });
+    }
+
+    // Verificar autenticación para la lectura normal del recurso
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
     // Obtener el lead con sus relaciones
@@ -138,8 +128,8 @@ export async function PUT(
 ) {
   try {
     // Verificar autenticación
-    const session = await auth();
-    if (!session) {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
       console.log("[PUT] No autorizado");
       return NextResponse.json(
         { success: false, error: "No autorizado" },
@@ -193,7 +183,9 @@ export async function PUT(
       if (validatedData.lastName !== undefined)
         data.lastName = normalizeEmptyStringToNull(validatedData.lastName);
       if (validatedData.maternalLastName !== undefined)
-        data.maternalLastName = normalizeEmptyStringToNull(validatedData.maternalLastName);
+        data.maternalLastName = normalizeEmptyStringToNull(
+          validatedData.maternalLastName
+        );
       if (validatedData.nitCarnet !== undefined)
         data.nitCarnet = normalizeEmptyStringToNull(validatedData.nitCarnet);
       if (validatedData.email !== undefined)
@@ -350,8 +342,8 @@ export async function DELETE(
 ) {
   try {
     // Verificar autenticación
-    const session = await auth();
-    if (!session) {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
