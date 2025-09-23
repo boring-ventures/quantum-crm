@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/utils/auth-utils";
 import prisma from "@/lib/prisma";
 
 export async function GET(
@@ -8,8 +8,8 @@ export async function GET(
 ) {
   try {
     // Verificar autenticación
-    const session = await auth();
-    if (!session) {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 

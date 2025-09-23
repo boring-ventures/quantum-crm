@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/utils/auth-utils";
 import prisma from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
   try {
-    // Verificar autenticación
-    const session = await auth();
-    if (!session) {
+    // Verificar autenticación con util seguro para Route Handlers
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
@@ -17,11 +17,11 @@ export async function GET(request: NextRequest) {
 
     console.log("[API] /tasks/pending - Procesando solicitud");
     console.log("[API] /tasks/pending - assignedToId:", assignedToId);
-    console.log("[API] /tasks/pending - session.user.id:", session.user.id);
+    console.log("[API] /tasks/pending - currentUser.id:", currentUser.id);
 
     // Si no hay ID de vendedor específico y no es una vista administrativa,
     // usar el ID del usuario actual en sesión
-    const userId = assignedToId || session.user.id;
+    const userId = assignedToId || currentUser.id;
     console.log("[API] /tasks/pending - userId efectivo:", userId);
 
     // Obtener la fecha actual para filtrar tareas por fecha

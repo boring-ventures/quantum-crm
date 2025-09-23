@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/utils/auth-utils";
 import prisma from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
   try {
     // Verificar autenticación
-    const session = await auth();
-    if (!session) {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
     // Obtener el id del usuario autenticado
-    const userId = session.user?.id;
+    const userId = currentUser.id;
     if (!userId) {
       return NextResponse.json(
         { error: "ID de usuario no encontrado" },
@@ -19,8 +19,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Obtener rol del usuario desde la sesión
-    const userRole = session.user?.role || "";
+    // Obtener rol del usuario desde el perfil
+    const userRole = currentUser.role || "";
     const isManagerRole =
       userRole === "Administrador" || userRole === "Super Administrador";
 
