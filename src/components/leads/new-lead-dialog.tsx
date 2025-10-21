@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -32,9 +32,13 @@ import { useUserStore } from "@/store/userStore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import type { CreateLeadPayload, Product } from "@/types/lead";
-import { Search } from "lucide-react";
+import type { CreateLeadPayload, Product, LeadWithRelations } from "@/types/lead";
+import { Search, AlertCircle, CheckCircle, Info } from "lucide-react";
 import { DuplicateConfirmationDialog } from "./duplicate-confirmation-dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 // Esquema de validación para el formulario
 const newLeadSchema = z.object({
@@ -77,6 +81,11 @@ export function NewLeadDialog({
   >("personal");
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [pendingFormData, setPendingFormData] = useState<FormData | null>(null);
+
+  // Estados para verificación en tiempo real
+  const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
+  const [realtimeDuplicates, setRealtimeDuplicates] = useState<LeadWithRelations[]>([]);
+  const [showClosedLeadPreview, setShowClosedLeadPreview] = useState(false);
 
   // Búsqueda para dropdowns
   const [searchProduct, setSearchProduct] = useState("");
@@ -196,13 +205,18 @@ export function NewLeadDialog({
     }
   };
 
-  // Función para verificar duplicados manualmente
-  const checkDuplicates = async (cellphone: string) => {
+  // Función para verificar duplicados (reutilizable)
+  const checkDuplicates = async (cellphone: string, isRealtime: boolean = false) => {
     if (!cellphone || cellphone.length < 5) {
       return [];
     }
 
-    setIsPending(true);
+    if (isRealtime) {
+      setIsCheckingDuplicates(true);
+    } else {
+      setIsPending(true);
+    }
+
     try {
       const response = await fetch("/api/leads/check-duplicate", {
         method: "POST",
@@ -222,9 +236,31 @@ export function NewLeadDialog({
       console.error("Error checking duplicates:", error);
       return [];
     } finally {
-      setIsPending(false);
+      if (isRealtime) {
+        setIsCheckingDuplicates(false);
+      } else {
+        setIsPending(false);
+      }
     }
   };
+
+  // Verificación en tiempo real con debounce
+  useEffect(() => {
+    const cellphone = watchedCellphone;
+
+    if (!cellphone || cellphone.length < 5) {
+      setRealtimeDuplicates([]);
+      return;
+    }
+
+    // Debounce de 800ms
+    const timeoutId = setTimeout(async () => {
+      const duplicates = await checkDuplicates(cellphone, true);
+      setRealtimeDuplicates(duplicates || []);
+    }, 800);
+
+    return () => clearTimeout(timeoutId);
+  }, [watchedCellphone]);
 
   // Manejar el envío del formulario (con verificación de duplicados)
   const onSubmit = async (data: FormData) => {
@@ -270,6 +306,40 @@ export function NewLeadDialog({
     setPendingFormData(null);
     // No hacer nada más, el usuario vuelve al dialog principal
   };
+
+  // Manejar el uso de datos de un lead cerrado (desde tiempo real o diálogo)
+  const handleUseClosedLeadData = (closedLead: LeadWithRelations) => {
+    if (!closedLead) return;
+
+    // Rellenar el formulario con los datos del lead cerrado
+    setValue("firstName", closedLead.firstName || "");
+    setValue("lastName", closedLead.lastName || "");
+    setValue("maternalLastName", closedLead.maternalLastName || "");
+    setValue("email", closedLead.email || "");
+    setValue("phone", closedLead.phone || "");
+    setValue("cellphone", closedLead.cellphone || "");
+    setValue("sourceId", closedLead.sourceId || "");
+    setValue("statusId", closedLead.statusId || "");
+    setValue("productId", closedLead.productId || "");
+    setValue("extraComments", closedLead.extraComments || "");
+    setValue("nitCarnet", closedLead.nitCarnet || "");
+
+    // Limpiar el estado de duplicados
+    setDuplicateLeads([]);
+    setPendingFormData(null);
+    setShowClosedLeadPreview(false);
+
+    // Mostrar mensaje de éxito
+    toast({
+      title: "Datos rellenados",
+      description:
+        "Los datos del lead cerrado han sido cargados en el formulario.",
+    });
+  };
+
+  // Separar leads activos y cerrados en tiempo real
+  const realtimeActiveLeads = realtimeDuplicates.filter(lead => !lead.isClosed);
+  const realtimeClosedLeads = realtimeDuplicates.filter(lead => lead.isClosed);
 
   const [sourceDropdownOpen, setSourceDropdownOpen] = useState(false);
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
@@ -426,6 +496,112 @@ export function NewLeadDialog({
                     )}
                   </div>
                 </div>
+
+                {/* Indicador de verificación en tiempo real */}
+                {isCheckingDuplicates && watchedCellphone && watchedCellphone.length >= 5 && (
+                  <Alert className="bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800">
+                    <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    <AlertDescription className="text-blue-800 dark:text-blue-200 text-sm">
+                      Verificando duplicados...
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Alerta de leads activos duplicados */}
+                {!isCheckingDuplicates && realtimeActiveLeads.length > 0 && (
+                  <Alert className="bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800">
+                    <AlertCircle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                    <AlertDescription className="text-orange-800 dark:text-orange-200 text-sm">
+                      <strong>¡Atención!</strong> Se encontraron {realtimeActiveLeads.length} lead(s) activo(s) con este número de celular.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Alerta de leads cerrados - con opción de rellenar datos */}
+                {!isCheckingDuplicates && realtimeActiveLeads.length === 0 && realtimeClosedLeads.length > 0 && (
+                  <div className="space-y-2">
+                    <Alert className="bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800">
+                      <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                      <AlertDescription className="text-green-800 dark:text-green-200 text-sm">
+                        <div className="flex items-center justify-between">
+                          <span>
+                            Se encontró {realtimeClosedLeads.length} lead(s) cerrado(s) con este número.
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowClosedLeadPreview(!showClosedLeadPreview)}
+                            className="text-green-700 dark:text-green-300 hover:text-green-900 dark:hover:text-green-100 h-auto p-1"
+                          >
+                            {showClosedLeadPreview ? "Ocultar" : "Ver detalles"}
+                          </Button>
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+
+                    {/* Preview de leads cerrados */}
+                    {showClosedLeadPreview && (
+                      <div className="space-y-2 mt-2 max-h-[300px] overflow-y-auto border border-green-200 dark:border-green-800 rounded-lg p-3 bg-white dark:bg-gray-800">
+                        {realtimeClosedLeads.map((lead) => (
+                          <div
+                            key={lead.id}
+                            className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-gray-50 dark:bg-gray-900"
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <div>
+                                <h4 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
+                                  {lead.firstName && lead.lastName
+                                    ? `${lead.firstName} ${lead.lastName}`
+                                    : lead.firstName || lead.lastName || "Sin nombre"}
+                                </h4>
+                                {lead.status && (
+                                  <Badge
+                                    className="text-xs mt-1"
+                                    style={{ backgroundColor: lead.status.color }}
+                                  >
+                                    {lead.status.name}
+                                  </Badge>
+                                )}
+                              </div>
+                              <Badge variant="destructive" className="text-xs">
+                                CERRADO
+                              </Badge>
+                            </div>
+
+                            <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+                              {lead.email && <div>Email: {lead.email}</div>}
+                              {lead.source && <div>Fuente: {lead.source.name}</div>}
+                              <div>
+                                Creado: {format(new Date(lead.createdAt), "dd/MM/yyyy", { locale: es })}
+                              </div>
+                            </div>
+
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleUseClosedLeadData(lead)}
+                              className="w-full mt-2 bg-green-50 hover:bg-green-100 dark:bg-green-900/30 dark:hover:bg-green-900/50 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 text-xs"
+                            >
+                              Usar datos de este lead
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Sin duplicados */}
+                {!isCheckingDuplicates && watchedCellphone && watchedCellphone.length >= 5 && realtimeDuplicates.length === 0 && (
+                  <Alert className="bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800">
+                    <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                    <AlertDescription className="text-green-800 dark:text-green-200 text-sm">
+                      No se encontraron leads duplicados.
+                    </AlertDescription>
+                  </Alert>
+                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
@@ -777,6 +953,7 @@ export function NewLeadDialog({
         duplicateLeads={duplicateLeads || []}
         onConfirm={handleConfirmDuplicate}
         onCancel={handleCancelDuplicate}
+        onUseClosedLeadData={handleUseClosedLeadData}
         isLoading={isPending}
       />
     </>

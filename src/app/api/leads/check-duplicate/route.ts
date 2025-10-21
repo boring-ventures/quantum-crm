@@ -7,7 +7,7 @@ async function findDuplicateLeads(cellphone: string) {
   return await prisma.lead.findMany({
     where: {
       cellphone: cellphone,
-      isArchived: false, // Solo buscar en leads activos
+      isArchived: false, // Solo buscar en leads no archivados (incluye activos y cerrados)
     },
     include: {
       assignedTo: {

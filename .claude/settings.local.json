@@ -4,7 +4,9 @@
       "Bash(cat:*)",
       "Bash(npm run lint)",
       "Bash(npx tsc:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx prisma generate:*)"
     ],
     "deny": [],
     "ask": []

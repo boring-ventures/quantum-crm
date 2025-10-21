@@ -26,7 +26,7 @@ export async function GET(
     // Si se requiere autenticación, verificarla
     if (requireAuth) {
       try {
-        const cookieStore = cookies();
+        const cookieStore = await cookies();
         const supabase = createRouteHandlerClient({
           cookies: () => cookieStore,
         });
