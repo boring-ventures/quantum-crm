@@ -29,7 +29,9 @@ const updateUserSchema = z.object({
     .min(8, { message: "La contraseña debe tener al menos 8 caracteres" })
     .optional(),
   roleId: z.string().optional(),
+  countryId: z.string().optional(),
   isActive: z.boolean().optional(),
+  user_permissions: z.record(z.any()).optional(),
 });
 
 const deleteUserSchema = z.object({
@@ -434,12 +436,15 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const { id, name, email, password, roleId, isActive } =
+    const { id, name, email, password, roleId, countryId, isActive, user_permissions } =
       validationResult.data;
 
     // Verificar que el usuario existe
     const existingUser = await prisma.user.findUnique({
       where: { id },
+      include: {
+        userPermission: true,
+      },
     });
 
     if (!existingUser) {
@@ -449,8 +454,9 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Si se actualiza el rol, verificar que existe
+    // Si se actualiza el rol, verificar que existe y obtener sus permisos
     let roleName = "";
+    let rolePermissions = null;
     if (roleId) {
       const role = await prisma.role.findUnique({
         where: { id: roleId },
@@ -464,6 +470,21 @@ export async function PUT(request: NextRequest) {
       }
 
       roleName = role.name;
+      rolePermissions = role.permissions;
+    }
+
+    // Si se incluye countryId, verificar que el país existe (si no es undefined)
+    if (countryId !== undefined && countryId !== null && countryId !== "") {
+      const country = await prisma.country.findUnique({
+        where: { id: countryId },
+      });
+
+      if (!country) {
+        return NextResponse.json(
+          { error: "El país seleccionado no existe" },
+          { status: 400 }
+        );
+      }
     }
 
     // Actualizar contraseña en Supabase Auth si se proporciona
@@ -506,13 +527,80 @@ export async function PUT(request: NextRequest) {
       updateData.roleId = roleId;
       updateData.role = roleName;
     }
+    if (countryId !== undefined) {
+      // Si es string vacío o "none", establecer como null
+      updateData.countryId = (countryId === "" || countryId === "none") ? null : countryId;
+    }
     if (isActive !== undefined) updateData.isActive = isActive;
 
-    // Actualizar usuario en la base de datos
-    const updatedUser = await prisma.user.update({
-      where: { id },
-      data: updateData,
+    // Determinar qué permisos usar: personalizados o del rol
+    let permissionsToAssign = null;
+    if (user_permissions && Object.keys(user_permissions).length > 0) {
+      // Usar permisos personalizados si se proporcionan
+      permissionsToAssign = user_permissions;
+    } else if (rolePermissions) {
+      // Usar permisos del rol si se cambió el rol y no hay permisos personalizados
+      permissionsToAssign = rolePermissions;
+    }
+
+    // Actualizar usuario en la base de datos dentro de una transacción
+    const updatedUser = await prisma.$transaction(async (tx) => {
+      // Actualizar datos básicos del usuario
+      const user = await tx.user.update({
+        where: { id },
+        data: updateData,
+      });
+
+      // Actualizar o crear permisos si es necesario
+      if (permissionsToAssign) {
+        if (existingUser.userPermission) {
+          // Actualizar permisos existentes
+          await tx.userPermission.update({
+            where: { userId: id },
+            data: {
+              permissions: permissionsToAssign as any,
+              updatedAt: new Date(),
+            },
+          });
+        } else {
+          // Crear permisos si no existen
+          await tx.userPermission.create({
+            data: {
+              userId: id,
+              permissions: permissionsToAssign as any,
+            },
+          });
+        }
+      }
+
+      return user;
     });
+
+    // Registrar en el changelog
+    try {
+      const changes = [];
+      if (name) changes.push(`nombre actualizado a "${name}"`);
+      if (email) changes.push(`email actualizado a "${email}"`);
+      if (password) changes.push("contraseña restablecida");
+      if (roleId) changes.push(`rol cambiado a "${roleName}"`);
+      if (countryId !== undefined) changes.push("país actualizado");
+      if (isActive !== undefined) changes.push(`estado ${isActive ? "activado" : "desactivado"}`);
+      if (permissionsToAssign) changes.push("permisos actualizados");
+
+      if (changes.length > 0) {
+        await prisma.activityLog.create({
+          data: {
+            entityType: "USER",
+            entityId: id,
+            action: "UPDATE",
+            description: `Usuario ${updatedUser.name}: ${changes.join(", ")}`,
+            performedById: currentUser!.id,
+          },
+        });
+      }
+    } catch (logError) {
+      console.error("Error al registrar actividad:", logError);
+    }
 
     return NextResponse.json({ user: updatedUser });
   } catch (error) {
