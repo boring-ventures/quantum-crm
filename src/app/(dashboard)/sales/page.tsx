@@ -58,6 +58,7 @@ import {
   useRejectSaleMutation,
 } from "@/lib/hooks/use-sales";
 import { useToast } from "@/components/ui/use-toast";
+import { ExportSalesDialog } from "@/components/sales/export-sales-dialog";
 import {
   Table,
   TableBody,
@@ -92,6 +93,7 @@ export default function SalesPage() {
   const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null);
   const [hasSelectedSeller, setHasSelectedSeller] = useState(false);
   const [showSellerSelector, setShowSellerSelector] = useState(true);
+  const [showExportDialog, setShowExportDialog] = useState(false);
 
   // Hooks para aprobación/rechazo de ventas
   const approveSaleMutation = useApproveSaleMutation();
@@ -1055,7 +1057,11 @@ export default function SalesPage() {
         <div className="flex gap-2">
           {canCreateSales && (
             <>
-              <Button size="sm" variant="outline" disabled>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowExportDialog(true)}
+              >
                 <Download className="h-4 w-4 mr-2" />
                 Exportar
               </Button>
@@ -1299,6 +1305,21 @@ export default function SalesPage() {
       )}
 
       {renderDetailSheet()}
+
+      {/* Export Dialog */}
+      <ExportSalesDialog
+        open={showExportDialog}
+        onClose={() => setShowExportDialog(false)}
+        filters={{
+          searchQuery,
+          statusFilter,
+          categoryFilter,
+          dateRange,
+          assignedToId,
+          countryId:
+            salesScope === "team" ? currentUser?.countryId ?? undefined : undefined,
+        }}
+      />
     </div>
   );
 }

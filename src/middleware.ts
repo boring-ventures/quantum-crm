@@ -49,6 +49,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Permitir rutas de exportación sin middleware (ya tienen su propia validación)
+  if (pathname === "/api/sales/export" || pathname === "/api/leads/export") {
+    return NextResponse.next();
+  }
+
   if (
     pathname.startsWith("/api/") &&
     !pathname.includes("/api/leads/") &&

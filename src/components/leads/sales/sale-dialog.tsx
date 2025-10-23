@@ -196,7 +196,7 @@ export function SaleDialog({
           lastName: billingLastName,
           email: billingEmail,
           nitCarnet: billingNitCarnet,
-        }
+        },
       });
 
       // 2. Subir documentos
@@ -310,9 +310,8 @@ export function SaleDialog({
             Registrar venta para {leadName}
           </DialogTitle>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Ingresa los detalles de la venta final. El saldo puede ser 0. La
-            venta será creada con estado "En producción" y pendiente de
-            aprobación.
+            Ingresa los detalles de la venta final. La venta será creada con
+            estado "En producción" y pendiente de aprobación.
           </p>
         </DialogHeader>
 
@@ -329,7 +328,7 @@ export function SaleDialog({
               {/* Monto total */}
               <div>
                 <Label>
-                  Saldo <span className="text-red-500">*</span>
+                  Precio Final de Venta <span className="text-red-500">*</span>
                 </Label>
                 <div className="flex space-x-1">
                   <Input
@@ -379,11 +378,14 @@ export function SaleDialog({
               {/* Información de facturación */}
               <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-4">
                 <h3 className="text-lg font-medium">
-                  Información de Facturación <span className="text-red-500">*</span>
+                  Información de Facturación{" "}
+                  <span className="text-red-500">*</span>
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>Nombre <span className="text-red-500">*</span></Label>
+                    <Label>
+                      Nombre <span className="text-red-500">*</span>
+                    </Label>
                     <Input
                       value={billingFirstName}
                       onChange={(e) => setBillingFirstName(e.target.value)}
@@ -391,7 +393,9 @@ export function SaleDialog({
                     />
                   </div>
                   <div>
-                    <Label>Apellido <span className="text-red-500">*</span></Label>
+                    <Label>
+                      Apellido <span className="text-red-500">*</span>
+                    </Label>
                     <Input
                       value={billingLastName}
                       onChange={(e) => setBillingLastName(e.target.value)}
@@ -401,7 +405,9 @@ export function SaleDialog({
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>Correo <span className="text-red-500">*</span></Label>
+                    <Label>
+                      Correo <span className="text-red-500">*</span>
+                    </Label>
                     <Input
                       type="email"
                       value={billingEmail}
@@ -410,7 +416,9 @@ export function SaleDialog({
                     />
                   </div>
                   <div>
-                    <Label>Carnet/NIT <span className="text-red-500">*</span></Label>
+                    <Label>
+                      Carnet/NIT <span className="text-red-500">*</span>
+                    </Label>
                     <Input
                       value={billingNitCarnet}
                       onChange={(e) => setBillingNitCarnet(e.target.value)}
