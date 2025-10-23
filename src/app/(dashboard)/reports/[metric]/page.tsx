@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
 import { LeadsAnalyticsDashboard } from "@/components/reports/leads/LeadsAnalyticsDashboard";
 import { SalesPerformanceDashboard } from "@/components/reports/sales/SalesPerformanceDashboard";
+import { TeamAnalyticsDashboard } from "@/components/reports/team/TeamAnalyticsDashboard";
 
 // Icon mapping for client-side rendering
 const iconMap: Record<string, LucideIcon> = {
@@ -79,6 +80,10 @@ async function MetricContent({ metric }: { metric: string }) {
 
   if (metric === "sales-performance") {
     return <SalesPerformanceDashboard config={metricConfig} />;
+  }
+
+  if (metric === "team-analytics") {
+    return <TeamAnalyticsDashboard />;
   }
 
   return (

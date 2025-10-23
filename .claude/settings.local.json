@@ -6,7 +6,8 @@
       "Bash(npx tsc:*)",
       "Bash(mkdir:*)",
       "Bash(npm run build:*)",
-      "Bash(npx prisma generate:*)"
+      "Bash(npx prisma generate:*)",
+      "Bash(python3:*)"
     ],
     "deny": [],
     "ask": []
