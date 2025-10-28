@@ -457,11 +457,12 @@ export function CreateUserForm({
                       }}
                       className="opacity-50 cursor-not-allowed"
                     >
-                      Configurar permisos personalizados (Deshabilitado)
+                      Configurar permisos personalizados
                     </Button>
                     <FormDescription className="text-xs text-muted-foreground flex items-center gap-1">
                       <AlertTriangle className="h-3 w-3" />
-                      La configuración de permisos personalizados está temporalmente deshabilitada por razones de seguridad.
+                      La configuración de permisos personalizados está
+                      temporalmente deshabilitada por razones de seguridad.
                     </FormDescription>
                   </div>
                 )}

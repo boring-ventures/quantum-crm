@@ -51,12 +51,14 @@ interface PermissionEditorProps {
   permissions: any;
   onChange: (updatedPermissions: PermissionMap) => void;
   onExportJson?: () => void;
+  readOnly?: boolean;
 }
 
 export default function PermissionEditor({
   permissions: initialPermissions,
   onChange,
   onExportJson,
+  readOnly = false,
 }: PermissionEditorProps) {
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
@@ -240,6 +242,16 @@ export default function PermissionEditor({
       currentValue: ScopeValue = false
     ) => {
       const stringValue = String(currentValue);
+
+      // Si está en modo solo lectura, solo mostrar el badge sin selector
+      if (readOnly) {
+        return (
+          <div className="w-[100px] h-9 flex items-center justify-center">
+            {renderScopeBadge(currentValue)}
+          </div>
+        );
+      }
+
       return (
         <Select
           value={stringValue}
@@ -361,18 +373,20 @@ export default function PermissionEditor({
 
   return (
     <div className="space-y-4 flex flex-col h-full">
-      <div className="flex justify-between mb-4">
-        <Button variant="outline" onClick={resetPermissions} size="sm">
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Restablecer
-        </Button>
-        {onExportJson && (
-          <Button variant="outline" onClick={onExportJson} size="sm">
-            <Copy className="h-4 w-4 mr-2" />
-            Exportar JSON
+      {!readOnly && (
+        <div className="flex justify-between mb-4">
+          <Button variant="outline" onClick={resetPermissions} size="sm">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Restablecer
           </Button>
-        )}
-      </div>
+          {onExportJson && (
+            <Button variant="outline" onClick={onExportJson} size="sm">
+              <Copy className="h-4 w-4 mr-2" />
+              Exportar JSON
+            </Button>
+          )}
+        </div>
+      )}
 
       <div className="flex-1 min-h-0">
         <ScrollArea className="h-[400px] md:h-[40vh]">
