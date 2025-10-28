@@ -8,6 +8,8 @@ import {
   Users,
   Key,
   CheckCircle2,
+  AlertTriangle,
+  ShieldAlert,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -428,6 +430,7 @@ export default function RolesPage() {
                                 value="permissions"
                                 className="mt-4 h-full"
                               >
+                                {/* FUNCIONALIDAD ORIGINAL - Comentada temporalmente para restaurar fácilmente
                                 <div className="flex justify-end mb-4">
                                   {canEditRoles && (
                                     <Button
@@ -456,6 +459,53 @@ export default function RolesPage() {
                                     />
                                   )}
                                 </div>
+                                */}
+
+                                {/* REEMPLAZO TEMPORAL - Remover este bloque para restaurar funcionalidad */}
+                                <div className="flex justify-end mb-4">
+                                  {canEditRoles && (
+                                    <Button
+                                      onClick={() => {
+                                        toast({
+                                          title: "Funcionalidad temporalmente deshabilitada",
+                                          description:
+                                            "El sistema detectó modificaciones no autorizadas en permisos. Esta función ha sido bloqueada por seguridad hasta nueva orden.",
+                                          variant: "destructive",
+                                        });
+                                      }}
+                                      disabled={true}
+                                      className="opacity-50 cursor-not-allowed"
+                                    >
+                                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                                      Aplicar a todos los usuarios (Deshabilitado)
+                                    </Button>
+                                  )}
+                                </div>
+
+                                <div className="overflow-hidden">
+                                  {selectedRole && (
+                                    <div className="space-y-4">
+                                      <div className="p-4 border rounded-lg bg-amber-500/10 border-amber-500/30">
+                                        <div className="flex items-center gap-2 mb-2">
+                                          <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                                          <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
+                                            Modo Solo Lectura
+                                          </p>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">
+                                          La edición de permisos ha sido temporalmente deshabilitada debido a que el sistema detectó intentos de modificación no autorizados en los permisos predeterminados. Esta medida de seguridad protege la integridad del sistema.
+                                        </p>
+                                      </div>
+                                      <div className="p-4 border rounded-lg bg-muted/50">
+                                        <h4 className="text-sm font-medium mb-3">Permisos actuales del rol:</h4>
+                                        <pre className="text-xs overflow-auto max-h-[400px] p-4 bg-background rounded border">
+                                          {JSON.stringify(selectedRole.permissions, null, 2)}
+                                        </pre>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                                {/* FIN REEMPLAZO TEMPORAL */}
                               </TabsContent>
 
                               <TabsContent value="users" className="mt-4">
@@ -523,6 +573,7 @@ export default function RolesPage() {
                             <DialogClose asChild>
                               <Button variant="outline">Cerrar</Button>
                             </DialogClose>
+                            {/* FUNCIONALIDAD ORIGINAL - Comentada temporalmente para restaurar fácilmente
                             {canEditRoles &&
                               Object.keys(editedPermissions).length > 0 && (
                                 <Button
@@ -536,6 +587,7 @@ export default function RolesPage() {
                                   Guardar cambios
                                 </Button>
                               )}
+                            */}
                           </DialogFooter>
                         </DialogContent>
                       </Dialog>

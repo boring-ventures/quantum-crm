@@ -34,7 +34,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, AlertTriangle } from "lucide-react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import type { Role } from "@/types/role";
 import type { User } from "@/types/user";
@@ -480,6 +480,7 @@ export function EditUserForm({
                   )}
                 />
 
+                {/* FUNCIONALIDAD ORIGINAL - Comentada temporalmente para restaurar fácilmente
                 {form.watch("roleId") && (
                   <div className="flex items-center gap-2 mb-2">
                     <Button
@@ -498,6 +499,34 @@ export function EditUserForm({
                     </FormDescription>
                   </div>
                 )}
+                */}
+                {/* REEMPLAZO TEMPORAL - Remover este bloque para restaurar funcionalidad */}
+                {form.watch("roleId") && (
+                  <div className="flex flex-col gap-2 mb-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled
+                      onClick={() => {
+                        toast({
+                          title: "Funcionalidad temporalmente deshabilitada",
+                          description:
+                            "El sistema detectó cambios peligrosos en permisos predeterminados. Esta función ha sido desactivada por seguridad hasta nueva orden.",
+                          variant: "destructive",
+                        });
+                      }}
+                      className="opacity-50 cursor-not-allowed"
+                    >
+                      Configurar permisos personalizados (Deshabilitado)
+                    </Button>
+                    <FormDescription className="text-xs text-muted-foreground flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3" />
+                      La configuración de permisos personalizados está temporalmente deshabilitada por razones de seguridad.
+                    </FormDescription>
+                  </div>
+                )}
+                {/* FIN REEMPLAZO TEMPORAL */}
                 <FormField
                   control={form.control}
                   name="countryId"
@@ -570,7 +599,7 @@ export function EditUserForm({
       </Dialog>
 
       {/* Diálogo de credenciales */}
-      {/* Dialog de permisos personalizados */}
+      {/* DESHABILITADO: Dialog de permisos personalizados
       <Dialog
         open={showPermissionDialog}
         onOpenChange={setShowPermissionDialog}
@@ -624,6 +653,7 @@ export function EditUserForm({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      */}
 
       <Dialog open={showCredentials} onOpenChange={handleCloseCredentials}>
         <DialogContent className="sm:max-w-[500px]">
