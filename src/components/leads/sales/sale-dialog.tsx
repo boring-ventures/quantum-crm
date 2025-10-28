@@ -336,7 +336,7 @@ export function SaleDialog({
                     min={0}
                     value={saldo}
                     onChange={(e) => setSaldo(e.target.value)}
-                    placeholder="$ 0.00"
+                    placeholder="0.00"
                     className="flex-1"
                   />
                   <Select value={currency} onValueChange={setCurrency}>

@@ -539,7 +539,7 @@ export default function SalesPage() {
           <div className="flex items-center">
             <div className="text-right mr-3">
               <div className="text-xs text-muted-foreground">
-                {format(parseISO(sale.createdAt), "dd/MM/yyyy", { locale: es })}
+                {sale.createdAt ? format(parseISO(sale.createdAt), "dd/MM/yyyy", { locale: es }) : ""}
               </div>
               <div className="text-xl font-bold">
                 {currencyDisplay}{" "}
@@ -685,9 +685,9 @@ export default function SalesPage() {
               <div className="flex flex-col text-xs text-muted-foreground">
                 <span>
                   Reservado:{" "}
-                  {format(parseISO(reservation.createdAt), "dd/MM/yyyy", {
+                  {reservation.createdAt ? format(parseISO(reservation.createdAt), "dd/MM/yyyy", {
                     locale: es,
-                  })}
+                  }) : "Fecha no disponible"}
                 </span>
                 <span>Entrega: {deliveryDate}</span>
                 {remainingDays !== null && (
@@ -899,14 +899,14 @@ export default function SalesPage() {
 
     return (
       <Sheet open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-        <SheetContent className="w-full sm:max-w-lg">
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
             <SheetTitle className="text-xl">
               {isSale ? "Detalle de Venta" : "Detalle de Reserva"}
             </SheetTitle>
           </SheetHeader>
 
-          <div className="mt-6 space-y-6">
+          <div className="mt-6 space-y-6 pb-6">
             <div>
               <h3 className="text-lg font-semibold">{businessType}</h3>
               <h2 className="text-2xl font-bold mt-1">{clientName}</h2>
@@ -980,7 +980,7 @@ export default function SalesPage() {
                     {formatPaymentMethod(item.paymentMethod)}
                   </span>
                 </div>
-                {!isSale && (
+                {!isSale && item.deliveryDate && (
                   <div>
                     <span className="text-gray-400 text-sm">
                       Fecha de Entrega:
@@ -992,16 +992,18 @@ export default function SalesPage() {
                     </span>
                   </div>
                 )}
-                <div>
-                  <span className="text-gray-400 text-sm">
-                    Fecha de {isSale ? "Venta" : "Reserva"}:
-                  </span>
-                  <span className="ml-2">
-                    {format(parseISO(item.createdAt), "dd/MM/yyyy", {
-                      locale: es,
-                    })}
-                  </span>
-                </div>
+                {item.createdAt && (
+                  <div>
+                    <span className="text-gray-400 text-sm">
+                      Fecha de {isSale ? "Venta" : "Reserva"}:
+                    </span>
+                    <span className="ml-2">
+                      {format(parseISO(item.createdAt), "dd/MM/yyyy", {
+                        locale: es,
+                      })}
+                    </span>
+                  </div>
+                )}
                 <div>
                   <span className="text-gray-400 text-sm">Estado:</span>
                   <Badge className="ml-2">
