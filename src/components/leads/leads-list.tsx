@@ -526,6 +526,7 @@ export function LeadsList({
     countryId,
     page,
     pageSize,
+    leadStatus, // CRITICAL: Pass leadStatus to API
   });
   const queryClient = useQueryClient();
 
@@ -574,33 +575,17 @@ export function LeadsList({
     );
   }
 
-  // Paso 1: Filtrar por estado (activo, cerrado, archivado)
+  // El API ya filtra por estado (activo, cerrado, archivado), así que comenzamos con todos los items
   let filteredLeads = data.items;
 
-  switch (leadStatus) {
-    case "active":
-      filteredLeads = filteredLeads.filter(
-        (lead) => !lead.isArchived && !lead.isClosed
-      );
-      break;
-    case "closed":
-      filteredLeads = filteredLeads.filter(
-        (lead) => !lead.isArchived && lead.isClosed
-      );
-      break;
-    case "archived":
-      filteredLeads = filteredLeads.filter((lead) => lead.isArchived);
-      break;
-  }
-
-  // Paso 2: Filtrar los bad leads si es necesario
+  // Paso 1: Filtrar los bad leads si es necesario
   if (filterBadLeads) {
     filteredLeads = filteredLeads.filter(
       (lead) => lead.qualification !== "BAD_LEAD"
     );
   }
 
-  // Paso 3: Aplicar filtro según el tipo seleccionado
+  // Paso 2: Aplicar filtro según el tipo seleccionado
   switch (filterType) {
     case "no-management":
       // Leads sin tareas y que no estén cerrados/archivados
@@ -650,29 +635,20 @@ export function LeadsList({
       // Leads marcados como favoritos
       filteredLeads = filteredLeads.filter((lead) => lead.isFavorite);
       break;
-    case "closed-leads":
-      // Solo leads cerrados (ya filtrados por estado en el paso 1)
-      break;
-    case "my-leads":
-      // Leads asignados al usuario actual
-      filteredLeads = filteredLeads.filter(
-        (lead) => lead.assignedToId === currentUser?.id
-      );
-      break;
     case "all":
     default:
-      // Para el tab "all", ya viene sincronizado con el estado superior
+      // Para el tab "all", mostrar todos los leads del estado actual
       break;
   }
 
-  // Paso 4: Filtrar por nivel de interés si se especificó
+  // Paso 3: Filtrar por nivel de interés si se especificó
   if (interestLevel > 0) {
     filteredLeads = filteredLeads.filter(
       (lead) => lead.qualityScore === interestLevel
     );
   }
 
-  // Paso 5: Aplicar filtro de búsqueda por texto
+  // Paso 4: Aplicar filtro de búsqueda por texto
   if (searchTerm) {
     const search = searchTerm.toLowerCase();
     filteredLeads = filteredLeads.filter((lead) => {

@@ -19,6 +19,7 @@ interface LeadsFilter {
   isArchived?: boolean;
   isClosed?: boolean;
   includeArchived?: boolean;
+  leadStatus?: "active" | "closed" | "archived";
 }
 
 // Consulta de leads con filtros
@@ -36,6 +37,7 @@ export const useLeadsQuery = (filters: LeadsFilter = {}) => {
   if (filters.assignedToId)
     queryParams.append("assignedToId", filters.assignedToId);
   if (filters.countryId) queryParams.append("countryId", filters.countryId);
+  if (filters.leadStatus) queryParams.append("leadStatus", filters.leadStatus);
   if (filters.isArchived !== undefined)
     queryParams.append("isArchived", filters.isArchived.toString());
   if (filters.isClosed !== undefined)

@@ -155,69 +155,58 @@ export default function LeadsPage() {
     search: searchTerm,
     page: currentPage,
     pageSize: pageSize,
+    leadStatus: activeTab as "active" | "closed" | "archived",
   });
 
-  // Procesar los leads para estadísticas (filtrando por estado según el tab activo)
-  let leadsData = rawLeadsData?.items || [];
+  // Obtener conteos para los tabs principales (active, closed, archived)
+  const { data: activeLeadsData } = useLeadsQuery({
+    assignedToId,
+    countryId,
+    leadStatus: "active",
+    pageSize: 1, // Solo necesitamos el total
+  });
 
-  // Función para obtener leads filtrados por estado
-  const getFilteredLeads = (status: "active" | "closed" | "archived") => {
-    return rawLeadsData?.items?.filter((lead) => {
-      if (status === "active") return !lead.isArchived && !lead.isClosed;
-      if (status === "closed") return !lead.isArchived && lead.isClosed;
-      if (status === "archived") return lead.isArchived;
-      return false;
-    });
-  };
+  const { data: closedLeadsData } = useLeadsQuery({
+    assignedToId,
+    countryId,
+    leadStatus: "closed",
+    pageSize: 1,
+  });
 
-  // Conteos sincronizados con el tab superior seleccionado (activos/cerrados/archivados)
-  const currentTabLeads = getFilteredLeads(activeTab as any) || [];
+  const { data: archivedLeadsData } = useLeadsQuery({
+    assignedToId,
+    countryId,
+    leadStatus: "archived",
+    pageSize: 1,
+  });
+
+  // Obtener conteos precisos para los tabs secundarios desde el servidor
+  const { data: secondaryTabCounts } = useQuery({
+    queryKey: ["leads", "counts", { assignedToId, countryId, leadStatus: activeTab }],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (assignedToId) params.append("assignedToId", assignedToId);
+      if (countryId) params.append("countryId", countryId);
+      params.append("leadStatus", activeTab);
+
+      const response = await fetch(`/api/leads/counts?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error("Error fetching lead counts");
+      }
+      return response.json();
+    },
+    enabled: !isLoadingCurrentUser,
+  });
+
   const leadCounts = {
-    active: getFilteredLeads("active")?.length || 0,
-    closed: getFilteredLeads("closed")?.length || 0,
-    archived: getFilteredLeads("archived")?.length || 0,
-    all: currentTabLeads.length || 0,
-    noManagement:
-      currentTabLeads.filter(
-        (lead) =>
-          (!lead.quotations || lead.quotations.length === 0) &&
-          (!lead.reservations || lead.reservations.length === 0) &&
-          (!lead.sales || lead.sales.length === 0)
-      ).length || 0,
-    noTasks:
-      currentTabLeads.filter((lead) => !lead.tasks || lead.tasks.length === 0)
-        .length || 0,
-    todayTasks:
-      currentTabLeads.filter((lead) => {
-        if (!lead.tasks || lead.tasks.length === 0) return false;
-        return lead.tasks.some((task) => {
-          if (!task.scheduledFor) return false;
-          const today = new Date();
-          const taskDate = new Date(task.scheduledFor);
-          return (
-            taskDate.getDate() === today.getDate() &&
-            taskDate.getMonth() === today.getMonth() &&
-            taskDate.getFullYear() === today.getFullYear() &&
-            task.status === "PENDING"
-          );
-        });
-      }).length || 0,
-    overdueTasks:
-      currentTabLeads.filter((lead) => {
-        if (!lead.tasks || lead.tasks.length === 0) return false;
-        return lead.tasks.some((task) => {
-          if (!task.scheduledFor) return false;
-          const today = new Date();
-          const taskDate = new Date(task.scheduledFor);
-          return taskDate < today && task.status === "PENDING";
-        });
-      }).length || 0,
-    favorites: currentTabLeads.filter((lead) => lead.isFavorite).length || 0,
-    myLeads:
-      leadsScope !== "self" && currentUser?.id
-        ? currentTabLeads.filter((lead) => lead.assignedToId === currentUser.id)
-            .length || 0
-        : 0,
+    active: activeLeadsData?.total || 0,
+    closed: closedLeadsData?.total || 0,
+    archived: archivedLeadsData?.total || 0,
+    all: secondaryTabCounts?.all || 0,
+    noManagement: secondaryTabCounts?.noManagement || 0,
+    todayTasks: secondaryTabCounts?.todayTasks || 0,
+    overdueTasks: secondaryTabCounts?.overdueTasks || 0,
+    favorites: secondaryTabCounts?.favorites || 0,
   };
 
   const handleExportLeads = async () => {
@@ -627,14 +616,14 @@ export default function LeadsPage() {
                           className="flex items-center"
                         >
                           <UserIcon className="mr-2 h-4 w-4" />
-                          Activos ({leadCounts.active})
+                          Activos ({activeLeadsData ? leadCounts.active : "..."})
                         </TabsTrigger>
                         <TabsTrigger
                           value="closed"
                           className="flex items-center"
                         >
                           <Lock className="mr-2 h-4 w-4" />
-                          Cerrados ({leadCounts.closed})
+                          Cerrados ({closedLeadsData ? leadCounts.closed : "..."})
                         </TabsTrigger>
                         {canViewArchivedLeads && (
                           <TabsTrigger
@@ -642,7 +631,7 @@ export default function LeadsPage() {
                             className="flex items-center"
                           >
                             <Archive className="mr-2 h-4 w-4" />
-                            Archivados ({leadCounts.archived})
+                            Archivados ({archivedLeadsData ? leadCounts.archived : "..."})
                           </TabsTrigger>
                         )}
                       </TabsList>
@@ -653,52 +642,36 @@ export default function LeadsPage() {
                       <TabsList>
                         <TabsTrigger value="all" className="flex items-center">
                           <Package className="mr-2 h-4 w-4" />
-                          Todos ({leadCounts.all})
+                          Todos ({secondaryTabCounts ? leadCounts.all : "..."})
                         </TabsTrigger>
                         <TabsTrigger
                           value="no-management"
                           className="flex items-center"
                         >
                           <HelpCircle className="mr-2 h-4 w-4" />
-                          Sin Gestión ({leadCounts.noManagement})
+                          Sin Gestión ({secondaryTabCounts ? leadCounts.noManagement : "..."})
                         </TabsTrigger>
                         <TabsTrigger
                           value="tasks"
                           className="flex items-center"
                         >
                           <CheckCircle2 className="mr-2 h-4 w-4" />
-                          Tareas de Hoy ({leadCounts.todayTasks})
+                          Tareas de Hoy ({secondaryTabCounts ? leadCounts.todayTasks : "..."})
                         </TabsTrigger>
                         <TabsTrigger
                           value="overdue"
                           className="flex items-center"
                         >
                           <XCircle className="mr-2 h-4 w-4" />
-                          Vencidas ({leadCounts.overdueTasks})
+                          Vencidas ({secondaryTabCounts ? leadCounts.overdueTasks : "..."})
                         </TabsTrigger>
                         <TabsTrigger
                           value="favorites"
                           className="flex items-center"
                         >
                           <Star className="mr-2 h-4 w-4" />
-                          Favoritos ({leadCounts.favorites})
+                          Favoritos ({secondaryTabCounts ? leadCounts.favorites : "..."})
                         </TabsTrigger>
-                        <TabsTrigger
-                          value="closed-leads"
-                          className="flex items-center"
-                        >
-                          <Lock className="mr-2 h-4 w-4" />
-                          Cerrados ({leadCounts.closed})
-                        </TabsTrigger>
-                        {leadsScope !== "self" && leadsScope === "all" && (
-                          <TabsTrigger
-                            value="my-leads"
-                            className="flex items-center"
-                          >
-                            <UserIcon className="mr-2 h-4 w-4" />
-                            Mis Leads ({leadCounts.myLeads})
-                          </TabsTrigger>
-                        )}
                       </TabsList>
 
                       <TabsContent value="all" className="mt-4">
@@ -805,50 +778,6 @@ export default function LeadsPage() {
                           pageSize={pageSize}
                         />
                       </TabsContent>
-                      <TabsContent value="closed-leads">
-                        <LeadsList
-                          filterBadLeads={true}
-                          searchTerm={searchTerm}
-                          filterType="closed-leads"
-                          leadStatus={
-                            activeTab as "active" | "closed" | "archived"
-                          }
-                          interestLevel={getInterestScore(interestFilter)}
-                          assignedToId={assignedToId}
-                          countryId={countryId}
-                          canEdit={canEditLeads}
-                          canDelete={canDeleteLeads}
-                          currentUser={currentUser}
-                          showSelectionColumn={canSelectLeads}
-                          selectedLeads={selectedLeads}
-                          onLeadSelect={handleLeadSelect}
-                          page={currentPage}
-                          pageSize={pageSize}
-                        />
-                      </TabsContent>
-                      {leadsScope !== "self" && leadsScope === "all" && (
-                        <TabsContent value="my-leads">
-                          <LeadsList
-                            filterBadLeads={true}
-                            searchTerm={searchTerm}
-                            filterType="my-leads"
-                            leadStatus={
-                              activeTab as "active" | "closed" | "archived"
-                            }
-                            interestLevel={getInterestScore(interestFilter)}
-                            assignedToId={currentUser?.id}
-                            countryId={countryId}
-                            canEdit={canEditLeads}
-                            canDelete={canDeleteLeads}
-                            currentUser={currentUser}
-                            showSelectionColumn={canSelectLeads}
-                            selectedLeads={selectedLeads}
-                            onLeadSelect={handleLeadSelect}
-                            page={currentPage}
-                            pageSize={pageSize}
-                          />
-                        </TabsContent>
-                      )}
                     </Tabs>
                   </div>
 

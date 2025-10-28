@@ -48,8 +48,10 @@ export async function GET(request: NextRequest) {
     const sourceId = searchParams.get("source");
     const assignedTo = searchParams.get("assignedTo");
     const assignedToId = searchParams.get("assignedToId");
+    const leadStatus = searchParams.get("leadStatus"); // "active", "closed", "archived"
 
     console.log("assignedToId", assignedToId);
+    console.log("leadStatus", leadStatus);
 
     // Construir condiciones de búsqueda base
     const where: any = {};
@@ -63,6 +65,17 @@ export async function GET(request: NextRequest) {
         { phone: { contains: search, mode: "insensitive" } },
         { cellphone: { contains: search, mode: "insensitive" } },
       ];
+    }
+
+    // Filtro por estado de lead (activo, cerrado, archivado)
+    if (leadStatus === "active") {
+      where.isArchived = false;
+      where.isClosed = false;
+    } else if (leadStatus === "closed") {
+      where.isArchived = false;
+      where.isClosed = true;
+    } else if (leadStatus === "archived") {
+      where.isArchived = true;
     }
 
     // Filtros específicos
