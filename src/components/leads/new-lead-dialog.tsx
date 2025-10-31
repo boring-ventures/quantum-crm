@@ -33,7 +33,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import type { CreateLeadPayload, Product, LeadWithRelations } from "@/types/lead";
-import { Search, AlertCircle, CheckCircle, Info } from "lucide-react";
+import { Search, AlertCircle, CheckCircle, Info, ChevronDown, ChevronUp, User, Calendar } from "lucide-react";
 import { DuplicateConfirmationDialog } from "./duplicate-confirmation-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -80,12 +80,12 @@ export function NewLeadDialog({
     "personal" | "contact" | "business"
   >("personal");
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
-  const [pendingFormData, setPendingFormData] = useState<FormData | null>(null);
 
   // Estados para verificación en tiempo real
   const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
   const [realtimeDuplicates, setRealtimeDuplicates] = useState<LeadWithRelations[]>([]);
   const [showClosedLeadPreview, setShowClosedLeadPreview] = useState(false);
+  const [expandedPreviewCards, setExpandedPreviewCards] = useState<Set<string>>(new Set());
 
   // Búsqueda para dropdowns
   const [searchProduct, setSearchProduct] = useState("");
@@ -262,20 +262,9 @@ export function NewLeadDialog({
     return () => clearTimeout(timeoutId);
   }, [watchedCellphone]);
 
-  // Manejar el envío del formulario (con verificación de duplicados)
+  // Manejar el envío del formulario (crear directamente sin verificación adicional)
   const onSubmit = async (data: FormData) => {
-    // Verificar duplicados solo al enviar el formulario
-    const foundDuplicates = await checkDuplicates(data.cellphone);
-
-    if (foundDuplicates && foundDuplicates.length > 0) {
-      // Almacenar duplicados encontrados y mostrar dialog de confirmación
-      setDuplicateLeads(foundDuplicates);
-      setPendingFormData(data);
-      setShowDuplicateDialog(true);
-      return;
-    }
-
-    // Si no hay duplicados, crear directamente
+    // Crear el lead directamente, ya que la verificación se hace en tiempo real
     await createLead(data);
   };
 
@@ -289,22 +278,6 @@ export function NewLeadDialog({
   const handlePrevStep = () => {
     if (currentStep === "business") setCurrentStep("contact");
     else if (currentStep === "contact") setCurrentStep("personal");
-  };
-
-  // Manejar la confirmación de crear lead duplicado
-  const handleConfirmDuplicate = async () => {
-    if (!pendingFormData) return;
-
-    setShowDuplicateDialog(false);
-    await createLead(pendingFormData);
-    setPendingFormData(null);
-  };
-
-  // Manejar la cancelación del dialog de duplicados
-  const handleCancelDuplicate = () => {
-    setShowDuplicateDialog(false);
-    setPendingFormData(null);
-    // No hacer nada más, el usuario vuelve al dialog principal
   };
 
   // Manejar el uso de datos de un lead cerrado (desde tiempo real o diálogo)
@@ -337,9 +310,29 @@ export function NewLeadDialog({
     });
   };
 
-  // Separar leads activos y cerrados en tiempo real
-  const realtimeActiveLeads = realtimeDuplicates.filter(lead => !lead.isClosed);
-  const realtimeClosedLeads = realtimeDuplicates.filter(lead => lead.isClosed);
+  // Separar leads activos y cerrados en tiempo real, y eliminar duplicados por ID
+  const uniqueLeads = realtimeDuplicates.reduce((acc, lead) => {
+    if (!acc.find(l => l.id === lead.id)) {
+      acc.push(lead);
+    }
+    return acc;
+  }, [] as LeadWithRelations[]);
+
+  const realtimeActiveLeads = uniqueLeads.filter(lead => !lead.isClosed);
+  const realtimeClosedLeads = uniqueLeads.filter(lead => lead.isClosed);
+
+  // Función para manejar expansión de tarjetas de vista previa
+  const togglePreviewCard = (leadId: string) => {
+    setExpandedPreviewCards(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(leadId)) {
+        newSet.delete(leadId);
+      } else {
+        newSet.add(leadId);
+      }
+      return newSet;
+    });
+  };
 
   const [sourceDropdownOpen, setSourceDropdownOpen] = useState(false);
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
@@ -364,15 +357,40 @@ export function NewLeadDialog({
 
   return (
     <>
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgb(203 213 225);
+          border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgb(148 163 184);
+        }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgb(71 85 105);
+        }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgb(100 116 139);
+        }
+      `}</style>
+
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[600px] bg-background border-border dark:bg-gray-900 dark:border-gray-800">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col bg-background border-border dark:bg-gray-900 dark:border-gray-800">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle className="text-xl font-semibold text-foreground dark:text-gray-100">
               Nuevo Lead
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-4">
+          <form className="space-y-4 mt-4 overflow-y-auto flex-1 pr-2 custom-scrollbar" style={{
+            scrollbarWidth: "thin",
+            scrollbarColor: "rgb(203 213 225) transparent"
+          }}>
             <div className="flex w-full border-b border-border dark:border-gray-800">
               <div
                 className={`py-2 px-4 cursor-pointer font-medium ${
@@ -507,89 +525,204 @@ export function NewLeadDialog({
                   </Alert>
                 )}
 
-                {/* Alerta de leads activos duplicados */}
+                {/* Alerta de leads activos duplicados con botón para ver detalles */}
                 {!isCheckingDuplicates && realtimeActiveLeads.length > 0 && (
-                  <Alert className="bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800">
-                    <AlertCircle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-                    <AlertDescription className="text-orange-800 dark:text-orange-200 text-sm">
-                      <strong>¡Atención!</strong> Se encontraron {realtimeActiveLeads.length} lead(s) activo(s) con este número de celular.
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                {/* Alerta de leads cerrados - con opción de rellenar datos */}
-                {!isCheckingDuplicates && realtimeActiveLeads.length === 0 && realtimeClosedLeads.length > 0 && (
-                  <div className="space-y-2">
-                    <Alert className="bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800">
-                      <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-                      <AlertDescription className="text-green-800 dark:text-green-200 text-sm">
-                        <div className="flex items-center justify-between">
+                  <div className="space-y-3">
+                    <Alert className="bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800">
+                      <AlertCircle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                      <AlertDescription className="text-orange-800 dark:text-orange-200 text-sm">
+                        <div className="flex flex-col gap-3">
                           <span>
-                            Se encontró {realtimeClosedLeads.length} lead(s) cerrado(s) con este número.
+                            <strong>¡Atención!</strong> Se encontraron {realtimeActiveLeads.length} lead(s) activo(s) con este número de celular.
                           </span>
                           <Button
                             type="button"
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
-                            onClick={() => setShowClosedLeadPreview(!showClosedLeadPreview)}
-                            className="text-green-700 dark:text-green-300 hover:text-green-900 dark:hover:text-green-100 h-auto p-1"
+                            onClick={() => {
+                              setDuplicateLeads(uniqueLeads);
+                              setShowDuplicateDialog(true);
+                            }}
+                            className="bg-orange-100 hover:bg-orange-200 dark:bg-orange-900/50 dark:hover:bg-orange-900/70 border-orange-300 dark:border-orange-700 text-orange-800 dark:text-orange-200 font-medium"
                           >
-                            {showClosedLeadPreview ? "Ocultar" : "Ver detalles"}
+                            Ver detalles completos
                           </Button>
                         </div>
                       </AlertDescription>
                     </Alert>
 
-                    {/* Preview de leads cerrados */}
-                    {showClosedLeadPreview && (
-                      <div className="space-y-2 mt-2 max-h-[300px] overflow-y-auto border border-green-200 dark:border-green-800 rounded-lg p-3 bg-white dark:bg-gray-800">
-                        {realtimeClosedLeads.map((lead) => (
-                          <div
-                            key={lead.id}
-                            className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-gray-50 dark:bg-gray-900"
+                    {/* Vista previa de leads activos */}
+                    <div className="space-y-2">
+                      {realtimeActiveLeads.map((lead) => (
+                        <div
+                          key={lead.id}
+                          className="border border-orange-200 dark:border-orange-800 rounded-lg bg-white dark:bg-gray-800 overflow-hidden"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => togglePreviewCard(lead.id)}
+                            className="w-full p-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                           >
-                            <div className="flex items-start justify-between mb-2">
-                              <div>
-                                <h4 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-700 dark:text-orange-300 font-semibold text-sm">
+                                {lead.firstName?.charAt(0) || lead.lastName?.charAt(0) || "?"}
+                              </div>
+                              <div className="text-left">
+                                <p className="font-medium text-gray-900 dark:text-gray-100 text-sm">
                                   {lead.firstName && lead.lastName
                                     ? `${lead.firstName} ${lead.lastName}`
                                     : lead.firstName || lead.lastName || "Sin nombre"}
-                                </h4>
-                                {lead.status && (
-                                  <Badge
-                                    className="text-xs mt-1"
-                                    style={{ backgroundColor: lead.status.color }}
-                                  >
-                                    {lead.status.name}
-                                  </Badge>
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  {lead.cellphone}
+                                </p>
+                              </div>
+                            </div>
+                            {expandedPreviewCards.has(lead.id) ? (
+                              <ChevronUp className="h-4 w-4 text-gray-500" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4 text-gray-500" />
+                            )}
+                          </button>
+
+                          {expandedPreviewCards.has(lead.id) && (
+                            <div className="px-4 pb-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+                              <div className="grid grid-cols-2 gap-3 mt-3 text-xs">
+                                {lead.email && (
+                                  <div>
+                                    <span className="text-gray-500 dark:text-gray-400">Email:</span>
+                                    <p className="text-gray-900 dark:text-gray-100 truncate">{lead.email}</p>
+                                  </div>
                                 )}
+                                {lead.status && (
+                                  <div>
+                                    <span className="text-gray-500 dark:text-gray-400">Estado:</span>
+                                    <p className="text-gray-900 dark:text-gray-100">{lead.status.name}</p>
+                                  </div>
+                                )}
+                                {lead.assignedTo && (
+                                  <div>
+                                    <span className="text-gray-500 dark:text-gray-400">Asignado:</span>
+                                    <p className="text-gray-900 dark:text-gray-100 truncate">{lead.assignedTo.name}</p>
+                                  </div>
+                                )}
+                                <div>
+                                  <span className="text-gray-500 dark:text-gray-400">Creado:</span>
+                                  <p className="text-gray-900 dark:text-gray-100">
+                                    {format(new Date(lead.createdAt), "dd/MM/yyyy", { locale: es })}
+                                  </p>
+                                </div>
                               </div>
-                              <Badge variant="destructive" className="text-xs">
-                                CERRADO
-                              </Badge>
                             </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-                            <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
-                              {lead.email && <div>Email: {lead.email}</div>}
-                              {lead.source && <div>Fuente: {lead.source.name}</div>}
-                              <div>
-                                Creado: {format(new Date(lead.createdAt), "dd/MM/yyyy", { locale: es })}
+                {/* Alerta de leads cerrados - con opción de ver detalles */}
+                {!isCheckingDuplicates && realtimeActiveLeads.length === 0 && realtimeClosedLeads.length > 0 && (
+                  <div className="space-y-3">
+                    <Alert className="bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800">
+                      <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                      <AlertDescription className="text-green-800 dark:text-green-200 text-sm">
+                        <div className="flex flex-col gap-3">
+                          <span>
+                            Se encontró {realtimeClosedLeads.length} lead(s) cerrado(s) con este número.
+                          </span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setDuplicateLeads(uniqueLeads);
+                              setShowDuplicateDialog(true);
+                            }}
+                            className="bg-green-100 hover:bg-green-200 dark:bg-green-900/50 dark:hover:bg-green-900/70 border-green-300 dark:border-green-700 text-green-800 dark:text-green-200 font-medium"
+                          >
+                            Ver detalles completos
+                          </Button>
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+
+                    {/* Vista previa de leads cerrados */}
+                    <div className="space-y-2">
+                      {realtimeClosedLeads.map((lead) => (
+                        <div
+                          key={lead.id}
+                          className="border border-green-200 dark:border-green-800 rounded-lg bg-white dark:bg-gray-800 overflow-hidden"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => togglePreviewCard(lead.id)}
+                            className="w-full p-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-700 dark:text-green-300 font-semibold text-sm">
+                                {lead.firstName?.charAt(0) || lead.lastName?.charAt(0) || "?"}
+                              </div>
+                              <div className="text-left">
+                                <p className="font-medium text-gray-900 dark:text-gray-100 text-sm">
+                                  {lead.firstName && lead.lastName
+                                    ? `${lead.firstName} ${lead.lastName}`
+                                    : lead.firstName || lead.lastName || "Sin nombre"}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  {lead.cellphone} • <span className="text-red-600 dark:text-red-400">Cerrado</span>
+                                </p>
                               </div>
                             </div>
+                            {expandedPreviewCards.has(lead.id) ? (
+                              <ChevronUp className="h-4 w-4 text-gray-500" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4 text-gray-500" />
+                            )}
+                          </button>
 
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleUseClosedLeadData(lead)}
-                              className="w-full mt-2 bg-green-50 hover:bg-green-100 dark:bg-green-900/30 dark:hover:bg-green-900/50 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 text-xs"
-                            >
-                              Usar datos de este lead
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                          {expandedPreviewCards.has(lead.id) && (
+                            <div className="px-4 pb-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+                              <div className="grid grid-cols-2 gap-3 mt-3 text-xs">
+                                {lead.email && (
+                                  <div>
+                                    <span className="text-gray-500 dark:text-gray-400">Email:</span>
+                                    <p className="text-gray-900 dark:text-gray-100 truncate">{lead.email}</p>
+                                  </div>
+                                )}
+                                {lead.status && (
+                                  <div>
+                                    <span className="text-gray-500 dark:text-gray-400">Estado:</span>
+                                    <p className="text-gray-900 dark:text-gray-100">{lead.status.name}</p>
+                                  </div>
+                                )}
+                                {lead.assignedTo && (
+                                  <div>
+                                    <span className="text-gray-500 dark:text-gray-400">Asignado:</span>
+                                    <p className="text-gray-900 dark:text-gray-100 truncate">{lead.assignedTo.name}</p>
+                                  </div>
+                                )}
+                                <div>
+                                  <span className="text-gray-500 dark:text-gray-400">Creado:</span>
+                                  <p className="text-gray-900 dark:text-gray-100">
+                                    {format(new Date(lead.createdAt), "dd/MM/yyyy", { locale: es })}
+                                  </p>
+                                </div>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleUseClosedLeadData(lead)}
+                                className="w-full mt-3 bg-green-50 hover:bg-green-100 dark:bg-green-900/30 dark:hover:bg-green-900/50 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 text-xs"
+                              >
+                                Usar datos de este lead
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 
@@ -902,59 +1035,58 @@ export function NewLeadDialog({
               </div>
             )}
 
-            <DialogFooter className="mt-6">
+          </form>
+
+          <DialogFooter className="mt-4 flex-shrink-0 border-t border-border dark:border-gray-800 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="bg-transparent dark:bg-gray-800 dark:border-gray-700"
+            >
+              Cancelar
+            </Button>
+
+            {currentStep === "personal" && (
               <Button
                 type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                className="bg-transparent dark:bg-gray-800 dark:border-gray-700"
+                onClick={handleNextStep}
+                className="bg-blue-600 hover:bg-blue-700"
               >
-                Cancelar
+                Siguiente
               </Button>
+            )}
 
-              {currentStep === "personal" && (
-                <Button
-                  type="button"
-                  onClick={handleNextStep}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  Siguiente
-                </Button>
-              )}
+            {currentStep === "contact" && (
+              <Button
+                type="button"
+                onClick={handleNextStep}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                Siguiente
+              </Button>
+            )}
 
-              {currentStep === "contact" && (
-                <Button
-                  type="button"
-                  onClick={handleNextStep}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  Siguiente
-                </Button>
-              )}
-
-              {currentStep === "business" && (
-                <Button
-                  type="submit"
-                  className="bg-blue-600 hover:bg-blue-700"
-                  disabled={isPending}
-                >
-                  {isPending ? "Creando..." : "Crear Lead"}
-                </Button>
-              )}
-            </DialogFooter>
-          </form>
+            {currentStep === "business" && (
+              <Button
+                type="button"
+                onClick={handleSubmit(onSubmit)}
+                className="bg-blue-600 hover:bg-blue-700"
+                disabled={isPending}
+              >
+                {isPending ? "Creando..." : "Crear Lead"}
+              </Button>
+            )}
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de confirmación para leads duplicados */}
+      {/* Dialog de información para leads duplicados */}
       <DuplicateConfirmationDialog
         open={showDuplicateDialog}
         onOpenChange={setShowDuplicateDialog}
         duplicateLeads={duplicateLeads || []}
-        onConfirm={handleConfirmDuplicate}
-        onCancel={handleCancelDuplicate}
         onUseClosedLeadData={handleUseClosedLeadData}
-        isLoading={isPending}
       />
     </>
   );

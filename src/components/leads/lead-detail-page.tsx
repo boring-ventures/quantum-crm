@@ -309,20 +309,44 @@ export function LeadDetailPage({
 
   // Determinamos los permisos del usuario actual
   const canViewLeads = hasPermission(currentUser, "leads", "view");
+
+  // Obtener el scope para view y edit
+  const viewScope = getScope(currentUser, "leads", "view");
+  const editScope = getScope(currentUser, "leads", "edit");
+
+  // Si el scope es "self", verificar si el lead está asignado al usuario actual
+  const isAssignedToCurrentUser = lead.assignedToId === currentUser?.id;
+  const canAccessByScope =
+    viewScope === "all" ||
+    (viewScope === "self" && isAssignedToCurrentUser);
+
+  // Modo solo lectura: si el scope es "self" y el lead NO está asignado al usuario
+  const isReadOnlyMode = viewScope === "self" && !isAssignedToCurrentUser;
+
+  // Permisos de edición: debe tener permiso, el lead no debe estar cerrado,
+  // y debe cumplir con el scope (si es "self", debe estar asignado)
   const canEditLeads =
-    hasPermission(currentUser, "leads", "edit") && !isLeadClosed;
+    hasPermission(currentUser, "leads", "edit") &&
+    !isLeadClosed &&
+    !isReadOnlyMode &&
+    (editScope === "all" || (editScope === "self" && isAssignedToCurrentUser));
 
   // Para eliminar, verificar que tenga permisos, el lead no esté cerrado y NO tenga scope "self"
   const leadsScope = getScope(currentUser, "leads", "delete");
   const canDeleteLeads =
     hasPermission(currentUser, "leads", "delete") &&
     !isLeadClosed &&
-    leadsScope !== "self";
+    leadsScope !== "self" &&
+    !isReadOnlyMode;
 
   const canCreateSales =
-    hasPermission(currentUser, "sales", "create") && !isLeadClosed;
+    hasPermission(currentUser, "sales", "create") &&
+    !isLeadClosed &&
+    !isReadOnlyMode;
   const canCreateTasks =
-    hasPermission(currentUser, "tasks", "create") && !isLeadClosed;
+    hasPermission(currentUser, "tasks", "create") &&
+    !isLeadClosed &&
+    !isReadOnlyMode;
   const canViewTasks = hasPermission(currentUser, "tasks", "view");
 
   // Si el usuario no tiene permiso para ver leads, no mostrar nada
@@ -736,6 +760,23 @@ export function LeadDetailPage({
               <p className="text-amber-700 dark:text-amber-300 text-sm">
                 Este lead está en modo de solo lectura. No se pueden realizar
                 acciones de edición, creación de tareas o procesos de venta.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Banner para modo solo lectura (scope self, lead no asignado) */}
+      {!isLeadClosed && isReadOnlyMode && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
+          <div className="flex items-center">
+            <Eye className="h-5 w-5 text-blue-600 dark:text-blue-400 mr-3" />
+            <div>
+              <h3 className="text-blue-800 dark:text-blue-200 font-medium">
+                Modo Solo Lectura
+              </h3>
+              <p className="text-blue-700 dark:text-blue-300 text-sm">
+                Este lead no está asignado a ti. No puedes realizar acciones, pero puedes ver toda la información.
               </p>
             </div>
           </div>

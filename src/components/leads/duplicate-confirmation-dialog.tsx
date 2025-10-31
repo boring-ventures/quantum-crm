@@ -8,7 +8,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, User, Calendar, Phone, Mail } from "lucide-react";
+import { AlertTriangle, User, Calendar, Phone, Mail, ExternalLink, CheckCircle2, FileText, ShoppingCart, DollarSign, ListTodo } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import type { LeadWithRelations } from "@/types/lead";
@@ -19,32 +19,20 @@ interface DuplicateConfirmationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   duplicateLeads: LeadWithRelations[];
-  onConfirm: () => void;
-  onCancel: () => void;
   onUseClosedLeadData?: (lead: LeadWithRelations) => void;
-  isLoading?: boolean;
 }
 
 export function DuplicateConfirmationDialog({
   open,
   onOpenChange,
   duplicateLeads,
-  onConfirm,
-  onCancel,
   onUseClosedLeadData,
-  isLoading = false,
 }: DuplicateConfirmationDialogProps) {
   if (!duplicateLeads || duplicateLeads.length === 0) {
     return null;
   }
 
-  const handleCancel = () => {
-    onCancel();
-    onOpenChange(false);
-  };
-
-  const handleConfirm = () => {
-    onConfirm();
+  const handleClose = () => {
     onOpenChange(false);
   };
 
@@ -53,6 +41,47 @@ export function DuplicateConfirmationDialog({
       onUseClosedLeadData(lead);
       onOpenChange(false);
     }
+  };
+
+  const handleViewLeadDetails = (leadId: string) => {
+    // Abrir el lead en una nueva pestaña
+    window.open(`/leads/${leadId}`, "_blank");
+  };
+
+  // Funciones helper para obtener información de etapa del lead
+  const getQualificationBadge = (qualification?: string) => {
+    switch (qualification) {
+      case "GOOD_LEAD":
+        return <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 text-xs">Calificado</Badge>;
+      case "BAD_LEAD":
+        return <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 text-xs">No calificado</Badge>;
+      case "NOT_QUALIFIED":
+        return <Badge className="bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400 text-xs">Sin calificar</Badge>;
+      default:
+        return null;
+    }
+  };
+
+  const getLeadStage = (lead: LeadWithRelations) => {
+    const stages = [];
+
+    if (lead.qualification) stages.push(getQualificationBadge(lead.qualification));
+    if (lead.quotations && lead.quotations.length > 0) stages.push(<Badge key="quotation" className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 text-xs flex items-center gap-1"><FileText className="h-3 w-3" /> Cotización</Badge>);
+    if (lead.reservations && lead.reservations.length > 0) stages.push(<Badge key="reservation" className="bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400 text-xs flex items-center gap-1"><ShoppingCart className="h-3 w-3" /> Reserva</Badge>);
+    if (lead.sales && lead.sales.length > 0) stages.push(<Badge key="sale" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 text-xs flex items-center gap-1"><DollarSign className="h-3 w-3" /> Venta</Badge>);
+
+    return stages;
+  };
+
+  const getTasksCount = (lead: LeadWithRelations) => {
+    if (!lead.tasks || lead.tasks.length === 0) return null;
+    const pendingTasks = lead.tasks.filter(t => t.status === "PENDING" || t.status === "IN_PROGRESS").length;
+    return pendingTasks > 0 ? (
+      <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
+        <ListTodo className="h-3 w-3" />
+        {pendingTasks} tarea{pendingTasks > 1 ? 's' : ''} pendiente{pendingTasks > 1 ? 's' : ''}
+      </div>
+    ) : null;
   };
 
   // Separar leads activos y cerrados
@@ -84,11 +113,11 @@ export function DuplicateConfirmationDialog({
 
           <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
             <p className="text-blue-800 dark:text-blue-200 text-sm font-medium">
-              <strong>¿Qué deseas hacer?</strong>
+              <strong>Información de leads duplicados</strong>
             </p>
             <p className="text-blue-700 dark:text-blue-300 text-sm mt-2">
-              Puedes crear el lead de todos modos si corresponde a una persona
-              diferente o cancelar para revisar la información.
+              Se han encontrado leads existentes con el mismo número de celular.
+              Puedes ver los detalles de cada lead o usar los datos de un lead cerrado para rellenar el formulario.
             </p>
           </div>
 
@@ -178,14 +207,43 @@ export function DuplicateConfirmationDialog({
                             </div>
                           )}
 
+                          {/* Información de etapa del lead */}
+                          {(getLeadStage(lead).length > 0 || getTasksCount(lead)) && (
+                            <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+                              <div className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">
+                                Etapa del lead:
+                              </div>
+                              <div className="flex flex-wrap gap-2 items-center">
+                                {getLeadStage(lead).map((badge, idx) => (
+                                  <div key={idx}>{badge}</div>
+                                ))}
+                                {getTasksCount(lead)}
+                              </div>
+                            </div>
+                          )}
+
                           {lead.extraComments && (
-                            <div className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 rounded p-3 mt-2 border border-gray-200 dark:border-gray-600">
+                            <div className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 rounded p-3 mt-3 border border-gray-200 dark:border-gray-600">
                               <strong className="text-gray-800 dark:text-gray-300">
                                 Comentarios:
                               </strong>{" "}
                               {lead.extraComments}
                             </div>
                           )}
+
+                          {/* Botón para ver detalles del lead */}
+                          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewLeadDetails(lead.id)}
+                              className="w-full bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300"
+                            >
+                              <ExternalLink className="mr-2 h-4 w-4" />
+                              Ver detalles del lead
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -277,8 +335,23 @@ export function DuplicateConfirmationDialog({
                             </div>
                           )}
 
+                          {/* Información de etapa del lead */}
+                          {(getLeadStage(lead).length > 0 || getTasksCount(lead)) && (
+                            <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+                              <div className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">
+                                Etapa del lead:
+                              </div>
+                              <div className="flex flex-wrap gap-2 items-center">
+                                {getLeadStage(lead).map((badge, idx) => (
+                                  <div key={idx}>{badge}</div>
+                                ))}
+                                {getTasksCount(lead)}
+                              </div>
+                            </div>
+                          )}
+
                           {lead.extraComments && (
-                            <div className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 rounded p-3 mt-2 border border-gray-200 dark:border-gray-600">
+                            <div className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 rounded p-3 mt-3 border border-gray-200 dark:border-gray-600">
                               <strong className="text-gray-800 dark:text-gray-300">
                                 Comentarios:
                               </strong>{" "}
@@ -286,9 +359,19 @@ export function DuplicateConfirmationDialog({
                             </div>
                           )}
 
-                          {/* Botón para usar datos del lead cerrado */}
-                          {onUseClosedLeadData && (
-                            <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+                          {/* Botones de acciones para lead cerrado */}
+                          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600 space-y-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewLeadDetails(lead.id)}
+                              className="w-full bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300"
+                            >
+                              <ExternalLink className="mr-2 h-4 w-4" />
+                              Ver detalles del lead
+                            </Button>
+                            {onUseClosedLeadData && (
                               <Button
                                 type="button"
                                 variant="outline"
@@ -298,8 +381,8 @@ export function DuplicateConfirmationDialog({
                               >
                                 Usar datos de este lead cerrado
                               </Button>
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -314,32 +397,11 @@ export function DuplicateConfirmationDialog({
           <Button
             type="button"
             variant="outline"
-            onClick={handleCancel}
-            disabled={isLoading}
+            onClick={handleClose}
             className="bg-transparent dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
           >
-            Cancelar
+            Cerrar
           </Button>
-          {activeLeads.length > 0 && (
-            <Button
-              type="button"
-              onClick={handleConfirm}
-              disabled={isLoading}
-              className="bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-700 dark:hover:bg-yellow-600 text-white"
-            >
-              {isLoading ? "Creando..." : "Crear de todos modos"}
-            </Button>
-          )}
-          {activeLeads.length === 0 && closedLeads.length > 0 && (
-            <Button
-              type="button"
-              onClick={handleConfirm}
-              disabled={isLoading}
-              className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white"
-            >
-              {isLoading ? "Creando..." : "Crear nuevo lead"}
-            </Button>
-          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
